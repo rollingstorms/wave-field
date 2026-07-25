@@ -9,6 +9,9 @@ interface SquareProps {
   piece?: PieceModel;
   legal: boolean;
   selected: boolean;
+  dragging: boolean;
+  dragPreview: boolean;
+  influenceOpacity: number;
   highContrast: boolean;
   typeSums: Record<PieceType, number> | null;
   onClick: () => void;
@@ -20,20 +23,23 @@ function formatSigned(value: number) {
   return `${value > 0 ? "+" : ""}${magnitude.replace(".0", "")}`;
 }
 
-export function Square({ position, territory, fieldValue, piece, legal, selected, highContrast, typeSums, onClick }: SquareProps) {
+export function Square({ position, territory, fieldValue, piece, legal, selected, dragging, dragPreview, influenceOpacity, highContrast, typeSums, onClick }: SquareProps) {
   const marker = territory === "red" ? "+" : territory === "blue" ? "-" : "0";
   const typeSummary = typeSums
     ? ` Pawn ${formatSigned(typeSums.pawn)}, rook ${formatSigned(typeSums.rook)}, spy ${formatSigned(typeSums.spy)}, king ${formatSigned(typeSums.king)}.`
     : "";
   return (
     <button
-      className={`square ${territory} ${legal ? "legal" : ""} ${selected ? "selected-square" : ""} ${typeSums ? "type-sums-visible" : ""}`}
+      className={`square ${territory} ${legal ? "legal" : ""} ${selected ? "selected-square" : ""} ${dragPreview ? "drag-preview-square" : ""} ${typeSums ? "type-sums-visible" : ""}`}
       onClick={onClick}
+      data-board-x={position.x}
+      data-board-y={position.y}
       aria-label={`Square ${position.x + 1},${position.y + 1}. ${territory} territory. Field ${fieldValue.toFixed(3)}.${typeSummary}`}
     >
+      {influenceOpacity > 0 && <span className="influence-outline" style={{ opacity: influenceOpacity }} aria-hidden="true" />}
       {highContrast && <span className="territory-marker">{marker}</span>}
       {legal && <span className="legal-dot" />}
-      {piece && <Piece piece={piece} selected={selected} />}
+      {piece && <Piece piece={piece} selected={selected} dragging={dragging} />}
       {piece?.unstable && <span className="unstable" aria-label="unstable">!</span>}
       {typeSums && (
         <span className="type-sums" aria-hidden="true">
