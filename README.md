@@ -36,6 +36,11 @@ The resulting value determines the territory:
 Moving a piece changes its wave origin, so one move can reshape territory across
 the entire board.
 
+Every basis wave halves once per square ring: `1`, `1/2`, `1/4`, `1/8`, and so
+on. Coefficients and strengths are integers, so combined field totals are always
+dyadic fractions whose denominators are powers of two. A sum may be `3/8` or
+`5/16`, but never `1/3` or `1/5`.
+
 ## Pieces
 
 Each player begins with two pawns, two rooks, one spy, and one king. Blue moves

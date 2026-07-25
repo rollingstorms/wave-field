@@ -1,4 +1,6 @@
 import type { ComponentDefinitions, PlayerComponents } from "../game/types";
+import { WAVE_DECAY_BASE, WAVE_ORIGIN_SCALE } from "../game/constants";
+import type { BasisDefinition, FormulaPreset } from "../game/types";
 
 export const DEFAULT_COMPONENTS: PlayerComponents = {
   pawn: [1],
@@ -30,18 +32,44 @@ export function cloneDefinitions(definitions = DEFAULT_DEFINITIONS): ComponentDe
   return JSON.parse(JSON.stringify(definitions)) as ComponentDefinitions;
 }
 
+const formulaPresets: FormulaPreset[] = [
+  "checkerboard",
+  "diagonal-stripes",
+  "horizontal-versus-vertical",
+  "quadrants",
+  "constant-basin",
+  "skipped-rings",
+];
+
+export function validateDefinition(value: unknown): value is BasisDefinition {
+  if (!value || typeof value !== "object") return false;
+  const definition = value as BasisDefinition;
+  if (
+    typeof definition.name !== "string"
+    || definition.decayBase !== WAVE_DECAY_BASE
+    || definition.originScale !== WAVE_ORIGIN_SCALE
+  ) {
+    return false;
+  }
+  if (definition.kind === "preset") {
+    return formulaPresets.includes(definition.preset);
+  }
+  if (definition.kind === "ring") {
+    return definition.geometry === "chebyshev"
+      && typeof definition.repeat === "boolean"
+      && Array.isArray(definition.ringValues)
+      && definition.ringValues.length > 0
+      && definition.ringValues.every((coefficient) => coefficient === -1 || coefficient === 0 || coefficient === 1);
+  }
+  return false;
+}
+
 export function validateDefinitions(value: unknown): value is ComponentDefinitions {
   if (!value || typeof value !== "object") return false;
   const record = value as ComponentDefinitions;
   const counts = { pawn: 1, rook: 2, spy: 3, king: 4 };
   return (Object.keys(counts) as Array<keyof typeof counts>).every((type) => {
     const defs = record[type];
-    return Array.isArray(defs) && defs.length === counts[type] && defs.every((def) => {
-      if (!def || typeof def !== "object" || typeof def.name !== "string") return false;
-      if (typeof def.decayBase !== "number" || typeof def.originScale !== "number") return false;
-      if (def.kind === "preset") return typeof def.preset === "string";
-      if (def.kind === "ring") return Array.isArray(def.ringValues) && def.ringValues.every((v) => v === -1 || v === 0 || v === 1);
-      return false;
-    });
+    return Array.isArray(defs) && defs.length === counts[type] && defs.every(validateDefinition);
   });
 }

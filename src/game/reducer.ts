@@ -1,4 +1,4 @@
-import { cloneDefinitions, validateDefinitions } from "../field/componentDefinitions";
+import { cloneDefinitions, validateDefinition, validateDefinitions } from "../field/componentDefinitions";
 import { createInitialState, fromSnapshot } from "./initialState";
 import { applyMove, applyTuning, beginTurn } from "./rules";
 import type { BasisDefinition, Coefficient, GameState, PieceType, Position } from "./types";
@@ -35,6 +35,9 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
       return action.keepDefinitions ? { ...initial, definitions: state.definitions } : initial;
     }
     case "update-definition": {
+      if (!validateDefinition(action.definition)) {
+        return { ...state, message: "Wave definitions must use base-2 decay and origin scale 1" };
+      }
       const definitions = structuredClone(state.definitions);
       definitions[action.pieceType][action.componentIndex] = action.definition;
       return { ...state, definitions };

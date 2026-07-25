@@ -38,6 +38,18 @@ describe("field engine", () => {
     expect(Math.abs(evaluateBasis(basin, { x: 2, y: 0 }))).toBeCloseTo(Math.abs(evaluateBasis(basin, { x: 1, y: 0 })) / 2);
   });
 
+  it("every default basis value is zero or a signed power of two", () => {
+    const definitions = Object.values(DEFAULT_DEFINITIONS).flat();
+    for (const definition of definitions) {
+      for (let y = -6; y <= 6; y += 1) {
+        for (let x = -6; x <= 6; x += 1) {
+          const magnitude = Math.abs(evaluateBasis(definition, { x, y }));
+          expect(magnitude === 0 || Number.isInteger(Math.log2(magnitude))).toBe(true);
+        }
+      }
+    }
+  });
+
   it("rook +- equals strength times basis difference", () => {
     const state = tuned("rook", [1, -1]);
     const piece = state.pieces[0];
@@ -75,6 +87,21 @@ describe("field engine", () => {
           + typeFields.king[y][x],
         ).toBeCloseTo(field[y][x]);
       }
+    }
+  });
+
+  it("every generated field total is a dyadic rational", () => {
+    const state = createInitialState();
+    const values = [
+      ...evaluateField(state).flat(),
+      ...Object.values(evaluateTypeFields(state)).flatMap((field) => field.flat()),
+    ];
+    for (const value of values) {
+      const becomesInteger = Array.from(
+        { length: 13 },
+        (_, exponent) => value * Math.pow(2, exponent),
+      ).some(Number.isInteger);
+      expect(becomesInteger).toBe(true);
     }
   });
 

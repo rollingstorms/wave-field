@@ -54,4 +54,17 @@ describe("reducer", () => {
     const restarted = gameReducer(edited, { type: "restart", keepDefinitions: true });
     expect(restarted.definitions.pawn[0].name).toBe("Flat");
   });
+
+  it("rejects wave definitions that break base-2 decay", () => {
+    const state = createInitialState();
+    const edited = gameReducer(state, {
+      type: "update-definition",
+      pieceType: "pawn",
+      componentIndex: 0,
+      definition: { kind: "preset", name: "Thirds", preset: "constant-basin", decayBase: 3, originScale: 1 },
+    });
+
+    expect(edited.definitions.pawn[0]).toEqual(state.definitions.pawn[0]);
+    expect(edited.message).toContain("base-2 decay");
+  });
 });

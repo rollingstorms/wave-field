@@ -1,5 +1,7 @@
 export const BOARD_SIZE = 7;
 export const FIELD_EPSILON = 1e-9;
+export const WAVE_DECAY_BASE = 2;
+export const WAVE_ORIGIN_SCALE = 1;
 
 export const PIECE_STRENGTH = {
   pawn: 1,
