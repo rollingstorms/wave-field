@@ -3,7 +3,7 @@ import { PIECE_STRENGTH } from "./constants";
 import type { Coefficient, GameState, MoveResult, PieceType, Player, Position } from "./types";
 import { getLegalMoves, samePosition } from "./movement";
 import { canSetComponentValue } from "./tuning";
-import { getUnstablePieces, isKingTrapped, markInstability, resolveForcedRemovals } from "./victory";
+import { getUnstablePieces, isKingTrapped, markInstability, removeUnrescuedPieces, resolveForcedRemovals } from "./victory";
 import { snapshot } from "./initialState";
 
 export function opponent(player: Player): Player {
@@ -29,8 +29,14 @@ export function beginTurn(state: GameState): GameState {
 }
 
 function completeAction(previous: GameState, candidate: GameState): MoveResult {
+  const rescueDeadlineIds = new Set(
+    getUnstablePieces(previous.currentPlayer, previous, evaluateField(previous))
+      .filter((piece) => piece.type !== "king")
+      .map((piece) => piece.id),
+  );
   const marked = markInstability(candidate, evaluateField(candidate));
-  const selfResolved = resolveForcedRemovals(previous.currentPlayer, marked);
+  const deadlineResolved = removeUnrescuedPieces(previous.currentPlayer, marked, rescueDeadlineIds);
+  const selfResolved = resolveForcedRemovals(previous.currentPlayer, deadlineResolved);
   const selfField = evaluateField(selfResolved);
   if (isKingTrapped(previous.currentPlayer, selfResolved, selfField)) {
     return { ok: false, state: previous, reason: "That action would trap your own king." };

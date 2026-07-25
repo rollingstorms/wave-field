@@ -26,6 +26,24 @@ export function isKingTrapped(player: Player, state: GameState, field: number[][
   return getLegalMoves(king.id, state, field).length === 0;
 }
 
+export function removeUnrescuedPieces(
+  player: Player,
+  state: GameState,
+  rescueDeadlineIds: ReadonlySet<string>,
+  field: number[][] = evaluateField(state),
+): GameState {
+  const lostIds = new Set(
+    getUnstablePieces(player, state, field)
+      .filter((piece) => piece.type !== "king" && rescueDeadlineIds.has(piece.id))
+      .map((piece) => piece.id),
+  );
+  if (lostIds.size === 0) return state;
+  return {
+    ...state,
+    pieces: state.pieces.filter((piece) => !lostIds.has(piece.id)),
+  };
+}
+
 export function resolveForcedRemovals(
   player: Player,
   state: GameState,

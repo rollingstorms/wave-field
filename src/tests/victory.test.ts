@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { isKingTrapped, getUnstablePieces, resolveForcedRemovals } from "../game/victory";
+import { isKingTrapped, getUnstablePieces, removeUnrescuedPieces, resolveForcedRemovals } from "../game/victory";
 import { createInitialState } from "../game/initialState";
 import { applyMove } from "../game/rules";
 import type { GameState } from "../game/types";
@@ -47,6 +47,35 @@ describe("stability and victory", () => {
     state.components.blue.king = [1, 0, 0, 0];
     const resolved = resolveForcedRemovals("red", state);
     expect(resolved.pieces.map((piece) => piece.id)).not.toContain("red-pawn");
+  });
+
+  it("an unrescued piece still on hostile territory is lost", () => {
+    const state = createInitialState();
+    state.pieces = [
+      { id: "red-pawn-1", owner: "red", type: "pawn", position: { x: 1, y: 1 }, unstable: true },
+      { id: "red-pawn-2", owner: "red", type: "pawn", position: { x: 5, y: 5 }, unstable: true },
+      { id: "red-king", owner: "red", type: "king", position: { x: 3, y: 6 }, unstable: false },
+    ];
+    const hostile = field(0);
+    hostile[1][1] = -1;
+    hostile[5][5] = -1;
+
+    const resolved = removeUnrescuedPieces("red", state, new Set(["red-pawn-2"]), hostile);
+
+    expect(resolved.pieces.map((piece) => piece.id)).toContain("red-pawn-1");
+    expect(resolved.pieces.map((piece) => piece.id)).not.toContain("red-pawn-2");
+  });
+
+  it("an unrescued piece survives if the move stabilizes its square", () => {
+    const state = createInitialState();
+    state.pieces = [
+      { id: "red-pawn", owner: "red", type: "pawn", position: { x: 1, y: 1 }, unstable: true },
+      { id: "red-king", owner: "red", type: "king", position: { x: 3, y: 6 }, unstable: false },
+    ];
+
+    const resolved = removeUnrescuedPieces("red", state, new Set(["red-pawn"]), field(0));
+
+    expect(resolved.pieces.map((piece) => piece.id)).toContain("red-pawn");
   });
 
   it("self-trapping moves are illegal", () => {

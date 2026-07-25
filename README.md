@@ -103,6 +103,11 @@ their unstable pieces to a stable legal square. An unstable piece with no legal
 escape is removed, and the field is recalculated because its wave disappears.
 This can trigger further changes across the board.
 
+If several friendly pieces are unstable, moving one rescues only that piece.
+After the move, every other previously unstable piece that remains on hostile
+territory is removed. A threatened piece also survives if the rescue move
+changes the field enough to stabilize its square.
+
 Spies are never unstable and are never removed by hostile territory.
 
 ## Victory
