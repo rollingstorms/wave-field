@@ -1,5 +1,5 @@
 import { BOARD_SIZE, PIECE_STRENGTH } from "../game/constants";
-import type { ComponentDefinitions, GameState, Piece, Position } from "../game/types";
+import type { ComponentDefinitions, GameState, Piece, PieceType, Position } from "../game/types";
 import { offset } from "./distance";
 import { evaluateBasis } from "./kernels";
 
@@ -33,6 +33,27 @@ export function evaluateField(state: GameState, definitions: ComponentDefinition
       state.pieces.reduce((total, piece) => total + evaluateSignedPieceContribution(piece, { x, y }, state, definitions), 0),
     ),
   );
+}
+
+export type TypeFields = Record<PieceType, number[][]>;
+
+export function evaluateTypeFields(
+  state: GameState,
+  definitions: ComponentDefinitions = state.definitions,
+): TypeFields {
+  const pieceTypes: PieceType[] = ["pawn", "rook", "spy", "king"];
+  return Object.fromEntries(pieceTypes.map((pieceType) => {
+    const pieces = state.pieces.filter((piece) => piece.type === pieceType);
+    const field = Array.from({ length: BOARD_SIZE }, (_, y) =>
+      Array.from({ length: BOARD_SIZE }, (_, x) =>
+        pieces.reduce(
+            (total, piece) => total + evaluateSignedPieceContribution(piece, { x, y }, state, definitions),
+            0,
+        ),
+      ),
+    );
+    return [pieceType, field];
+  })) as TypeFields;
 }
 
 export function contributionGrid(piece: Piece, state: GameState, definitions: ComponentDefinitions = state.definitions): number[][] {

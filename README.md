@@ -130,9 +130,10 @@ The opening formation is rotationally symmetric:
 
 ## The Live Rules Demo
 
-The demo includes legal-move indicators, instability warnings, undo and restart,
-high-contrast territory markers, and a developer mode for inspecting the raw
-field, piece contributions, mobility, and editable wave definitions.
+The demo includes live wave-pattern thumbnails, a per-square piece-type
+contribution overlay, legal-move indicators, instability warnings, undo and
+restart, high-contrast territory markers, and a developer mode for inspecting
+the raw field, piece contributions, mobility, and editable wave definitions.
 
 The implementation is deterministic: the same position and component settings
 always produce the same field and legal moves.

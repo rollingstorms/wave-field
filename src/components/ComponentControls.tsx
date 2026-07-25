@@ -1,6 +1,7 @@
 import { COMPONENT_COUNTS, PIECE_STRENGTH } from "../game/constants";
 import { canSetComponentValue, getTuningLoad } from "../game/tuning";
 import type { Coefficient, GameState, PieceType } from "../game/types";
+import { WaveThumbnail } from "./WaveThumbnail";
 
 const pieceTypes: PieceType[] = ["pawn", "rook", "spy", "king"];
 const values: Coefficient[] = [1, 0, -1];
@@ -23,9 +24,12 @@ export function ComponentControls({ state, onTune }: ComponentControlsProps) {
       {pieceTypes.map((pieceType) => (
         <section className="component-group" key={pieceType}>
           <div className="piece-heading">
-            <strong>{pieceType.toUpperCase()}</strong>
-            <span>({COMPONENT_COUNTS[pieceType]} components)</span>
-            <span>Strength {getTuningLoad(state.components[player][pieceType])}/{PIECE_STRENGTH[pieceType]}</span>
+            <WaveThumbnail state={state} player={player} pieceType={pieceType} />
+            <div className="piece-heading-copy">
+              <strong>{pieceType.toUpperCase()}</strong>
+              <span>({COMPONENT_COUNTS[pieceType]} components)</span>
+              <span>Strength {getTuningLoad(state.components[player][pieceType])}/{PIECE_STRENGTH[pieceType]}</span>
+            </div>
           </div>
           {state.components[player][pieceType].map((coefficient, index) => (
             <div className="coefficient-row" key={`${pieceType}-${index}`}>

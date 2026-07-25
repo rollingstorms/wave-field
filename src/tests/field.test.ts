@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { DEFAULT_DEFINITIONS } from "../field/componentDefinitions";
-import { evaluateField, evaluatePieceContribution } from "../field/evaluateField";
+import { evaluateField, evaluatePieceContribution, evaluateTypeFields } from "../field/evaluateField";
 import { evaluateBasis } from "../field/kernels";
 import { FIELD_EPSILON } from "../game/constants";
 import { createInitialState } from "../game/initialState";
@@ -60,6 +60,22 @@ describe("field engine", () => {
     const without = evaluateField({ ...state, pieces: state.pieces.slice(1) });
     const contribution = -evaluatePieceContribution(removed, { x: 3, y: 3 }, state);
     expect(full[3][3] - without[3][3]).toBeCloseTo(contribution);
+  });
+
+  it("piece-type fields sum back to the complete field", () => {
+    const state = createInitialState();
+    const field = evaluateField(state);
+    const typeFields = evaluateTypeFields(state);
+    for (let y = 0; y < 7; y += 1) {
+      for (let x = 0; x < 7; x += 1) {
+        expect(
+          typeFields.pawn[y][x]
+          + typeFields.rook[y][x]
+          + typeFields.spy[y][x]
+          + typeFields.king[y][x],
+        ).toBeCloseTo(field[y][x]);
+      }
+    }
   });
 
   it("projection epsilon stays neutral around zero", async () => {

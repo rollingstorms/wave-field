@@ -5,7 +5,7 @@ import { DebugPanel } from "../components/DebugPanel";
 import { TurnStatus } from "../components/TurnStatus";
 import { WaveEditor } from "../components/WaveEditor";
 import { cloneDefinitions, DEFAULT_DEFINITIONS } from "../field/componentDefinitions";
-import { evaluateField } from "../field/evaluateField";
+import { evaluateField, evaluateTypeFields } from "../field/evaluateField";
 import { createInitialState } from "../game/initialState";
 import { gameReducer } from "../game/reducer";
 import type { BasisDefinition, PieceType, Position } from "../game/types";
@@ -14,8 +14,10 @@ export function App() {
   const [state, dispatch] = useReducer(gameReducer, undefined, createInitialState);
   const [developerMode, setDeveloperMode] = useState(false);
   const [highContrast, setHighContrast] = useState(false);
+  const [showTypeSums, setShowTypeSums] = useState(false);
   const [editorSelection, setEditorSelection] = useState<{ pieceType: PieceType; componentIndex: number }>({ pieceType: "rook", componentIndex: 0 });
   const field = useMemo(() => evaluateField(state), [state]);
+  const typeFields = useMemo(() => evaluateTypeFields(state), [state]);
 
   function updateDefinition(definition: BasisDefinition) {
     dispatch({ type: "update-definition", ...editorSelection, definition });
@@ -35,16 +37,20 @@ export function App() {
         state={state}
         developerMode={developerMode}
         highContrast={highContrast}
+        showTypeSums={showTypeSums}
         onUndo={() => dispatch({ type: "undo" })}
         onRestart={() => dispatch({ type: "restart", keepDefinitions: true })}
         onToggleDeveloper={() => setDeveloperMode((value) => !value)}
         onToggleContrast={() => setHighContrast((value) => !value)}
+        onToggleTypeSums={() => setShowTypeSums((value) => !value)}
       />
       <div className="play-area">
         <Board
           state={state}
           field={field}
+          typeFields={typeFields}
           highContrast={highContrast}
+          showTypeSums={showTypeSums}
           onSelect={(pieceId) => dispatch({ type: "select", pieceId })}
           onMove={(pieceId: string, destination: Position) => dispatch({ type: "move", pieceId, destination })}
         />
