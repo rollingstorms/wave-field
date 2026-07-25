@@ -48,13 +48,14 @@ first.
 
 | Piece | Wave components | Strength | Movement |
 |---|---:|---:|---|
-| Pawn | 1 | 1 | One adjacent square |
-| Rook | 2 | 2 | One adjacent square |
-| Spy | 3 | 1 | One adjacent square; ignores territory |
-| King | 4 | 2 | One adjacent square |
+| Pawn | 1 | 1 | Any distance in one direction |
+| Rook | 2 | 2 | Any distance in one direction |
+| Spy | 3 | 1 | Any distance in one direction |
+| King | 4 | 2 | Any distance in one direction |
 
-Adjacent movement includes all eight surrounding squares, including diagonals.
-Despite their familiar names, pieces do not use chess movement.
+Every piece uses the same movement rule. A direction may be horizontal, vertical,
+or diagonal, giving eight possible rays. Despite their familiar names, pieces
+do not use chess movement.
 
 ## Turn
 
@@ -86,13 +87,14 @@ player's rook settings, while the opposing player controls a separate set.
 
 ## Movement and Territory
 
-All destinations must be on the board, adjacent, and unoccupied. Pieces cannot
-capture by moving onto another piece; both friendly and opposing pieces block
-the square.
+Choose one of the eight directions and move any distance along that ray. Every
+crossed square, including the destination, must be unoccupied and either
+friendly territory or Neutral. The first occupied or hostile square stops the
+ray, so pieces cannot jump or turn during a move.
 
-- Red pawns, rooks, and kings may enter Red or Neutral territory.
-- Blue pawns, rooks, and kings may enter Blue or Neutral territory.
-- Spies may enter any unoccupied adjacent square.
+- Red pieces may move through Red or Neutral territory.
+- Blue pieces may move through Blue or Neutral territory.
+- Pieces cannot capture by collision; friendly and opposing pieces both block.
 
 ## Instability
 
@@ -115,7 +117,7 @@ Spies are never unstable and are never removed by hostile territory.
 A king is trapped when:
 
 1. It occupies hostile territory.
-2. It has no unoccupied adjacent square in friendly or neutral territory.
+2. It has no legal escape along any unblocked friendly or neutral ray.
 
 When a move produces that state for the opposing king, the moving player wins.
 Kings are not captured or removed.

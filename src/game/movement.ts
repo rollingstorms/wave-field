@@ -14,16 +14,26 @@ export function getPieceAt(state: GameState, position: Position): Piece | undefi
   return state.pieces.find((piece) => samePosition(piece.position, position));
 }
 
-export function isAdjacent(a: Position, b: Position): boolean {
-  const dx = Math.abs(a.x - b.x);
-  const dy = Math.abs(a.y - b.y);
-  return dx <= 1 && dy <= 1 && dx + dy > 0;
+function movementStep(origin: Position, destination: Position): Position | null {
+  const dx = destination.x - origin.x;
+  const dy = destination.y - origin.y;
+  if (dx === 0 && dy === 0) return null;
+  if (dx !== 0 && dy !== 0 && Math.abs(dx) !== Math.abs(dy)) return null;
+  return { x: Math.sign(dx), y: Math.sign(dy) };
 }
 
 export function canPieceEnter(piece: Piece, destination: Position, state: GameState, field: number[][]): boolean {
-  if (!inBounds(destination) || !isAdjacent(piece.position, destination)) return false;
-  if (getPieceAt(state, destination)) return false;
-  return piece.type === "spy" || isSquareCompatible(piece.owner, field[destination.y][destination.x]);
+  if (!inBounds(destination)) return false;
+  const step = movementStep(piece.position, destination);
+  if (!step) return false;
+
+  let position = { x: piece.position.x + step.x, y: piece.position.y + step.y };
+  while (inBounds(position)) {
+    if (getPieceAt(state, position) || !isSquareCompatible(piece.owner, field[position.y][position.x])) return false;
+    if (samePosition(position, destination)) return true;
+    position = { x: position.x + step.x, y: position.y + step.y };
+  }
+  return false;
 }
 
 export function getLegalMoves(pieceId: string, state: GameState, field: number[][]): Position[] {
@@ -32,8 +42,13 @@ export function getLegalMoves(pieceId: string, state: GameState, field: number[]
   const moves: Position[] = [];
   for (let dy = -1; dy <= 1; dy += 1) {
     for (let dx = -1; dx <= 1; dx += 1) {
-      const destination = { x: piece.position.x + dx, y: piece.position.y + dy };
-      if (canPieceEnter(piece, destination, state, field)) moves.push(destination);
+      if (dx === 0 && dy === 0) continue;
+      let destination = { x: piece.position.x + dx, y: piece.position.y + dy };
+      while (inBounds(destination)) {
+        if (getPieceAt(state, destination) || !isSquareCompatible(piece.owner, field[destination.y][destination.x])) break;
+        moves.push(destination);
+        destination = { x: destination.x + dx, y: destination.y + dy };
+      }
     }
   }
   return moves;

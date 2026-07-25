@@ -5,7 +5,7 @@ import type { GameState } from "../game/types";
 
 const zeroField = () => Array.from({ length: 7 }, () => Array.from({ length: 7 }, () => 0));
 
-function onePieceState(type: "pawn" | "spy", owner: "red" | "blue" = "red"): GameState {
+function onePieceState(type: "pawn" | "rook" | "spy" | "king", owner: "red" | "blue" = "red"): GameState {
   const state = createInitialState();
   state.pieces = [{ id: `${owner}-${type}`, owner, type, position: { x: 3, y: 3 }, unstable: false }];
   return state;
@@ -26,21 +26,37 @@ describe("movement", () => {
     expect(getLegalMoves("blue-pawn", state, field)).not.toContainEqual({ x: 4, y: 3 });
   });
 
-  it("both sides can enter neutral territory and move diagonally", () => {
+  it("pieces can slide any distance along a neutral diagonal", () => {
     const state = onePieceState("pawn", "red");
-    expect(getLegalMoves("red-pawn", state, zeroField())).toContainEqual({ x: 4, y: 4 });
+    expect(getLegalMoves("red-pawn", state, zeroField())).toContainEqual({ x: 6, y: 6 });
   });
 
-  it("spies can enter hostile unoccupied territory", () => {
+  it("spies obey the same territory restriction while moving", () => {
     const state = onePieceState("spy", "red");
     const field = zeroField();
     field[3][4] = -1;
-    expect(getLegalMoves("red-spy", state, field)).toContainEqual({ x: 4, y: 3 });
+    expect(getLegalMoves("red-spy", state, field)).not.toContainEqual({ x: 4, y: 3 });
   });
 
-  it("occupied squares block movement", () => {
+  it("occupied squares block themselves and every square beyond them", () => {
     const state = onePieceState("pawn", "red");
     state.pieces.push({ id: "blue-pawn", owner: "blue", type: "pawn", position: { x: 4, y: 3 }, unstable: false });
     expect(getLegalMoves("red-pawn", state, zeroField())).not.toContainEqual({ x: 4, y: 3 });
+    expect(getLegalMoves("red-pawn", state, zeroField())).not.toContainEqual({ x: 5, y: 3 });
+  });
+
+  it("hostile territory blocks every square beyond it on the ray", () => {
+    const state = onePieceState("rook", "red");
+    const field = zeroField();
+    field[3][5] = -1;
+    const moves = getLegalMoves("red-rook", state, field);
+    expect(moves).toContainEqual({ x: 4, y: 3 });
+    expect(moves).not.toContainEqual({ x: 5, y: 3 });
+    expect(moves).not.toContainEqual({ x: 6, y: 3 });
+  });
+
+  it("pieces cannot turn while moving", () => {
+    const state = onePieceState("king", "red");
+    expect(getLegalMoves("red-king", state, zeroField())).not.toContainEqual({ x: 5, y: 4 });
   });
 });
