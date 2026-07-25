@@ -5,10 +5,10 @@
   --text: #eeeae1;
   --muted: #aaa9a3;
   --red: #c84b40;
-  --red-piece: #7f211d;
+  --red-piece: #ffaaa3;
   --neutral: #b8b5ad;
   --blue: #3766a7;
-  --blue-piece: #123663;
+  --blue-piece: #a9cbff;
   --focus: #eeeae1;
 }
 
@@ -44,7 +44,7 @@ button:focus-visible, select:focus-visible {
 }
 
 .topbar, .play-area {
-  width: min(1200px, 100%);
+  width: 100%;
   margin: 0 auto;
 }
 
@@ -105,8 +105,8 @@ h1 {
 
 .play-area {
   display: grid;
-  grid-template-columns: minmax(420px, 820px) 320px;
-  gap: 32px;
+  grid-template-columns: minmax(0, 1fr) clamp(280px, 24vw, 360px);
+  gap: clamp(16px, 2vw, 32px);
   align-items: start;
   margin-top: 26px;
 }
@@ -114,6 +114,7 @@ h1 {
 .board-wrap {
   display: grid;
   gap: 10px;
+  min-width: 0;
 }
 
 .files {
