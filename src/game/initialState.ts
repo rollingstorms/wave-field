@@ -1,0 +1,56 @@
+import { cloneDefinitions, DEFAULT_COMPONENTS } from "../field/componentDefinitions";
+import type { GameSnapshot, GameState, Piece, Player, PieceType } from "./types";
+
+function piece(owner: Player, type: PieceType, x: number, y: number, n: number): Piece {
+  return { id: `${owner}-${type}-${n}`, owner, type, position: { x, y }, unstable: false };
+}
+
+export function createInitialPieces(): Piece[] {
+  return [
+    piece("blue", "rook", 2, 0, 1),
+    piece("blue", "king", 3, 0, 1),
+    piece("blue", "rook", 4, 0, 2),
+    piece("blue", "pawn", 2, 1, 1),
+    piece("blue", "spy", 3, 1, 1),
+    piece("blue", "pawn", 4, 1, 2),
+    piece("red", "pawn", 2, 5, 1),
+    piece("red", "spy", 3, 5, 1),
+    piece("red", "pawn", 4, 5, 2),
+    piece("red", "rook", 2, 6, 1),
+    piece("red", "king", 3, 6, 1),
+    piece("red", "rook", 4, 6, 2),
+  ];
+}
+
+export function createInitialState(): GameState {
+  return {
+    pieces: createInitialPieces(),
+    currentPlayer: "blue",
+    components: {
+      blue: structuredClone(DEFAULT_COMPONENTS),
+      red: structuredClone(DEFAULT_COMPONENTS),
+    },
+    definitions: cloneDefinitions(),
+    selectedPieceId: null,
+    status: "playing",
+    history: [],
+    turnNumber: 1,
+    message: "Blue to move",
+  };
+}
+
+export function snapshot(state: GameState): GameSnapshot {
+  return {
+    pieces: structuredClone(state.pieces),
+    currentPlayer: state.currentPlayer,
+    components: structuredClone(state.components),
+    status: state.status,
+    selectedPieceId: state.selectedPieceId,
+    turnNumber: state.turnNumber,
+    definitions: structuredClone(state.definitions),
+  };
+}
+
+export function fromSnapshot(snap: GameSnapshot, history: GameSnapshot[] = []): GameState {
+  return { ...structuredClone(snap), history, message: `${snap.currentPlayer === "blue" ? "Blue" : "Red"} to move` };
+}
