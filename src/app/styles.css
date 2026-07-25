@@ -152,6 +152,8 @@ h1 {
   border: 1px solid var(--line);
   touch-action: none;
   user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
 }
 
 .square {
@@ -162,6 +164,9 @@ h1 {
   min-height: 0;
   padding: 0;
   cursor: grab;
+  touch-action: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
 }
 
 .square.red { background: var(--red); }
@@ -383,13 +388,19 @@ h1 {
 }
 
 .coefficient-row button {
-  height: 36px;
-  min-height: 36px;
+  height: 48px;
+  min-height: 48px;
   font-size: 1.2rem;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: rgba(238, 234, 225, 0.18);
 }
 
 .coefficient-row .chosen.red { background: var(--red); }
 .coefficient-row .chosen.blue { background: var(--blue); }
+
+.coefficient-row button:disabled:not(.chosen) {
+  opacity: 0.38;
+}
 
 .developer {
   width: min(1200px, 100%);

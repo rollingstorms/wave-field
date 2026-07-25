@@ -97,9 +97,6 @@ export function applyTuning(
   nextComponents[player][pieceType][componentIndex] = value;
   const candidate = { ...state, components: nextComponents };
   const marked = markInstability(candidate, evaluateField(candidate));
-  if (isKingTrapped(player, marked, evaluateField(marked))) {
-    return { ok: false, state, reason: "That tuning would trap your own king." };
-  }
 
   return {
     ok: true,

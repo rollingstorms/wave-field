@@ -66,8 +66,9 @@ During a turn, a player may:
 
 Moving a piece ends the turn. Tuning does not.
 
-A player may not make a tuning change or move that leaves their own king
-spectrally trapped.
+A tuning change may temporarily leave the player's king spectrally trapped
+because the player can keep tuning during the turn. The turn-ending move must
+leave their king safe.
 
 ## Tuning
 

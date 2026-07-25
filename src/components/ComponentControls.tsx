@@ -37,6 +37,7 @@ export function ComponentControls({ state, onTune }: ComponentControlsProps) {
               {values.map((value) => (
                 <button
                   key={value}
+                  type="button"
                   className={coefficient === value ? `chosen ${player}` : ""}
                   disabled={
                     state.status !== "playing"
@@ -44,6 +45,7 @@ export function ComponentControls({ state, onTune }: ComponentControlsProps) {
                     || !canSetComponentValue(state.components[player], pieceType, index, value)
                   }
                   onClick={() => onTune(pieceType, index, value)}
+                  aria-pressed={coefficient === value}
                   aria-label={`${player} ${pieceType} component ${index + 1} set to ${label(value)}`}
                 >
                   {label(value)}

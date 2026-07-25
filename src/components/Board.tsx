@@ -1,5 +1,9 @@
 import { useMemo, useRef, useState } from "react";
-import type { MouseEvent as ReactMouseEvent, PointerEvent as ReactPointerEvent } from "react";
+import type {
+  MouseEvent as ReactMouseEvent,
+  PointerEvent as ReactPointerEvent,
+  TouchEvent as ReactTouchEvent,
+} from "react";
 import { BOARD_SIZE } from "../game/constants";
 import { contributionGrid, evaluateField, evaluateTypeFields } from "../field/evaluateField";
 import type { TypeFields } from "../field/evaluateField";
@@ -20,7 +24,8 @@ interface BoardProps {
 
 interface ActiveDrag {
   pieceId: string;
-  pointerId: number;
+  contactId: number;
+  input: "pointer" | "touch";
   start: Position;
   legalMoves: Position[];
 }
@@ -73,34 +78,33 @@ export function Board({ state, field, typeFields, highContrast, showTypeSums, on
     return x >= 0 && x < BOARD_SIZE && y >= 0 && y < BOARD_SIZE ? position : null;
   }
 
-  function handlePointerDown(event: ReactPointerEvent<HTMLDivElement>) {
-    if (event.button !== 0 || state.status !== "playing") return;
-    const position = positionFromPointer(event.clientX, event.clientY);
+  function startDrag(contactId: number, input: ActiveDrag["input"], clientX: number, clientY: number) {
+    if (state.status !== "playing" || dragRef.current) return false;
+    const position = positionFromPointer(clientX, clientY);
     const piece = position ? getPieceAt(state, position) : undefined;
-    if (!piece || piece.owner !== state.currentPlayer) return;
+    if (!piece || piece.owner !== state.currentPlayer) return false;
 
     const moves = getLegalMoves(piece.id, state, field);
-    dragRef.current = { pieceId: piece.id, pointerId: event.pointerId, start: piece.position, legalMoves: moves };
+    dragRef.current = { pieceId: piece.id, contactId, input, start: piece.position, legalMoves: moves };
     setDraggingPieceId(piece.id);
     setDragPreview(piece.position);
     onSelect(piece.id);
-    event.currentTarget.setPointerCapture(event.pointerId);
-    event.preventDefault();
+    return true;
   }
 
-  function handlePointerMove(event: ReactPointerEvent<HTMLDivElement>) {
+  function updateDrag(contactId: number, input: ActiveDrag["input"], clientX: number, clientY: number) {
     const drag = dragRef.current;
-    if (!drag || drag.pointerId !== event.pointerId) return;
-    const position = positionFromPointer(event.clientX, event.clientY);
+    if (!drag || drag.contactId !== contactId || drag.input !== input) return false;
+    const position = positionFromPointer(clientX, clientY);
     const legal = position && drag.legalMoves.some((move) => samePosition(move, position));
     setDragPreview(legal ? position : drag.start);
-    event.preventDefault();
+    return true;
   }
 
-  function finishDrag(event: ReactPointerEvent<HTMLDivElement>, commit: boolean) {
+  function completeDrag(contactId: number, input: ActiveDrag["input"], clientX: number, clientY: number, commit: boolean) {
     const drag = dragRef.current;
-    if (!drag || drag.pointerId !== event.pointerId) return;
-    const position = positionFromPointer(event.clientX, event.clientY);
+    if (!drag || drag.contactId !== contactId || drag.input !== input) return false;
+    const position = positionFromPointer(clientX, clientY);
     const destination = commit && position && drag.legalMoves.some((move) => samePosition(move, position))
       ? position
       : null;
@@ -115,13 +119,51 @@ export function Board({ state, field, typeFields, highContrast, showTypeSums, on
       onSelect(drag.pieceId);
     }
 
-    if (event.currentTarget.hasPointerCapture(event.pointerId)) {
-      event.currentTarget.releasePointerCapture(event.pointerId);
-    }
     dragRef.current = null;
     setDraggingPieceId(null);
     setDragPreview(null);
+    return true;
+  }
+
+  function handlePointerDown(event: ReactPointerEvent<HTMLDivElement>) {
+    if (event.pointerType === "touch" || event.button !== 0) return;
+    if (!startDrag(event.pointerId, "pointer", event.clientX, event.clientY)) return;
+    event.currentTarget.setPointerCapture(event.pointerId);
     event.preventDefault();
+  }
+
+  function handlePointerMove(event: ReactPointerEvent<HTMLDivElement>) {
+    if (updateDrag(event.pointerId, "pointer", event.clientX, event.clientY)) event.preventDefault();
+  }
+
+  function finishPointerDrag(event: ReactPointerEvent<HTMLDivElement>, commit: boolean) {
+    if (!completeDrag(event.pointerId, "pointer", event.clientX, event.clientY, commit)) return;
+    if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+      event.currentTarget.releasePointerCapture(event.pointerId);
+    }
+    event.preventDefault();
+  }
+
+  function handleTouchStart(event: ReactTouchEvent<HTMLDivElement>) {
+    const touch = event.changedTouches[0];
+    if (!touch || !startDrag(touch.identifier, "touch", touch.clientX, touch.clientY)) return;
+    event.preventDefault();
+  }
+
+  function handleTouchMove(event: ReactTouchEvent<HTMLDivElement>) {
+    const drag = dragRef.current;
+    if (!drag || drag.input !== "touch") return;
+    const touch = Array.from(event.touches).find((candidate) => candidate.identifier === drag.contactId);
+    if (touch && updateDrag(touch.identifier, "touch", touch.clientX, touch.clientY)) event.preventDefault();
+  }
+
+  function finishTouchDrag(event: ReactTouchEvent<HTMLDivElement>, commit: boolean) {
+    const drag = dragRef.current;
+    if (!drag || drag.input !== "touch") return;
+    const touch = Array.from(event.changedTouches).find((candidate) => candidate.identifier === drag.contactId);
+    const clientX = touch?.clientX ?? -1;
+    const clientY = touch?.clientY ?? -1;
+    if (completeDrag(drag.contactId, "touch", clientX, clientY, commit)) event.preventDefault();
   }
 
   function handleClickCapture(event: ReactMouseEvent<HTMLDivElement>) {
@@ -164,8 +206,12 @@ export function Board({ state, field, typeFields, highContrast, showTypeSums, on
           ref={boardRef}
           onPointerDown={handlePointerDown}
           onPointerMove={handlePointerMove}
-          onPointerUp={(event) => finishDrag(event, true)}
-          onPointerCancel={(event) => finishDrag(event, false)}
+          onPointerUp={(event) => finishPointerDrag(event, true)}
+          onPointerCancel={(event) => finishPointerDrag(event, false)}
+          onTouchStart={handleTouchStart}
+          onTouchMove={handleTouchMove}
+          onTouchEnd={(event) => finishTouchDrag(event, true)}
+          onTouchCancel={(event) => finishTouchDrag(event, false)}
           onClickCapture={handleClickCapture}
         >
           {Array.from({ length: BOARD_SIZE }, (_, y) =>
