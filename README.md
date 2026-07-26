@@ -105,17 +105,18 @@ ray, so pieces cannot jump or turn during a move.
 
 ## Instability
 
-A non-spy piece standing on hostile territory is **unstable**.
-
-If a player has an unstable non-king piece when they move, they must move one of
-their unstable pieces to a stable legal square. An unstable piece with no legal
-escape is removed, and the field is recalculated because its wave disappears.
-This can trigger further changes across the board.
+A non-spy piece standing on hostile territory is **unstable**. The player may
+rescue it by moving that piece to a safe square or by moving a different piece
+whose relocated wave makes the unstable piece's square friendly or Neutral.
 
 If several friendly pieces are unstable, moving one rescues only that piece.
 After the move, every other previously unstable piece that remains on hostile
 territory is removed. A threatened piece also survives if the rescue move
 changes the field enough to stabilize its square.
+
+Every unresolved unstable piece is removed after the move, and the field is
+recalculated because its wave disappears. This can trigger further changes
+across the board.
 
 Spies are never unstable and are never removed by hostile territory.
 

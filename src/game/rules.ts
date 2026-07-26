@@ -64,10 +64,6 @@ export function applyMove(pieceId: string, destination: Position, state: GameSta
   const piece = state.pieces.find((candidate) => candidate.id === pieceId);
   if (!piece || piece.owner !== state.currentPlayer) return { ok: false, state, reason: "Choose one of your pieces." };
 
-  const unstable = getUnstablePieces(state.currentPlayer, state, field).filter((candidate) => candidate.type !== "king");
-  if (unstable.length > 0 && !unstable.some((candidate) => candidate.id === pieceId)) {
-    return { ok: false, state, reason: "You must rescue an unstable piece." };
-  }
   if (!getLegalMoves(pieceId, state, field).some((move) => samePosition(move, destination))) {
     return { ok: false, state, reason: "That square is not a legal move." };
   }

@@ -78,6 +78,38 @@ describe("stability and victory", () => {
     expect(resolved.pieces.map((piece) => piece.id)).toContain("red-pawn");
   });
 
+  it("moving a different piece can rescue an unstable piece by changing the field", () => {
+    const state = createInitialState();
+    state.pieces = [
+      { id: "blue-pawn", owner: "blue", type: "pawn", position: { x: 3, y: 3 }, unstable: true },
+      { id: "blue-spy", owner: "blue", type: "spy", position: { x: 2, y: 3 }, unstable: false },
+    ];
+    state.components.blue.pawn = [0];
+    state.components.blue.spy = [1, 0, 0];
+
+    const result = applyMove("blue-spy", { x: 2, y: 2 }, state);
+    const pawn = result.state.pieces.find((piece) => piece.id === "blue-pawn");
+
+    expect(result.ok).toBe(true);
+    expect(pawn).toBeDefined();
+    expect(pawn?.unstable).toBe(false);
+  });
+
+  it("moving a different piece removes an unstable piece that remains hostile", () => {
+    const state = createInitialState();
+    state.pieces = [
+      { id: "blue-pawn", owner: "blue", type: "pawn", position: { x: 3, y: 3 }, unstable: true },
+      { id: "blue-spy", owner: "blue", type: "spy", position: { x: 2, y: 3 }, unstable: false },
+    ];
+    state.components.blue.pawn = [0];
+    state.components.blue.spy = [1, 0, 0];
+
+    const result = applyMove("blue-spy", { x: 0, y: 3 }, state);
+
+    expect(result.ok).toBe(true);
+    expect(result.state.pieces.some((piece) => piece.id === "blue-pawn")).toBe(false);
+  });
+
   it("moves that leave the moving player's king unprotected are illegal and not offered", () => {
     const state = createInitialState();
     state.pieces = [
