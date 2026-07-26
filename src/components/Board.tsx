@@ -249,6 +249,12 @@ export function Board({ state, field, typeFields, highContrast, showTypeSums, on
         <div className="ranks right">{Array.from({ length: BOARD_SIZE }, (_, i) => <span key={i}>{BOARD_SIZE - i}</span>)}</div>
       </div>
       <div className="files bottom">{Array.from({ length: BOARD_SIZE }, (_, x) => <span key={x}>{x + 1}</span>)}</div>
+      {selectedPiece?.unstable && (
+        <p className="piece-alert-hint" role="status" aria-live="polite">
+          <strong>UNSTABLE PIECE</strong>
+          Move this piece or tune the field until its square is friendly or neutral. Otherwise it disappears when the turn ends.
+        </p>
+      )}
     </section>
   );
 }

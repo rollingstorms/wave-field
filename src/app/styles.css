@@ -211,6 +211,22 @@ h1 {
   color: var(--text);
 }
 
+.piece-alert-hint {
+  margin: 2px 31px 0;
+  padding: 10px 12px;
+  border: 1px solid var(--influence);
+  background: #171919;
+  color: var(--text);
+  font-size: 0.82rem;
+  line-height: 1.45;
+}
+
+.piece-alert-hint strong {
+  display: block;
+  margin-bottom: 2px;
+  color: var(--influence);
+}
+
 .type-sums {
   position: absolute;
   inset: 0;
@@ -549,6 +565,10 @@ select, .editor-bar button, .secondary, .import-button {
   }
   .ranks {
     font-size: 1rem;
+  }
+  .piece-alert-hint {
+    margin-right: 16px;
+    margin-left: 16px;
   }
   .type-sum-value {
     padding: 1px;
