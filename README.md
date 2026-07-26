@@ -11,11 +11,9 @@ This repository is a live, playable application of the current rules:
 
 ## Objective
 
-Win by **spectrally trapping the opposing king**: place it on hostile territory
-with no legal escape to friendly or neutral territory.
-
-A stable king with no available moves does not lose. The king must be both
-unstable and unable to escape.
+Win by **leaving the opposing king unprotected**: complete a move that places
+the opposing king on hostile territory. The opposing king does not receive a
+rescue turn, even if it would otherwise have a legal escape.
 
 ## The Field
 
@@ -46,12 +44,12 @@ dyadic fractions whose denominators are powers of two. A sum may be `3/8` or
 Each player begins with two pawns, two rooks, one spy, and one king. Blue moves
 first.
 
-| Piece | Wave components | Strength | Movement |
-|---|---:|---:|---|
-| Pawn | 1 | 1 | Any distance in one direction |
-| Rook | 2 | 2 | Any distance in one direction |
-| Spy | 3 | 1 | Any distance in one direction, ignoring territory |
-| King | 3 tunable + 1 fixed Neutral | 2 | Any distance in one direction |
+| Piece | Wave components | Strength | Default | Movement |
+|---|---:|---:|---|---|
+| Pawn | 1 | 1 | `+` | Any distance in one direction |
+| Rook | 2 | 2 | `+ -` | Any distance in one direction |
+| Spy | 3 | 1 | `+ 0 0` | Any distance in one direction, ignoring territory |
+| King | 3 tunable + 1 fixed Neutral | 2 | `+ 0 0` | Any distance in one direction |
 
 A direction may be horizontal, vertical, or diagonal, giving eight possible
 rays. Despite their familiar names, pieces do not use chess movement.
@@ -70,9 +68,9 @@ During a turn, a player may:
 
 Moving a piece ends the turn. Tuning does not.
 
-A tuning change may temporarily leave the player's king spectrally trapped
-because the player can keep tuning during the turn. The turn-ending move must
-leave their king safe.
+A tuning change may temporarily leave the player's king unprotected because the
+player can keep tuning during the turn. The turn-ending move must leave their
+king safe.
 
 ## Tuning
 
@@ -89,14 +87,13 @@ activate only one.
 
 Tuning is shared by piece type. Both of a player's rooks always use that
 player's rook settings, while the opposing player controls a separate set.
-Rooks begin each game tuned to `+ -`.
 
 ## Movement and Territory
 
-Choose one of the eight directions and move any distance along that ray. Every
-crossed square, including the destination, must be unoccupied and either
-friendly territory or Neutral. The first occupied or hostile square stops the
-ray, so pieces cannot jump or turn during a move.
+Choose one of the eight directions and move any distance along that ray. For
+non-spy pieces, every crossed square, including the destination, must be
+unoccupied and either friendly territory or Neutral. The first occupied or
+hostile square stops the ray, so pieces cannot jump or turn during a move.
 
 - Red pieces may move through Red or Neutral territory.
 - Blue pieces may move through Blue or Neutral territory.
@@ -108,17 +105,16 @@ ray, so pieces cannot jump or turn during a move.
 A non-spy piece standing on hostile territory is **unstable**. The player may
 rescue it by moving that piece to a safe square or by moving a different piece
 whose relocated wave makes the unstable piece's square friendly or Neutral.
-A piece made unstable by the opponent remains on the board for its owner's
-entire next turn, including all tuning changes and the turn-ending move.
+A newly unstable non-king piece remains on the board through its owner's next
+turn, including all tuning changes and the turn-ending move.
 
-If several friendly pieces are unstable, moving one rescues only that piece.
-After the move, every other previously unstable piece that remains on hostile
-territory is removed. A threatened piece also survives if the rescue move
-changes the field enough to stabilize its square.
+One move may rescue multiple unstable pieces if the resulting field stabilizes
+all of their squares. Any piece that was unstable at the start of the turn and
+remains on hostile territory after the move is removed.
 
-Every unresolved unstable piece is removed after the move, and the field is
-recalculated because its wave disappears. This can trigger further changes
-across the board.
+The field is recalculated after each removal because the lost piece's wave
+disappears. This can trigger further removals among pieces whose rescue deadline
+has arrived.
 
 Spies are never unstable and are never removed by hostile territory.
 
@@ -149,11 +145,12 @@ The opening formation is rotationally symmetric:
 
 ## The Live Rules Demo
 
-The demo includes a faded-board selected-piece influence overlay, drag-to-preview field
-updates, live wave-pattern thumbnails, a per-square piece-type contribution
-overlay, legal-move indicators, instability warnings, undo and restart,
-high-contrast territory markers, and a developer mode for inspecting the raw
-field, piece contributions, mobility, and editable wave definitions.
+The demo includes a faded-board selected-piece influence overlay,
+drag-to-preview field updates, live wave-pattern thumbnails, a per-square
+piece-type contribution overlay, legal-move indicators, instability warnings,
+undo and restart, high-contrast territory markers, and a developer mode for
+inspecting the raw field, piece contributions, mobility, and editable wave
+definitions.
 
 The implementation is deterministic: the same position and component settings
 always produce the same field and legal moves.
