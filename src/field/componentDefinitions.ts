@@ -4,26 +4,26 @@ import type { BasisDefinition, FormulaPreset } from "../game/types";
 
 export const DEFAULT_COMPONENTS: PlayerComponents = {
   pawn: [1],
-  rook: [1, -1],
+  rook: [1, 1],
   spy: [1, 0, 0],
-  king: [0, 1, 0],
+  king: [0, 1, 1],
 };
 
 export const DEFAULT_DEFINITIONS: ComponentDefinitions = {
   pawn: [{ kind: "preset", name: "Checkerboard", preset: "checkerboard", decayBase: 2, originScale: 1 }],
   rook: [
     { kind: "ring", name: "Paired rings", geometry: "chebyshev", ringValues: [1, 1, -1, -1], repeat: true, decayBase: 2, originScale: 1 },
-    { kind: "ring", name: "Shifted paired rings", geometry: "chebyshev", ringValues: [1, -1, -1, 1], repeat: true, decayBase: 2, originScale: 1 },
+    { kind: "ring", name: "Outer sink", geometry: "chebyshev", ringValues: [-1, 0, 0, 1], repeat: true, decayBase: 2, originScale: 1 },
   ],
   spy: [
     { kind: "preset", name: "Pawn mask", preset: "checkerboard", decayBase: 2, originScale: 1 },
-    { kind: "preset", name: "Diagonal stripes", preset: "diagonal-stripes", decayBase: 2, originScale: 1 },
-    { kind: "preset", name: "Skipped rings", preset: "skipped-rings", decayBase: 2, originScale: 1 },
+    { kind: "preset", name: "Diamond core", preset: "diamond-core", decayBase: 2, originScale: 1 },
+    { kind: "preset", name: "Axis favor", preset: "axis-favor", decayBase: 2, originScale: 1 },
   ],
   king: [
     { kind: "ring", name: "Slow alternating rings", geometry: "chebyshev", ringValues: [1, 1, 1, -1, -1, -1], repeat: true, decayBase: 2, originScale: 1 },
     { kind: "preset", name: "Horizontal mode", preset: "horizontal-versus-vertical", decayBase: 2, originScale: 1 },
-    { kind: "preset", name: "Diagonal mode", preset: "quadrants", decayBase: 2, originScale: 1 },
+    { kind: "preset", name: "Block checker", preset: "block-checker", decayBase: 2, originScale: 1 },
   ],
 };
 

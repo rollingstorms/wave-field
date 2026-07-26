@@ -3,11 +3,11 @@ import { createInitialState } from "../game/initialState";
 import { canSetComponentValue, getTuningLoad, isTuningWithinStrength } from "../game/tuning";
 
 describe("component strength budget", () => {
-  it("starts both players' rooks at positive-negative", () => {
+  it("starts both players' rooks at positive-positive", () => {
     const state = createInitialState();
 
-    expect(state.components.blue.rook).toEqual([1, -1]);
-    expect(state.components.red.rook).toEqual([1, -1]);
+    expect(state.components.blue.rook).toEqual([1, 1]);
+    expect(state.components.red.rook).toEqual([1, 1]);
   });
 
   it("counts positive and negative coefficients as active", () => {
@@ -31,8 +31,9 @@ describe("component strength budget", () => {
   it("starts the king with a neutral C1", () => {
     const state = createInitialState();
 
-    expect(state.components.blue.king).toEqual([0, 1, 0]);
-    expect(state.components.red.king).toEqual([0, 1, 0]);
-    expect(canSetComponentValue(state.components.blue, "king", 0, -1)).toBe(true);
+    expect(state.components.blue.king).toEqual([0, 1, 1]);
+    expect(state.components.red.king).toEqual([0, 1, 1]);
+    expect(canSetComponentValue(state.components.blue, "king", 0, -1)).toBe(false);
+    expect(canSetComponentValue(state.components.blue, "king", 2, 0)).toBe(true);
   });
 });

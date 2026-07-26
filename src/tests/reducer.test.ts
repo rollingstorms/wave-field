@@ -41,7 +41,7 @@ describe("reducer", () => {
     const kingFlipped = gameReducer(pawnFlipped, { type: "tune", pieceType: "king", componentIndex: 1, value: -1 });
 
     expect(pawnFlipped.components.blue.pawn).toEqual([-1]);
-    expect(kingFlipped.components.blue.king).toEqual([0, -1, 0]);
+    expect(kingFlipped.components.blue.king).toEqual([0, -1, 1]);
     expect(kingFlipped.currentPlayer).toBe("blue");
   });
 
@@ -49,16 +49,16 @@ describe("reducer", () => {
     const state = createInitialState();
     const tuned = gameReducer(state, { type: "tune", pieceType: "king", componentIndex: 1, value: -1 });
 
-    expect(tuned.components.blue.king).toEqual([0, -1, 0]);
+    expect(tuned.components.blue.king).toEqual([0, -1, 1]);
     expect(tuned.message).toContain("move a piece to end the turn");
   });
 
-  it("allows tuning the king's initially neutral C1 component", () => {
+  it("rejects activating the king's neutral C1 while already at full strength", () => {
     const state = createInitialState();
     const tuned = gameReducer(state, { type: "tune", pieceType: "king", componentIndex: 0, value: -1 });
 
-    expect(tuned.components.blue.king).toEqual([-1, 1, 0]);
-    expect(tuned.message).toContain("move a piece to end the turn");
+    expect(tuned.components.blue.king).toEqual([0, 1, 1]);
+    expect(tuned.message).toContain("up to 2 active components");
   });
 
   it("undo restores the previous in-turn tuning state", () => {
@@ -89,24 +89,24 @@ describe("reducer", () => {
 
   it("applies edited default controls to both players on restart", () => {
     const state = createInitialState();
-    const edited = gameReducer(state, { type: "update-default-component", pieceType: "king", componentIndex: 0, value: -1 });
+    const edited = gameReducer(state, { type: "update-default-component", pieceType: "king", componentIndex: 2, value: 0 });
 
-    expect(edited.components.blue.king).toEqual([0, 1, 0]);
-    expect(edited.defaultComponents.king).toEqual([-1, 1, 0]);
+    expect(edited.components.blue.king).toEqual([0, 1, 1]);
+    expect(edited.defaultComponents.king).toEqual([0, 1, 0]);
 
     const restarted = gameReducer(edited, { type: "restart", keepDefinitions: true });
-    expect(restarted.components.blue.king).toEqual([-1, 1, 0]);
-    expect(restarted.components.red.king).toEqual([-1, 1, 0]);
+    expect(restarted.components.blue.king).toEqual([0, 1, 0]);
+    expect(restarted.components.red.king).toEqual([0, 1, 0]);
   });
 
   it("keeps edited defaults when undoing a game action", () => {
     const state = createInitialState();
     const tuned = gameReducer(state, { type: "tune", pieceType: "pawn", componentIndex: 0, value: -1 });
-    const edited = gameReducer(tuned, { type: "update-default-component", pieceType: "king", componentIndex: 0, value: -1 });
+    const edited = gameReducer(tuned, { type: "update-default-component", pieceType: "king", componentIndex: 2, value: 0 });
     const undone = gameReducer(edited, { type: "undo" });
 
     expect(undone.components.blue.pawn).toEqual([1]);
-    expect(undone.defaultComponents.king).toEqual([-1, 1, 0]);
+    expect(undone.defaultComponents.king).toEqual([0, 1, 0]);
   });
 
   it("rejects default controls beyond a piece's strength", () => {

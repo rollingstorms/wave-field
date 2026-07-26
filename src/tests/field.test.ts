@@ -90,13 +90,13 @@ describe("field engine", () => {
     expect(evaluatePieceContribution(spy.pieces[0], { x: 2, y: 2 }, spy)).toBeCloseTo(evaluatePieceContribution(pawn.pieces[0], { x: 2, y: 2 }, pawn));
   });
 
-  it("diagonal stripes are distinct from the checkerboard preset", () => {
+  it("diamond core is distinct from the checkerboard preset", () => {
     const checkerboard = DEFAULT_DEFINITIONS.pawn[0];
-    const diagonalStripes = DEFAULT_DEFINITIONS.spy[1];
+    const diamondCore = DEFAULT_DEFINITIONS.spy[1];
 
     expect(evaluateBasis(checkerboard, { x: 1, y: 0 })).toBeLessThan(0);
-    expect(evaluateBasis(diagonalStripes, { x: 1, y: 0 })).toBeGreaterThan(0);
-    expect(evaluateBasis(diagonalStripes, { x: 2, y: 0 })).toBeLessThan(0);
+    expect(evaluateBasis(diamondCore, { x: 1, y: 0 })).toBeGreaterThan(0);
+    expect(evaluateBasis(diamondCore, { x: 3, y: 0 })).toBeLessThan(0);
   });
 
   it("all formula presets evaluate and validate", () => {
