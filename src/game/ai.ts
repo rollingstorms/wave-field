@@ -1,9 +1,10 @@
 import { evaluateField } from "../field/evaluateField";
 import { isSquareCompatible } from "../field/projection";
-import { COMPONENT_COUNTS, PIECE_STRENGTH } from "./constants";
+import { COMPONENT_COUNTS } from "./constants";
 import { snapshot } from "./initialState";
 import { getLegalMoves } from "./movement";
 import { applyMove } from "./rules";
+import { isTuningWithinStrength } from "./tuning";
 import type { Coefficient, GameState, PieceType, Player, PlayerComponents } from "./types";
 import { getUnstablePieces, markInstability } from "./victory";
 
@@ -17,7 +18,7 @@ function componentProfiles(pieceType: PieceType): Coefficient[][] {
 
   function build(values: Coefficient[]) {
     if (values.length === count) {
-      if (values.filter((value) => value !== 0).length <= PIECE_STRENGTH[pieceType]) {
+      if (isTuningWithinStrength(pieceType, values)) {
         profiles.push(values);
       }
       return;

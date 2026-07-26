@@ -5,7 +5,12 @@ export function getTuningLoad(coefficients: readonly Coefficient[]): number {
   return coefficients.filter((coefficient) => coefficient !== 0).length;
 }
 
+export function isComponentLocked(pieceType: PieceType, componentIndex: number): boolean {
+  return pieceType === "king" && componentIndex === 0;
+}
+
 export function isTuningWithinStrength(pieceType: PieceType, coefficients: readonly Coefficient[]): boolean {
+  if (pieceType === "king" && coefficients[0] !== 0) return false;
   return getTuningLoad(coefficients) <= PIECE_STRENGTH[pieceType];
 }
 

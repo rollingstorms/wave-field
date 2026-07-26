@@ -15,16 +15,23 @@ describe("component strength budget", () => {
   });
 
   it("limits the combined number of positive and negative components", () => {
-    expect(isTuningWithinStrength("king", [1, -1, 0])).toBe(true);
-    expect(isTuningWithinStrength("king", [1, -1, 1])).toBe(false);
+    expect(isTuningWithinStrength("king", [0, 1, -1])).toBe(true);
+    expect(isTuningWithinStrength("king", [1, 0, 0])).toBe(false);
   });
 
   it("allows flipping an active component while at full strength", () => {
     const components = createInitialState().components.blue;
-    components.king = [1, -1, 0];
+    components.king = [0, 1, -1];
 
-    expect(canSetComponentValue(components, "king", 0, -1)).toBe(true);
-    expect(canSetComponentValue(components, "king", 2, 1)).toBe(false);
+    expect(canSetComponentValue(components, "king", 0, -1)).toBe(false);
+    expect(canSetComponentValue(components, "king", 2, 1)).toBe(true);
     expect(canSetComponentValue(components, "king", 1, 0)).toBe(true);
+  });
+
+  it("starts the king with C1 locked at Neutral", () => {
+    const state = createInitialState();
+
+    expect(state.components.blue.king).toEqual([0, 1, 0]);
+    expect(state.components.red.king).toEqual([0, 1, 0]);
   });
 });

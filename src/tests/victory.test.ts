@@ -45,7 +45,7 @@ describe("stability and victory", () => {
       { id: "blue-king", owner: "blue", type: "king", position: { x: 1, y: 1 }, unstable: false },
     ];
     state.components.red.pawn = [0];
-    state.components.blue.king = [1, 0, 0];
+    state.components.blue.king = [0, 1, 0];
     const started = beginTurn(state);
 
     expect(started.pieces.map((piece) => piece.id)).toContain("red-pawn");

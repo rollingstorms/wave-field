@@ -37,19 +37,27 @@ describe("reducer", () => {
   it("allows active pawn and king components to flip sign", () => {
     const state = createInitialState();
     const pawnFlipped = gameReducer(state, { type: "tune", pieceType: "pawn", componentIndex: 0, value: -1 });
-    const kingFlipped = gameReducer(pawnFlipped, { type: "tune", pieceType: "king", componentIndex: 0, value: -1 });
+    const kingFlipped = gameReducer(pawnFlipped, { type: "tune", pieceType: "king", componentIndex: 1, value: -1 });
 
     expect(pawnFlipped.components.blue.pawn).toEqual([-1]);
-    expect(kingFlipped.components.blue.king).toEqual([-1, 0, 0]);
+    expect(kingFlipped.components.blue.king).toEqual([0, -1, 0]);
     expect(kingFlipped.currentPlayer).toBe("blue");
   });
 
   it("allows temporary self-trapping tuning before the turn-ending move", () => {
     const state = createInitialState();
-    const tuned = gameReducer(state, { type: "tune", pieceType: "king", componentIndex: 0, value: -1 });
+    const tuned = gameReducer(state, { type: "tune", pieceType: "king", componentIndex: 1, value: -1 });
 
-    expect(tuned.components.blue.king).toEqual([-1, 0, 0]);
+    expect(tuned.components.blue.king).toEqual([0, -1, 0]);
     expect(tuned.message).toContain("move a piece to end the turn");
+  });
+
+  it("rejects tuning the king's locked C1 component", () => {
+    const state = createInitialState();
+    const tuned = gameReducer(state, { type: "tune", pieceType: "king", componentIndex: 0, value: 1 });
+
+    expect(tuned.components.blue.king).toEqual([0, 1, 0]);
+    expect(tuned.message).toContain("fixed at Neutral");
   });
 
   it("undo restores the previous in-turn tuning state", () => {
