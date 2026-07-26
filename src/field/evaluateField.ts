@@ -1,7 +1,7 @@
 import { BOARD_SIZE, PIECE_STRENGTH } from "../game/constants";
 import type { ComponentDefinitions, GameState, Piece, PieceType, Position } from "../game/types";
 import { offset } from "./distance";
-import { evaluateBasis } from "./kernels";
+import { evaluateComponentBasis } from "./kernels";
 
 export function evaluatePieceContribution(
   piece: Piece,
@@ -12,9 +12,8 @@ export function evaluatePieceContribution(
   const coefficients = state.components[piece.owner][piece.type];
   const bases = definitions[piece.type];
   const delta = offset(piece.position, square);
-  if (piece.type === "king" && delta.x === 0 && delta.y === 0) return 0;
   return PIECE_STRENGTH[piece.type] * coefficients.reduce<number>((total, coefficient, index) => {
-    return total + coefficient * evaluateBasis(bases[index], delta);
+    return total + coefficient * evaluateComponentBasis(piece.type, bases[index], delta);
   }, 0);
 }
 

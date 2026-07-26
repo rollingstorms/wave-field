@@ -1,5 +1,5 @@
 import { BOARD_SIZE } from "../game/constants";
-import { evaluateBasis } from "../field/kernels";
+import { evaluateComponentBasis } from "../field/kernels";
 import type { BasisDefinition, Coefficient, ComponentDefinitions, FormulaPreset, PieceType } from "../game/types";
 
 const pieceTypes: PieceType[] = ["pawn", "rook", "spy", "king"];
@@ -49,15 +49,15 @@ function label(value: number) {
   return value > 0 ? "+" : value < 0 ? "-" : "0";
 }
 
-function kernelValues(definition: BasisDefinition) {
+function kernelValues(pieceType: PieceType, definition: BasisDefinition) {
   return Array.from({ length: BOARD_SIZE }, (_, y) =>
-    Array.from({ length: BOARD_SIZE }, (_, x) => evaluateBasis(definition, { x: x - 3, y: y - 3 })),
+    Array.from({ length: BOARD_SIZE }, (_, x) => evaluateComponentBasis(pieceType, definition, { x: x - 3, y: y - 3 })),
   );
 }
 
 export function WaveEditor({ definitions, selected, onSelect, onUpdate, onResetSelected, onResetAll, onImport }: WaveEditorProps) {
   const definition = definitions[selected.pieceType][selected.componentIndex];
-  const grid = kernelValues(definition);
+  const grid = kernelValues(selected.pieceType, definition);
 
   function updateRingValue(index: number, value: Coefficient) {
     const base: BasisDefinition = definition.kind === "ring"

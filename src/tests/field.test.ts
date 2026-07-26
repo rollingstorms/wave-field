@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { DEFAULT_DEFINITIONS, validateDefinition } from "../field/componentDefinitions";
 import { evaluateField, evaluatePieceContribution, evaluateTypeFields } from "../field/evaluateField";
-import { evaluateBasis } from "../field/kernels";
+import { evaluateBasis, evaluateComponentBasis } from "../field/kernels";
 import { FIELD_EPSILON } from "../game/constants";
 import { createInitialState } from "../game/initialState";
 import type { Coefficient, FormulaPreset, GameState, PieceType } from "../game/types";
@@ -94,10 +94,19 @@ describe("field engine", () => {
     const king = tuned("king", [0, 1, 1]);
     king.pieces[0].type = "king";
     const pawn = tuned("pawn", [1]);
+    const typeFields = evaluateTypeFields(king);
 
     expect(evaluatePieceContribution(king.pieces[0], { x: 3, y: 3 }, king)).toBe(0);
+    expect(typeFields.king[3][3]).toBe(0);
     expect(evaluatePieceContribution(king.pieces[0], { x: 4, y: 3 }, king)).not.toBe(0);
     expect(evaluatePieceContribution(pawn.pieces[0], { x: 3, y: 3 }, pawn)).not.toBe(0);
+  });
+
+  it("king component basis has a neutral center in previews", () => {
+    const blockChecker = DEFAULT_DEFINITIONS.king[2];
+    expect(evaluateBasis(blockChecker, { x: 0, y: 0 })).not.toBe(0);
+    expect(evaluateComponentBasis("king", blockChecker, { x: 0, y: 0 })).toBe(0);
+    expect(evaluateComponentBasis("rook", blockChecker, { x: 0, y: 0 })).not.toBe(0);
   });
 
   it("diamond core is distinct from the checkerboard preset", () => {

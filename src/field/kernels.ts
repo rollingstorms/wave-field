@@ -1,4 +1,4 @@
-import type { BasisDefinition, Coefficient, FormulaPreset, Position } from "../game/types";
+import type { BasisDefinition, Coefficient, FormulaPreset, PieceType, Position } from "../game/types";
 
 function ring(offset: Position): number {
   return Math.max(Math.abs(offset.x), Math.abs(offset.y));
@@ -81,4 +81,9 @@ export function evaluateBasis(definition: BasisDefinition, delta: Position): num
   const index = definition.repeat ? r % definition.ringValues.length : r;
   const sign = definition.ringValues[index] ?? 0;
   return sign * multiplier;
+}
+
+export function evaluateComponentBasis(pieceType: PieceType, definition: BasisDefinition, delta: Position): number {
+  if (pieceType === "king" && delta.x === 0 && delta.y === 0) return 0;
+  return evaluateBasis(definition, delta);
 }
