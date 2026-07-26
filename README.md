@@ -108,6 +108,8 @@ ray, so pieces cannot jump or turn during a move.
 A non-spy piece standing on hostile territory is **unstable**. The player may
 rescue it by moving that piece to a safe square or by moving a different piece
 whose relocated wave makes the unstable piece's square friendly or Neutral.
+A piece made unstable by the opponent remains on the board for its owner's
+entire next turn, including all tuning changes and the turn-ending move.
 
 If several friendly pieces are unstable, moving one rescues only that piece.
 After the move, every other previously unstable piece that remains on hostile

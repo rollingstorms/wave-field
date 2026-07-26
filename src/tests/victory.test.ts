@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
-import { isKingUnprotected, getUnstablePieces, removeUnrescuedPieces, resolveForcedRemovals } from "../game/victory";
+import { isKingUnprotected, getUnstablePieces, removeUnrescuedPieces } from "../game/victory";
 import { createInitialState } from "../game/initialState";
-import { applyMove, getPlayableMoves } from "../game/rules";
+import { applyMove, beginTurn, getPlayableMoves } from "../game/rules";
 import type { GameState } from "../game/types";
 
 const field = (value = 0) => Array.from({ length: 7 }, () => Array.from({ length: 7 }, () => value));
@@ -37,16 +37,40 @@ describe("stability and victory", () => {
     expect(isKingUnprotected("red", state, field(-1))).toBe(true);
   });
 
-  it("unstable piece without escape is removed at turn start", () => {
+  it("an unstable piece without a direct escape still gets its rescue turn", () => {
     const state = createInitialState();
+    state.currentPlayer = "red";
     state.pieces = [
       { id: "red-pawn", owner: "red", type: "pawn", position: { x: 0, y: 0 }, unstable: true },
       { id: "blue-king", owner: "blue", type: "king", position: { x: 1, y: 1 }, unstable: false },
     ];
     state.components.red.pawn = [0];
     state.components.blue.king = [1, 0, 0];
-    const resolved = resolveForcedRemovals("red", state);
-    expect(resolved.pieces.map((piece) => piece.id)).not.toContain("red-pawn");
+    const started = beginTurn(state);
+
+    expect(started.pieces.map((piece) => piece.id)).toContain("red-pawn");
+    expect(started.message).toContain("must rescue an unstable pawn");
+  });
+
+  it("an opponent piece made unstable by a move survives into its rescue turn", () => {
+    const state = createInitialState();
+    state.pieces = [
+      { id: "blue-king", owner: "blue", type: "king", position: { x: 0, y: 0 }, unstable: false },
+      { id: "blue-spy", owner: "blue", type: "spy", position: { x: 1, y: 1 }, unstable: false },
+      { id: "red-pawn", owner: "red", type: "pawn", position: { x: 6, y: 6 }, unstable: false },
+    ];
+    state.components.blue.king = [0, 0, 0];
+    state.components.blue.spy = [-1, 0, 0];
+    state.components.red.pawn = [0];
+
+    const result = applyMove("blue-spy", { x: 0, y: 1 }, state);
+    const pawn = result.state.pieces.find((piece) => piece.id === "red-pawn");
+
+    expect(result.ok).toBe(true);
+    expect(result.state.currentPlayer).toBe("red");
+    expect(pawn).toBeDefined();
+    expect(pawn?.unstable).toBe(true);
+    expect(result.state.message).toContain("must rescue an unstable pawn");
   });
 
   it("an unrescued piece still on hostile territory is lost", () => {

@@ -3,7 +3,7 @@ import { PIECE_STRENGTH } from "./constants";
 import type { Coefficient, GameState, MoveResult, PieceType, Player, Position } from "./types";
 import { getLegalMoves, samePosition } from "./movement";
 import { canSetComponentValue } from "./tuning";
-import { getUnstablePieces, isKingUnprotected, markInstability, removeUnrescuedPieces, resolveForcedRemovals } from "./victory";
+import { getUnstablePieces, isKingUnprotected, markInstability, removeUnrescuedPieces } from "./victory";
 import { snapshot } from "./initialState";
 
 export function opponent(player: Player): Player {
@@ -16,7 +16,7 @@ function winStatus(winner: Player) {
 
 export function beginTurn(state: GameState): GameState {
   if (state.status !== "playing") return state;
-  const resolved = resolveForcedRemovals(state.currentPlayer, state);
+  const resolved = markInstability(state, evaluateField(state));
   const field = evaluateField(resolved);
   if (isKingUnprotected(state.currentPlayer, resolved, field)) {
     return { ...resolved, status: winStatus(opponent(state.currentPlayer)), message: `${state.currentPlayer === "red" ? "Red" : "Blue"} king is unprotected` };
@@ -36,8 +36,8 @@ function completeAction(previous: GameState, candidate: GameState): MoveResult {
   );
   const marked = markInstability(candidate, evaluateField(candidate));
   const deadlineResolved = removeUnrescuedPieces(previous.currentPlayer, marked, rescueDeadlineIds);
-  const selfResolved = resolveForcedRemovals(previous.currentPlayer, deadlineResolved);
-  const selfField = evaluateField(selfResolved);
+  const selfField = evaluateField(deadlineResolved);
+  const selfResolved = markInstability(deadlineResolved, selfField);
   if (isKingUnprotected(previous.currentPlayer, selfResolved, selfField)) {
     return { ok: false, state: previous, reason: "That move would leave your king unprotected." };
   }

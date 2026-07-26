@@ -1,7 +1,6 @@
 import { evaluateField } from "../field/evaluateField";
 import { isSquareCompatible } from "../field/projection";
-import type { ComponentDefinitions, GameState, Piece, Player } from "./types";
-import { getLegalMoves } from "./movement";
+import type { GameState, Piece, Player } from "./types";
 
 export function getUnstablePieces(player: Player, state: GameState, field: number[][]): Piece[] {
   return state.pieces.filter((piece) => {
@@ -31,34 +30,16 @@ export function removeUnrescuedPieces(
   rescueDeadlineIds: ReadonlySet<string>,
   field: number[][] = evaluateField(state),
 ): GameState {
-  const lostIds = new Set(
-    getUnstablePieces(player, state, field)
-      .filter((piece) => piece.type !== "king" && rescueDeadlineIds.has(piece.id))
-      .map((piece) => piece.id),
-  );
-  if (lostIds.size === 0) return state;
-  return {
-    ...state,
-    pieces: state.pieces.filter((piece) => !lostIds.has(piece.id)),
-  };
-}
-
-export function resolveForcedRemovals(
-  player: Player,
-  state: GameState,
-  definitions: ComponentDefinitions = state.definitions,
-): GameState {
   let next = state;
-  let changed = true;
-  while (changed) {
-    changed = false;
-    const field = evaluateField(next, definitions);
-    const stranded = getUnstablePieces(player, next, field).filter((piece) => piece.type !== "king" && getLegalMoves(piece.id, next, field).length === 0);
-    if (stranded.length > 0) {
-      const ids = new Set(stranded.map((piece) => piece.id));
-      next = { ...next, pieces: next.pieces.filter((piece) => !ids.has(piece.id)) };
-      changed = true;
-    }
+  let currentField = field;
+  while (true) {
+    const lostIds = new Set(
+      getUnstablePieces(player, next, currentField)
+        .filter((piece) => piece.type !== "king" && rescueDeadlineIds.has(piece.id))
+        .map((piece) => piece.id),
+    );
+    if (lostIds.size === 0) return next;
+    next = { ...next, pieces: next.pieces.filter((piece) => !lostIds.has(piece.id)) };
+    currentField = evaluateField(next);
   }
-  return markInstability(next, evaluateField(next, definitions));
 }
