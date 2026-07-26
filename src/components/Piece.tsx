@@ -15,8 +15,8 @@ export function Piece({ piece, selected, dragging }: PieceProps) {
       {piece.type === "rook" && <path d="M16 52V16h8v8h8v-8h8v8h8v28Z" />}
       {piece.type === "king" && (
         <>
-          <path d="M18 41c0-15 6-25 14-25s14 10 14 25Z" />
-          <path d="M8 40h48c0 7-10 10-24 10S8 47 8 40Z" />
+          <path d="M20 47V20a12 12 0 0 1 24 0v27Z" />
+          <path d="M8 47h48v7H8Z" />
         </>
       )}
     </svg>
