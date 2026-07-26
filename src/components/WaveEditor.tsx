@@ -20,7 +20,7 @@ function componentCount(pieceType: PieceType) {
   return definitionsShape[pieceType];
 }
 
-const definitionsShape = { pawn: 1, rook: 2, spy: 3, king: 4 } as const;
+const definitionsShape = { pawn: 1, rook: 2, spy: 3, king: 3 } as const;
 
 function label(value: number) {
   return value > 0 ? "+" : value < 0 ? "-" : "0";

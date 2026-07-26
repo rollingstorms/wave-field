@@ -14,5 +14,5 @@ export const COMPONENT_COUNTS = {
   pawn: 1,
   rook: 2,
   spy: 3,
-  king: 4,
+  king: 3,
 } as const;

@@ -8,13 +8,13 @@ describe("component strength budget", () => {
   });
 
   it("limits the combined number of positive and negative components", () => {
-    expect(isTuningWithinStrength("king", [1, -1, 0, 0])).toBe(true);
-    expect(isTuningWithinStrength("king", [1, -1, 1, 0])).toBe(false);
+    expect(isTuningWithinStrength("king", [1, -1, 0])).toBe(true);
+    expect(isTuningWithinStrength("king", [1, -1, 1])).toBe(false);
   });
 
   it("allows flipping an active component while at full strength", () => {
     const components = createInitialState().components.blue;
-    components.king = [1, -1, 0, 0];
+    components.king = [1, -1, 0];
 
     expect(canSetComponentValue(components, "king", 0, -1)).toBe(true);
     expect(canSetComponentValue(components, "king", 2, 1)).toBe(false);

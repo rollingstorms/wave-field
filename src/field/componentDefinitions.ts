@@ -6,7 +6,7 @@ export const DEFAULT_COMPONENTS: PlayerComponents = {
   pawn: [1],
   rook: [1, 1],
   spy: [1, 0, 0],
-  king: [1, 0, 0, 0],
+  king: [1, 0, 0],
 };
 
 export const DEFAULT_DEFINITIONS: ComponentDefinitions = {
@@ -21,7 +21,6 @@ export const DEFAULT_DEFINITIONS: ComponentDefinitions = {
     { kind: "preset", name: "Skipped rings", preset: "skipped-rings", decayBase: 2, originScale: 1 },
   ],
   king: [
-    { kind: "preset", name: "Constant basin", preset: "constant-basin", decayBase: 2, originScale: 1 },
     { kind: "ring", name: "Slow alternating rings", geometry: "chebyshev", ringValues: [1, 1, 1, -1, -1, -1], repeat: true, decayBase: 2, originScale: 1 },
     { kind: "preset", name: "Horizontal mode", preset: "horizontal-versus-vertical", decayBase: 2, originScale: 1 },
     { kind: "preset", name: "Diagonal mode", preset: "quadrants", decayBase: 2, originScale: 1 },
@@ -67,7 +66,7 @@ export function validateDefinition(value: unknown): value is BasisDefinition {
 export function validateDefinitions(value: unknown): value is ComponentDefinitions {
   if (!value || typeof value !== "object") return false;
   const record = value as ComponentDefinitions;
-  const counts = { pawn: 1, rook: 2, spy: 3, king: 4 };
+  const counts = { pawn: 1, rook: 2, spy: 3, king: 3 };
   return (Object.keys(counts) as Array<keyof typeof counts>).every((type) => {
     const defs = record[type];
     return Array.isArray(defs) && defs.length === counts[type] && defs.every(validateDefinition);

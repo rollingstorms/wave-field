@@ -44,7 +44,7 @@ describe("stability and victory", () => {
       { id: "blue-king", owner: "blue", type: "king", position: { x: 1, y: 1 }, unstable: false },
     ];
     state.components.red.pawn = [0];
-    state.components.blue.king = [1, 0, 0, 0];
+    state.components.blue.king = [1, 0, 0];
     const resolved = resolveForcedRemovals("red", state);
     expect(resolved.pieces.map((piece) => piece.id)).not.toContain("red-pawn");
   });
@@ -85,9 +85,9 @@ describe("stability and victory", () => {
       { id: "blue-pawn", owner: "blue", type: "pawn", position: { x: 1, y: 1 }, unstable: false },
       { id: "red-king", owner: "red", type: "king", position: { x: 6, y: 6 }, unstable: false },
     ];
-    state.components.blue.king = [-1, 0, 0, 0];
+    state.components.blue.king = [-1, 0, 0];
     state.components.blue.pawn = [0];
-    state.components.red.king = [1, 0, 0, 0];
+    state.components.red.king = [1, 0, 0];
     const result = applyMove("blue-pawn", { x: 1, y: 0 }, state);
     expect(result.ok).toBe(false);
   });

@@ -51,10 +51,15 @@ first.
 | Pawn | 1 | 1 | Any distance in one direction |
 | Rook | 2 | 2 | Any distance in one direction |
 | Spy | 3 | 1 | Any distance in one direction, ignoring territory |
-| King | 4 | 2 | Any distance in one direction |
+| King | 3 tunable + 1 fixed Neutral | 2 | Any distance in one direction |
 
 A direction may be horizontal, vertical, or diagonal, giving eight possible
 rays. Despite their familiar names, pieces do not use chess movement.
+
+The king's highest-frequency component is permanently Neutral and is not part
+of the controls. Its three lower-frequency components remain tunable. This
+prevents the king from activating that band to protect itself and preserves the
+possibility of a spectral trap.
 
 ## Turn
 
@@ -78,7 +83,7 @@ Each component can be set to:
 - `-` for a negative wave.
 
 The number of active `+` and `-` components combined cannot exceed that piece
-type's strength. For example, the king has four available components but may
+type's strength. For example, the king has three tunable components but may
 activate only two at once; the spy has three available components but may
 activate only one.
 

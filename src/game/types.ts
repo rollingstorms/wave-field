@@ -28,7 +28,7 @@ export interface PlayerComponents {
   pawn: [Coefficient];
   rook: [Coefficient, Coefficient];
   spy: [Coefficient, Coefficient, Coefficient];
-  king: [Coefficient, Coefficient, Coefficient, Coefficient];
+  king: [Coefficient, Coefficient, Coefficient];
 }
 
 export interface RingBasisDefinition {
