@@ -13,7 +13,7 @@ function presetSign(preset: FormulaPreset, delta: Position, r: number): Coeffici
     case "checkerboard":
       return (Math.abs(delta.x) + Math.abs(delta.y)) % 2 === 0 ? 1 : -1;
     case "diagonal-stripes":
-      return Math.abs(delta.x - delta.y) % 2 === 0 ? 1 : -1;
+      return Math.floor(Math.abs(delta.x - delta.y) / 2) % 2 === 0 ? 1 : -1;
     case "horizontal-versus-vertical":
       return Math.abs(delta.x) >= Math.abs(delta.y) ? 1 : -1;
     case "quadrants":
