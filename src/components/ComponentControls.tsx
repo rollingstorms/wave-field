@@ -23,13 +23,16 @@ export function ComponentControls({ state, locked = false, onTune }: ComponentCo
         <span><i className="swatch blue" /> &lt; 0</span>
       </div>
       {pieceTypes.map((pieceType) => (
-        <section className="component-group" key={pieceType}>
+        <section className={`component-group components-${COMPONENT_COUNTS[pieceType]}`} key={pieceType}>
           <div className="piece-heading">
             <WaveThumbnail state={state} player={player} pieceType={pieceType} />
             <div className="piece-heading-copy">
               <strong>{pieceType.toUpperCase()}</strong>
-              <span>({COMPONENT_COUNTS[pieceType]} components)</span>
-              <span>Strength {getTuningLoad(state.components[player][pieceType])}/{PIECE_STRENGTH[pieceType]}</span>
+              <span className="component-count">({COMPONENT_COUNTS[pieceType]} components)</span>
+              <span className="strength">
+                <span className="strength-label">Strength </span>
+                {getTuningLoad(state.components[player][pieceType])}/{PIECE_STRENGTH[pieceType]}
+              </span>
             </div>
           </div>
           {state.components[player][pieceType].map((coefficient, index) => (
@@ -53,6 +56,23 @@ export function ComponentControls({ state, locked = false, onTune }: ComponentCo
                   {label(value)}
                 </button>
               ))}
+              <select
+                className="compact-coefficient"
+                value={coefficient}
+                disabled={locked || state.status !== "playing"}
+                onChange={(event) => onTune(pieceType, index, Number(event.target.value) as Coefficient)}
+                aria-label={`${player} ${pieceType} component ${index + 1}`}
+              >
+                {values.map((value) => (
+                  <option
+                    key={value}
+                    value={value}
+                    disabled={!canSetComponentValue(state.components[player], pieceType, index, value)}
+                  >
+                    {label(value)}
+                  </option>
+                ))}
+              </select>
             </div>
           ))}
         </section>
