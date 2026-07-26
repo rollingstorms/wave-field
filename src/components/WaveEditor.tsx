@@ -3,7 +3,22 @@ import { evaluateBasis } from "../field/kernels";
 import type { BasisDefinition, Coefficient, ComponentDefinitions, FormulaPreset, PieceType } from "../game/types";
 
 const pieceTypes: PieceType[] = ["pawn", "rook", "spy", "king"];
-const presets: FormulaPreset[] = ["checkerboard", "diagonal-stripes", "horizontal-versus-vertical", "quadrants", "constant-basin", "skipped-rings"];
+const presets: FormulaPreset[] = [
+  "checkerboard",
+  "diagonal-stripes",
+  "horizontal-versus-vertical",
+  "quadrants",
+  "constant-basin",
+  "skipped-rings",
+  "compass-rose",
+  "axis-favor",
+  "diagonal-favor",
+  "wide-bullseye",
+  "pulse-gap",
+  "block-checker",
+  "diamond-core",
+  "astigmatism",
+];
 const coefficients: Coefficient[] = [1, 0, -1];
 
 interface WaveEditorProps {

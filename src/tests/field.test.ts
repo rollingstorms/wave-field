@@ -1,10 +1,27 @@
 import { describe, expect, it } from "vitest";
-import { DEFAULT_DEFINITIONS } from "../field/componentDefinitions";
+import { DEFAULT_DEFINITIONS, validateDefinition } from "../field/componentDefinitions";
 import { evaluateField, evaluatePieceContribution, evaluateTypeFields } from "../field/evaluateField";
 import { evaluateBasis } from "../field/kernels";
 import { FIELD_EPSILON } from "../game/constants";
 import { createInitialState } from "../game/initialState";
-import type { Coefficient, GameState, PieceType } from "../game/types";
+import type { Coefficient, FormulaPreset, GameState, PieceType } from "../game/types";
+
+const allPresets: FormulaPreset[] = [
+  "checkerboard",
+  "diagonal-stripes",
+  "horizontal-versus-vertical",
+  "quadrants",
+  "constant-basin",
+  "skipped-rings",
+  "compass-rose",
+  "axis-favor",
+  "diagonal-favor",
+  "wide-bullseye",
+  "pulse-gap",
+  "block-checker",
+  "diamond-core",
+  "astigmatism",
+];
 
 function tuned(pieceType: PieceType, values: Coefficient[]): GameState {
   const state = createInitialState();
@@ -72,6 +89,14 @@ describe("field engine", () => {
     expect(evaluateBasis(checkerboard, { x: 1, y: 0 })).toBeLessThan(0);
     expect(evaluateBasis(diagonalStripes, { x: 1, y: 0 })).toBeGreaterThan(0);
     expect(evaluateBasis(diagonalStripes, { x: 2, y: 0 })).toBeLessThan(0);
+  });
+
+  it("all formula presets evaluate and validate", () => {
+    for (const preset of allPresets) {
+      const definition = { kind: "preset" as const, name: preset, preset, decayBase: 2, originScale: 1 };
+      expect(validateDefinition(definition)).toBe(true);
+      expect([-1, 0, 1]).toContain(Math.sign(evaluateBasis(definition, { x: 2, y: 1 })));
+    }
   });
 
   it("removing a piece removes exactly its contribution", () => {

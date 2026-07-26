@@ -9,7 +9,15 @@ export type FormulaPreset =
   | "horizontal-versus-vertical"
   | "quadrants"
   | "constant-basin"
-  | "skipped-rings";
+  | "skipped-rings"
+  | "compass-rose"
+  | "axis-favor"
+  | "diagonal-favor"
+  | "wide-bullseye"
+  | "pulse-gap"
+  | "block-checker"
+  | "diamond-core"
+  | "astigmatism";
 
 export interface Position {
   x: number;

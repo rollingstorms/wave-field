@@ -38,6 +38,14 @@ const formulaPresets: FormulaPreset[] = [
   "quadrants",
   "constant-basin",
   "skipped-rings",
+  "compass-rose",
+  "axis-favor",
+  "diagonal-favor",
+  "wide-bullseye",
+  "pulse-gap",
+  "block-checker",
+  "diamond-core",
+  "astigmatism",
 ];
 
 export function validateDefinition(value: unknown): value is BasisDefinition {
