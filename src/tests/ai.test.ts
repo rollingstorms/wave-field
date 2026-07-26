@@ -15,7 +15,7 @@ describe("heuristic opponent", () => {
     expect(result.history).toHaveLength(blueMove.state.history.length + 1);
   });
 
-  it("takes a checking move when one is available", () => {
+  it("takes a checkmate when one is available", () => {
     const state = createInitialState();
     state.currentPlayer = "red";
     state.pieces = [
@@ -29,8 +29,7 @@ describe("heuristic opponent", () => {
 
     const result = playHeuristicTurn(state);
 
-    expect(result.status).toBe("playing");
-    expect(result.currentPlayer).toBe("blue");
-    expect(result.message).toContain("Blue king is in check");
+    expect(result.status).toBe("red-won");
+    expect(result.message).toContain("Blue king is checkmated");
   });
 });

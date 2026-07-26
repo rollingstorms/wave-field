@@ -90,6 +90,16 @@ describe("field engine", () => {
     expect(evaluatePieceContribution(spy.pieces[0], { x: 2, y: 2 }, spy)).toBeCloseTo(evaluatePieceContribution(pawn.pieces[0], { x: 2, y: 2 }, pawn));
   });
 
+  it("king contributes zero on its own square only", () => {
+    const king = tuned("king", [0, 1, 1]);
+    king.pieces[0].type = "king";
+    const pawn = tuned("pawn", [1]);
+
+    expect(evaluatePieceContribution(king.pieces[0], { x: 3, y: 3 }, king)).toBe(0);
+    expect(evaluatePieceContribution(king.pieces[0], { x: 4, y: 3 }, king)).not.toBe(0);
+    expect(evaluatePieceContribution(pawn.pieces[0], { x: 3, y: 3 }, pawn)).not.toBe(0);
+  });
+
   it("diamond core is distinct from the checkerboard preset", () => {
     const checkerboard = DEFAULT_DEFINITIONS.pawn[0];
     const diamondCore = DEFAULT_DEFINITIONS.spy[1];
