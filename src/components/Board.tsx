@@ -8,7 +8,7 @@ import { BOARD_SIZE } from "../game/constants";
 import { contributionGrid, evaluateField, evaluateTypeFields } from "../field/evaluateField";
 import type { TypeFields } from "../field/evaluateField";
 import { projectFieldValue } from "../field/projection";
-import { getPieceAt, samePosition } from "../game/movement";
+import { getLegalMoves, getPieceAt, samePosition } from "../game/movement";
 import { applyMove, getPlayableMoves } from "../game/rules";
 import type { GameState, Position } from "../game/types";
 import { markInstability } from "../game/victory";
@@ -49,6 +49,7 @@ export function Board({ state, field, typeFields, highContrast, showTypeSums, lo
   const [lossPops, setLossPops] = useState<LossPop[]>([]);
   const selectedPiece = state.pieces.find((piece) => piece.id === state.selectedPieceId);
   const interactionPiece = state.pieces.find((piece) => piece.id === draggingPieceId) ?? selectedPiece;
+  const reachableMoves = !locked && interactionPiece ? getLegalMoves(interactionPiece.id, state, field) : [];
   const legalMoves = !locked && interactionPiece ? getPlayableMoves(interactionPiece.id, state, field) : [];
   const previewState = useMemo<GameState>(() => {
     if (!draggingPieceId || !dragPreview) return state;
@@ -93,6 +94,19 @@ export function Board({ state, field, typeFields, highContrast, showTypeSums, lo
       return [...ownPieceIds].some((id) => !remainingIds.has(id)) ? [`${move.x}:${move.y}`] : [];
     }));
   }, [legalMoves, selectedPiece, state]);
+  const playableMoveKeys = useMemo(
+    () => new Set(legalMoves.map((move) => `${move.x}:${move.y}`)),
+    [legalMoves],
+  );
+  const kingBlockedMoveKeys = useMemo(() => {
+    if (!interactionPiece) return new Set<string>();
+    return new Set(reachableMoves.flatMap((move) => {
+      const key = `${move.x}:${move.y}`;
+      if (playableMoveKeys.has(key)) return [];
+      const result = applyMove(interactionPiece.id, move, state);
+      return result.reason?.includes("king unprotected") ? [key] : [];
+    }));
+  }, [interactionPiece, playableMoveKeys, reachableMoves, state]);
 
   useEffect(() => {
     const currentIds = new Set(state.pieces.map((piece) => piece.id));
@@ -280,6 +294,7 @@ export function Board({ state, field, typeFields, highContrast, showTypeSums, lo
                   piece={piece}
                   legal={legalMoves.some((move) => samePosition(move, position))}
                   risky={riskyMoveKeys.has(`${x}:${y}`)}
+                  kingBlocked={kingBlockedMoveKeys.has(`${x}:${y}`)}
                   selected={Boolean(piece && interactionPiece && piece.id === interactionPiece.id)}
                   dragging={piece?.id === draggingPieceId}
                   dragPreview={Boolean(draggingPieceId && dragPreview && samePosition(dragPreview, position))}

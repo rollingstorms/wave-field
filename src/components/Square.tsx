@@ -9,6 +9,7 @@ interface SquareProps {
   piece?: PieceModel;
   legal: boolean;
   risky: boolean;
+  kingBlocked: boolean;
   selected: boolean;
   dragging: boolean;
   dragPreview: boolean;
@@ -26,7 +27,7 @@ function formatSigned(value: number) {
   return `${value > 0 ? "+" : ""}${magnitude.replace(".0", "")}`;
 }
 
-export function Square({ position, territory, fieldValue, piece, legal, risky, selected, dragging, dragPreview, influenceTerritory, influenceOpacity, highContrast, typeSums, lossPop, onClick }: SquareProps) {
+export function Square({ position, territory, fieldValue, piece, legal, risky, kingBlocked, selected, dragging, dragPreview, influenceTerritory, influenceOpacity, highContrast, typeSums, lossPop, onClick }: SquareProps) {
   const marker = territory === "red" ? "+" : territory === "blue" ? "-" : "0";
   const influenceSummary = influenceTerritory
     ? ` Selected piece influence ${influenceTerritory}.`
@@ -40,7 +41,7 @@ export function Square({ position, territory, fieldValue, piece, legal, risky, s
       onClick={onClick}
       data-board-x={position.x}
       data-board-y={position.y}
-      aria-label={`Square ${position.x + 1},${position.y + 1}. ${territory} territory. Field ${fieldValue.toFixed(3)}.${risky ? " Moving here loses a piece." : ""}${influenceSummary}${typeSummary}`}
+      aria-label={`Square ${position.x + 1},${position.y + 1}. ${territory} territory. Field ${fieldValue.toFixed(3)}.${risky ? " Moving here loses a piece." : ""}${kingBlocked ? " Reachable, but blocked because it would leave your king unprotected." : ""}${influenceSummary}${typeSummary}`}
     >
       {influenceOpacity > 0 && influenceTerritory !== "neutral" && (
         <span
@@ -55,6 +56,7 @@ export function Square({ position, territory, fieldValue, piece, legal, risky, s
       {highContrast && <span className="territory-marker">{marker}</span>}
       {legal && <span className={risky ? "legal-dot risky-dot" : "legal-dot"} />}
       {risky && <span className="risk-marker" aria-hidden="true">!</span>}
+      {kingBlocked && <span className="king-block-marker" aria-hidden="true">K</span>}
       {piece && <Piece piece={piece} selected={selected} dragging={dragging} />}
       {piece?.unstable && <span className="unstable" aria-label="unstable">!</span>}
       {lossPop && (

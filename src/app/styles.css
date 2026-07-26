@@ -293,6 +293,34 @@ h1 {
   transform: translate(-50%, -52%);
 }
 
+.king-block-marker {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  z-index: 5;
+  display: grid;
+  width: 28%;
+  min-width: 18px;
+  aspect-ratio: 1;
+  place-items: center;
+  border: 2px solid #090b0b;
+  background: var(--influence);
+  color: #090b0b;
+  font-size: 0.78rem;
+  font-weight: 800;
+  line-height: 1;
+  pointer-events: none;
+  transform: translate(-50%, -50%);
+}
+
+.king-block-marker::after {
+  content: "";
+  position: absolute;
+  inset: -6px;
+  border: 2px solid var(--influence);
+  border-radius: 50%;
+}
+
 .territory-marker {
   position: absolute;
   top: 4px;
