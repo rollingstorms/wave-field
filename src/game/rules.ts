@@ -1,5 +1,5 @@
 import { evaluateField } from "../field/evaluateField";
-import { PIECE_STRENGTH } from "./constants";
+import { BOARD_SIZE, PIECE_STRENGTH } from "./constants";
 import type { Coefficient, GameState, MoveResult, PieceType, Player, PlayerComponents, Position } from "./types";
 import { getLegalMoves, samePosition } from "./movement";
 import { canSetComponentValue, isTuningWithinStrength } from "./tuning";
@@ -18,8 +18,18 @@ function playerName(player: Player): string {
   return player === "red" ? "Red" : "Blue";
 }
 
+function boardCoordinate(position: Position): string {
+  return `${position.x + 1},${BOARD_SIZE - position.y}`;
+}
+
 const pieceTypes: PieceType[] = ["pawn", "rook", "spy", "king"];
 const coefficientValues: Coefficient[] = [1, 0, -1];
+
+interface KingRescue {
+  pieceType: PieceType;
+  destination: Position;
+  requiresTuning: boolean;
+}
 
 function componentOptions(pieceType: PieceType, count: number): Coefficient[][] {
   const options: Coefficient[][] = [];
@@ -66,8 +76,9 @@ function resolveOwnTurnConsequences(player: Player, previous: GameState, candida
   return markInstability(deadlineResolved, selfField);
 }
 
-function canRescueKing(player: Player, state: GameState): boolean {
+function findKingRescue(player: Player, state: GameState): KingRescue | null {
   for (const components of playerComponentOptions) {
+    const requiresTuning = JSON.stringify(state.components[player]) !== JSON.stringify(components);
     const tuned = {
       ...state,
       components: {
@@ -80,11 +91,13 @@ function canRescueKing(player: Player, state: GameState): boolean {
     for (const piece of pieces) {
       for (const destination of getLegalMoves(piece.id, tuned, field)) {
         const resolved = resolveOwnTurnConsequences(player, tuned, movePiece(tuned, piece.id, destination));
-        if (!isKingUnprotected(player, resolved, evaluateField(resolved))) return true;
+        if (!isKingUnprotected(player, resolved, evaluateField(resolved))) {
+          return { pieceType: piece.type, destination, requiresTuning };
+        }
       }
     }
   }
-  return false;
+  return null;
 }
 
 export function beginTurn(state: GameState): GameState {
@@ -92,8 +105,12 @@ export function beginTurn(state: GameState): GameState {
   const resolved = markInstability(state, evaluateField(state));
   const field = evaluateField(resolved);
   if (isKingUnprotected(state.currentPlayer, resolved, field)) {
-    if (canRescueKing(state.currentPlayer, resolved)) {
-      return { ...resolved, message: `${playerName(state.currentPlayer)} king is in check · rescue the king` };
+    const rescue = findKingRescue(state.currentPlayer, resolved);
+    if (rescue) {
+      const rescueHint = rescue.requiresTuning
+        ? `tune, then move ${rescue.pieceType} to ${boardCoordinate(rescue.destination)}`
+        : `move ${rescue.pieceType} to ${boardCoordinate(rescue.destination)}`;
+      return { ...resolved, message: `${playerName(state.currentPlayer)} king is in check · ${rescueHint}` };
     }
     return { ...resolved, status: winStatus(opponent(state.currentPlayer)), message: `${playerName(state.currentPlayer)} king is checkmated` };
   }
