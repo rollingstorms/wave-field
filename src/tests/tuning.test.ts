@@ -3,6 +3,13 @@ import { createInitialState } from "../game/initialState";
 import { canSetComponentValue, getTuningLoad, isTuningWithinStrength } from "../game/tuning";
 
 describe("component strength budget", () => {
+  it("starts both players' rooks at positive-negative", () => {
+    const state = createInitialState();
+
+    expect(state.components.blue.rook).toEqual([1, -1]);
+    expect(state.components.red.rook).toEqual([1, -1]);
+  });
+
   it("counts positive and negative coefficients as active", () => {
     expect(getTuningLoad([1, 0, -1, 0])).toBe(2);
   });

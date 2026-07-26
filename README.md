@@ -89,6 +89,7 @@ activate only one.
 
 Tuning is shared by piece type. Both of a player's rooks always use that
 player's rook settings, while the opposing player controls a separate set.
+Rooks begin each game tuned to `+ -`.
 
 ## Movement and Territory
 
