@@ -1,11 +1,14 @@
 import { COMPONENT_COUNTS, PIECE_STRENGTH } from "../game/constants";
 import { canSetComponentValue, getTuningLoad } from "../game/tuning";
-import type { Coefficient, GameState, PieceType } from "../game/types";
+import type { Coefficient, GameState, PieceType, Player } from "../game/types";
 import { WaveThumbnail } from "./WaveThumbnail";
 
 const pieceTypes: PieceType[] = ["pawn", "rook", "spy", "king"];
 const values: Coefficient[] = [1, 0, -1];
-const label = (value: Coefficient) => value === 1 ? "+" : value === -1 ? "-" : "0";
+export function coefficientLabel(player: Player, value: Coefficient) {
+  const fieldSign = player === "blue" ? -value : value;
+  return fieldSign === 1 ? "+" : fieldSign === -1 ? "-" : "0";
+}
 
 interface ComponentControlsProps {
   state: GameState;
@@ -51,9 +54,9 @@ export function ComponentControls({ state, locked = false, onTune }: ComponentCo
                   }
                   onClick={() => onTune(pieceType, index, value)}
                   aria-pressed={coefficient === value}
-                  aria-label={`${player} ${pieceType} component ${index + 1} set to ${label(value)}`}
+                  aria-label={`${player} ${pieceType} component ${index + 1} set to ${coefficientLabel(player, value)}`}
                 >
-                  {label(value)}
+                  {coefficientLabel(player, value)}
                 </button>
               ))}
               <select
@@ -69,7 +72,7 @@ export function ComponentControls({ state, locked = false, onTune }: ComponentCo
                     value={value}
                     disabled={!canSetComponentValue(state.components[player], pieceType, index, value)}
                   >
-                    {label(value)}
+                    {coefficientLabel(player, value)}
                   </option>
                 ))}
               </select>

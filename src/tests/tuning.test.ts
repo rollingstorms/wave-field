@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { createInitialState } from "../game/initialState";
 import { canSetComponentValue, getTuningLoad, isTuningWithinStrength } from "../game/tuning";
+import { coefficientLabel } from "../components/ComponentControls";
 
 describe("component strength budget", () => {
   it("starts both players' rooks at positive-positive", () => {
@@ -35,5 +36,13 @@ describe("component strength budget", () => {
     expect(state.components.red.king).toEqual([0, 1, 1]);
     expect(canSetComponentValue(state.components.blue, "king", 0, -1)).toBe(false);
     expect(canSetComponentValue(state.components.blue, "king", 2, 0)).toBe(true);
+  });
+
+  it("displays component signs as field signs for each player", () => {
+    expect(coefficientLabel("red", 1)).toBe("+");
+    expect(coefficientLabel("red", -1)).toBe("-");
+    expect(coefficientLabel("blue", 1)).toBe("-");
+    expect(coefficientLabel("blue", -1)).toBe("+");
+    expect(coefficientLabel("blue", 0)).toBe("0");
   });
 });

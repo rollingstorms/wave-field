@@ -111,7 +111,7 @@ export function RulesPage({ onBack }: RulesPageProps) {
             <li>Tune any of your piece-type wave controls.</li>
             <li>Move exactly one piece to end the turn.</li>
           </ol>
-          <p>Tuning is shared by type, so both of your rooks use the same rook settings.</p>
+          <p>Tuning is shared by type, so both of your rooks use the same rook settings. Red controls show positive friendly waves; Blue controls show negative friendly waves.</p>
         </article>
 
         <article className="rules-panel rules-piece-panel">

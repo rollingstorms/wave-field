@@ -49,12 +49,12 @@ dyadic fractions whose denominators are powers of two. A sum may be `3/8` or
 Each player begins with two pawns, two rooks, one spy, and one king. Blue moves
 first.
 
-| Piece | Wave components | Strength | Default | Movement |
+| Piece | Wave components | Strength | Default (Red / Blue) | Movement |
 |---|---:|---:|---|---|
-| Pawn | 1 | 1 | `+` | Any distance in one direction |
-| Rook | 2 | 2 | `+ +` | Any distance in one direction |
-| Spy | 3 | 1 | `+ 0 0` | Any distance in one direction, ignoring territory |
-| King | 3 | 2 | `0 + +` | Any distance in one direction |
+| Pawn | 1 | 1 | `+` / `-` | Any distance in one direction |
+| Rook | 2 | 2 | `+ +` / `- -` | Any distance in one direction |
+| Spy | 3 | 1 | `+ 0 0` / `- 0 0` | Any distance in one direction, ignoring territory |
+| King | 3 | 2 | `0 + +` / `0 - -` | Any distance in one direction |
 
 A direction may be horizontal, vertical, or diagonal, giving eight possible
 rays. Despite their familiar names, pieces do not use chess movement.
@@ -78,11 +78,14 @@ king safe.
 
 ## Tuning
 
-Each component can be set to:
+The controls display each component's signed field contribution:
 
-- `+` for a positive wave;
+- `+` for a positive Red wave;
 - `0` to disable it;
-- `-` for a negative wave.
+- `-` for a negative Blue wave.
+
+Because Blue's owner sign reverses the shared coefficient, the live Blue
+controls display the opposite signs from Red for the same underlying profile.
 
 The number of active `+` and `-` components combined cannot exceed that piece
 type's strength. For example, the king has three tunable components but may
@@ -92,8 +95,8 @@ activate only one.
 Tuning is shared by piece type. Both of a player's rooks always use that
 player's rook settings, while the opposing player controls a separate set.
 
-The default controls in developer mode are the controls used for both players
-when the game restarts. Restart keeps the currently selected wave definitions;
+The default controls in developer mode use shared intrinsic (Red) signs and are
+applied to both players when the game restarts. Restart keeps the currently selected wave definitions;
 the developer-only "Restart and reset definitions" control restores the built-in
 wave definitions too.
 
