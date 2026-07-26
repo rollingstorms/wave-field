@@ -50,12 +50,11 @@ first.
 |---|---:|---:|---|
 | Pawn | 1 | 1 | Any distance in one direction |
 | Rook | 2 | 2 | Any distance in one direction |
-| Spy | 3 | 1 | Any distance in one direction |
+| Spy | 3 | 1 | Any distance in one direction, ignoring territory |
 | King | 4 | 2 | Any distance in one direction |
 
-Every piece uses the same movement rule. A direction may be horizontal, vertical,
-or diagonal, giving eight possible rays. Despite their familiar names, pieces
-do not use chess movement.
+A direction may be horizontal, vertical, or diagonal, giving eight possible
+rays. Despite their familiar names, pieces do not use chess movement.
 
 ## Turn
 
@@ -95,6 +94,7 @@ ray, so pieces cannot jump or turn during a move.
 
 - Red pieces may move through Red or Neutral territory.
 - Blue pieces may move through Blue or Neutral territory.
+- Spies may move through territory of either sign or Neutral.
 - Pieces cannot capture by collision; friendly and opposing pieces both block.
 
 ## Instability

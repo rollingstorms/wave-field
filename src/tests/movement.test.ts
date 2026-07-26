@@ -31,11 +31,29 @@ describe("movement", () => {
     expect(getLegalMoves("red-pawn", state, zeroField())).toContainEqual({ x: 6, y: 6 });
   });
 
-  it("spies obey the same territory restriction while moving", () => {
+  it("spies ignore hostile territory along their entire ray", () => {
     const state = onePieceState("spy", "red");
     const field = zeroField();
     field[3][4] = -1;
-    expect(getLegalMoves("red-spy", state, field)).not.toContainEqual({ x: 4, y: 3 });
+    field[3][5] = -1;
+    const moves = getLegalMoves("red-spy", state, field);
+    expect(moves).toContainEqual({ x: 4, y: 3 });
+    expect(moves).toContainEqual({ x: 5, y: 3 });
+    expect(moves).toContainEqual({ x: 6, y: 3 });
+  });
+
+  it("spies still stop at the first occupied square", () => {
+    const state = onePieceState("spy", "red");
+    state.pieces.push({ id: "blue-pawn", owner: "blue", type: "pawn", position: { x: 5, y: 3 }, unstable: false });
+    const field = zeroField();
+    field[3][4] = -1;
+    field[3][5] = -1;
+    field[3][6] = -1;
+    const moves = getLegalMoves("red-spy", state, field);
+
+    expect(moves).toContainEqual({ x: 4, y: 3 });
+    expect(moves).not.toContainEqual({ x: 5, y: 3 });
+    expect(moves).not.toContainEqual({ x: 6, y: 3 });
   });
 
   it("occupied squares block themselves and every square beyond them", () => {

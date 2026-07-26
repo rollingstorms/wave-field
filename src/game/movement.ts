@@ -14,6 +14,10 @@ export function getPieceAt(state: GameState, position: Position): Piece | undefi
   return state.pieces.find((piece) => samePosition(piece.position, position));
 }
 
+function isSpectrallyPassable(piece: Piece, position: Position, field: number[][]): boolean {
+  return piece.type === "spy" || isSquareCompatible(piece.owner, field[position.y][position.x]);
+}
+
 function movementStep(origin: Position, destination: Position): Position | null {
   const dx = destination.x - origin.x;
   const dy = destination.y - origin.y;
@@ -29,7 +33,7 @@ export function canPieceEnter(piece: Piece, destination: Position, state: GameSt
 
   let position = { x: piece.position.x + step.x, y: piece.position.y + step.y };
   while (inBounds(position)) {
-    if (getPieceAt(state, position) || !isSquareCompatible(piece.owner, field[position.y][position.x])) return false;
+    if (getPieceAt(state, position) || !isSpectrallyPassable(piece, position, field)) return false;
     if (samePosition(position, destination)) return true;
     position = { x: position.x + step.x, y: position.y + step.y };
   }
@@ -45,7 +49,7 @@ export function getLegalMoves(pieceId: string, state: GameState, field: number[]
       if (dx === 0 && dy === 0) continue;
       let destination = { x: piece.position.x + dx, y: piece.position.y + dy };
       while (inBounds(destination)) {
-        if (getPieceAt(state, destination) || !isSquareCompatible(piece.owner, field[destination.y][destination.x])) break;
+        if (getPieceAt(state, destination) || !isSpectrallyPassable(piece, destination, field)) break;
         moves.push(destination);
         destination = { x: destination.x + dx, y: destination.y + dy };
       }
