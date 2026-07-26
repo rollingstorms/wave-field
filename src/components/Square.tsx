@@ -11,6 +11,7 @@ interface SquareProps {
   selected: boolean;
   dragging: boolean;
   dragPreview: boolean;
+  influenceTerritory: Territory | null;
   influenceOpacity: number;
   highContrast: boolean;
   typeSums: Record<PieceType, number> | null;
@@ -23,8 +24,11 @@ function formatSigned(value: number) {
   return `${value > 0 ? "+" : ""}${magnitude.replace(".0", "")}`;
 }
 
-export function Square({ position, territory, fieldValue, piece, legal, selected, dragging, dragPreview, influenceOpacity, highContrast, typeSums, onClick }: SquareProps) {
+export function Square({ position, territory, fieldValue, piece, legal, selected, dragging, dragPreview, influenceTerritory, influenceOpacity, highContrast, typeSums, onClick }: SquareProps) {
   const marker = territory === "red" ? "+" : territory === "blue" ? "-" : "0";
+  const influenceSummary = influenceTerritory
+    ? ` Selected piece influence ${influenceTerritory}.`
+    : "";
   const typeSummary = typeSums
     ? ` Pawn ${formatSigned(typeSums.pawn)}, rook ${formatSigned(typeSums.rook)}, spy ${formatSigned(typeSums.spy)}, king ${formatSigned(typeSums.king)}.`
     : "";
@@ -34,9 +38,19 @@ export function Square({ position, territory, fieldValue, piece, legal, selected
       onClick={onClick}
       data-board-x={position.x}
       data-board-y={position.y}
-      aria-label={`Square ${position.x + 1},${position.y + 1}. ${territory} territory. Field ${fieldValue.toFixed(3)}.${typeSummary}`}
+      aria-label={`Square ${position.x + 1},${position.y + 1}. ${territory} territory. Field ${fieldValue.toFixed(3)}.${influenceSummary}${typeSummary}`}
     >
-      {influenceOpacity > 0 && <span className="influence-outline" style={{ opacity: influenceOpacity }} aria-hidden="true" />}
+      {influenceTerritory && <span className="field-fade" aria-hidden="true" />}
+      {influenceOpacity > 0 && influenceTerritory !== "neutral" && (
+        <span
+          className={`influence-overlay influence-${influenceTerritory}`}
+          style={{ opacity: influenceOpacity }}
+          aria-hidden="true"
+        />
+      )}
+      {(selected || dragPreview) && (
+        <span className={`square-outline ${dragPreview ? "drag-outline" : "selection-outline"}`} aria-hidden="true" />
+      )}
       {highContrast && <span className="territory-marker">{marker}</span>}
       {legal && <span className="legal-dot" />}
       {piece && <Piece piece={piece} selected={selected} dragging={dragging} />}

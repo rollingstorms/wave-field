@@ -203,7 +203,7 @@ export function Board({ state, field, typeFields, highContrast, showTypeSums, on
       <div className="board-row-wrap">
         <div className="ranks left">{Array.from({ length: BOARD_SIZE }, (_, i) => <span key={i}>{BOARD_SIZE - i}</span>)}</div>
         <div
-          className={`board ${draggingPieceId ? "dragging" : ""}`}
+          className={`board ${draggingPieceId ? "dragging" : ""} ${influenceGrid ? "influence-mode" : ""}`}
           ref={boardRef}
           onPointerDown={handlePointerDown}
           onPointerMove={handlePointerMove}
@@ -219,7 +219,8 @@ export function Board({ state, field, typeFields, highContrast, showTypeSums, on
             Array.from({ length: BOARD_SIZE }, (_, x) => {
               const position = { x, y };
               const piece = getPieceAt(previewState, position);
-              const influence = influenceGrid ? Math.abs(influenceGrid[y][x]) : 0;
+              const influenceValue = influenceGrid?.[y][x] ?? 0;
+              const influence = Math.abs(influenceValue);
               return (
                 <Square
                   key={`${x}-${y}`}
@@ -231,8 +232,9 @@ export function Board({ state, field, typeFields, highContrast, showTypeSums, on
                   selected={Boolean(piece && interactionPiece && piece.id === interactionPiece.id)}
                   dragging={piece?.id === draggingPieceId}
                   dragPreview={Boolean(draggingPieceId && dragPreview && samePosition(dragPreview, position))}
+                  influenceTerritory={influenceGrid ? projectFieldValue(influenceValue) : null}
                   influenceOpacity={maximumInfluence > 0 && influence > 0
-                    ? 0.22 + (influence / maximumInfluence) * 0.78
+                    ? 0.32 + (influence / maximumInfluence) * 0.68
                     : 0}
                   highContrast={highContrast}
                   typeSums={showTypeSums ? {
