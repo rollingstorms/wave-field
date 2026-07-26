@@ -11,9 +11,10 @@ This repository is a live, playable application of the current rules:
 
 ## Objective
 
-Win by **leaving the opposing king unprotected**: complete a move that places
-the opposing king on hostile territory. The opposing king does not receive a
-rescue turn, even if it would otherwise have a legal escape.
+Win by **checkmating the opposing king**. A king is in check when its square is
+hostile territory. After a move gives check, the checked player gets a rescue
+turn if the rules can find a way to protect the king. If no rescue exists, the
+game ends immediately as checkmate.
 
 ## The Field
 
@@ -34,6 +35,10 @@ The resulting value determines the territory:
 Moving a piece changes its wave origin, so one move can reshape territory across
 the entire board.
 
+The king is the one special wave source: a king contributes `0` to its own
+square, no matter which king component pattern is active. Other kings can still
+contribute to that square from afar.
+
 Every basis wave halves once per square ring: `1`, `1/2`, `1/4`, `1/8`, and so
 on. Coefficients and strengths are integers, so combined field totals are always
 dyadic fractions whose denominators are powers of two. A sum may be `3/8` or
@@ -47,16 +52,16 @@ first.
 | Piece | Wave components | Strength | Default | Movement |
 |---|---:|---:|---|---|
 | Pawn | 1 | 1 | `+` | Any distance in one direction |
-| Rook | 2 | 2 | `+ -` | Any distance in one direction |
+| Rook | 2 | 2 | `+ +` | Any distance in one direction |
 | Spy | 3 | 1 | `+ 0 0` | Any distance in one direction, ignoring territory |
-| King | 3 | 2 | `0 + 0` | Any distance in one direction |
+| King | 3 | 2 | `0 + +` | Any distance in one direction |
 
 A direction may be horizontal, vertical, or diagonal, giving eight possible
 rays. Despite their familiar names, pieces do not use chess movement.
 
-All three king components are tunable. C1 starts Neutral, while C2 starts
-positive and C3 starts Neutral. The king's strength of 2 means no more than two
-of those components may be active at once.
+All three king components are tunable. C1 starts Neutral, while C2 and C3 start
+positive. The king's strength of 2 means no more than two of those components
+may be active at once.
 
 ## Turn
 
@@ -87,6 +92,11 @@ activate only one.
 Tuning is shared by piece type. Both of a player's rooks always use that
 player's rook settings, while the opposing player controls a separate set.
 
+The default controls in developer mode are the controls used for both players
+when the game restarts. Restart keeps the currently selected wave definitions;
+the developer-only "Restart and reset definitions" control restores the built-in
+wave definitions too.
+
 ## Movement and Territory
 
 Choose one of the eight directions and move any distance along that ray. For
@@ -98,6 +108,14 @@ hostile square stops the ray, so pieces cannot jump or turn during a move.
 - Blue pieces may move through Blue or Neutral territory.
 - Spies may move through territory of either sign or Neutral.
 - Pieces cannot capture by collision; friendly and opposing pieces both block.
+
+The board distinguishes movement from turn safety:
+
+- A white ring marks a move that can be completed.
+- A yellow `K` marks a reachable square that is blocked because ending there
+  would leave your king unprotected.
+- A yellow diamond with `!` marks a playable move that will cause one of your
+  non-king pieces to be lost when the turn resolves.
 
 ## Instability
 
@@ -117,12 +135,21 @@ has arrived.
 
 Spies are never unstable and are never removed by hostile territory.
 
-## Victory
+## Check and Victory
 
 A king must be protected by friendly or Neutral territory at the end of every
 move. A player cannot complete a move that leaves their own king on hostile
-territory. When a completed move places the opposing king on hostile territory,
-the moving player wins immediately. Kings are not captured or removed.
+territory.
+
+When a completed move places the opposing king on hostile territory, the
+opponent begins their turn in check. The game looks for a rescue using the
+current tuning or a retune of one piece type, followed by one legal move. If a
+rescue exists, the status line gives a concrete hint such as "tune, then move
+spy to 4,5". If no rescue exists, the checked king is checkmated and the moving
+player wins.
+
+Kings are never captured or removed. A lost king is represented as checkmate,
+not as a disappearing piece.
 
 ## Starting Position
 
@@ -147,11 +174,16 @@ The opening formation is rotationally symmetric:
 The demo includes an optional heuristic Red opponent, selected-piece influence
 borders colored by contribution, drag-to-preview field updates, live
 wave-pattern thumbnails, a per-square piece-type contribution overlay,
-legal-move indicators, instability warnings, undo and restart, high-contrast
-territory markers, a compact mobile tuning panel, and a developer mode for
-inspecting the raw field, piece contributions, mobility, and editable wave
-definitions. Developer mode also provides editable default component controls;
-the selected profile is applied to both players on restart.
+legal-move indicators, blocked-king move markers, instability warnings, loss
+burst animations, undo and restart, high-contrast territory markers, a compact
+mobile tuning panel, and a developer mode for inspecting the raw field, piece
+contributions, mobility, and editable wave definitions. Developer mode also
+provides editable default component controls; the selected profile is applied to
+both players on restart.
+
+The optional Red AI uses a bounded heuristic search. It evaluates many tuning
+and movement candidates quickly, then runs exact checkmate analysis only on a
+small shortlist so mobile browsers remain responsive.
 
 The implementation is deterministic: the same position and component settings
 always produce the same field and legal moves.
