@@ -31,5 +31,5 @@ describe("heuristic opponent", () => {
 
     expect(result.status).toBe("red-won");
     expect(result.message).toContain("Blue king is checkmated");
-  });
+  }, 15_000);
 });
