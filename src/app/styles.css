@@ -272,6 +272,27 @@ h1 {
   z-index: 5;
 }
 
+.legal-dot.risky-dot {
+  inset: 30%;
+  border-color: #090b0b;
+  background: var(--influence);
+  border-radius: 0;
+  transform: rotate(45deg);
+}
+
+.risk-marker {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  z-index: 6;
+  color: #090b0b;
+  font-size: 0.95rem;
+  font-weight: 700;
+  line-height: 1;
+  pointer-events: none;
+  transform: translate(-50%, -52%);
+}
+
 .territory-marker {
   position: absolute;
   top: 4px;

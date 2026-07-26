@@ -132,6 +132,7 @@ describe("stability and victory", () => {
 
     expect(result.ok).toBe(true);
     expect(result.state.pieces.some((piece) => piece.id === "blue-pawn")).toBe(false);
+    expect(result.state.message).toContain("Blue lost pawn");
   });
 
   it("moves that leave the moving player's king unprotected are illegal and not offered", () => {

@@ -9,8 +9,9 @@ import { contributionGrid, evaluateField, evaluateTypeFields } from "../field/ev
 import type { TypeFields } from "../field/evaluateField";
 import { projectFieldValue } from "../field/projection";
 import { getPieceAt, samePosition } from "../game/movement";
-import { getPlayableMoves } from "../game/rules";
+import { applyMove, getPlayableMoves } from "../game/rules";
 import type { GameState, Position } from "../game/types";
+import { markInstability } from "../game/victory";
 import { Square } from "./Square";
 
 interface BoardProps {
@@ -51,12 +52,13 @@ export function Board({ state, field, typeFields, highContrast, showTypeSums, lo
   const legalMoves = !locked && interactionPiece ? getPlayableMoves(interactionPiece.id, state, field) : [];
   const previewState = useMemo<GameState>(() => {
     if (!draggingPieceId || !dragPreview) return state;
-    return {
+    const moved = {
       ...state,
       pieces: state.pieces.map((piece) =>
         piece.id === draggingPieceId ? { ...piece, position: dragPreview } : piece,
       ),
     };
+    return markInstability(moved, evaluateField(moved));
   }, [dragPreview, draggingPieceId, state]);
   const previewing = Boolean(draggingPieceId && dragPreview);
   const displayField = useMemo(
@@ -81,6 +83,16 @@ export function Board({ state, field, typeFields, highContrast, showTypeSums, lo
     () => new Set(lossPops.map((pop) => `${pop.position.x}:${pop.position.y}`)),
     [lossPops],
   );
+  const riskyMoveKeys = useMemo(() => {
+    if (!selectedPiece) return new Set<string>();
+    const ownPieceIds = new Set(state.pieces.filter((piece) => piece.owner === state.currentPlayer).map((piece) => piece.id));
+    return new Set(legalMoves.flatMap((move) => {
+      const result = applyMove(selectedPiece.id, move, state);
+      if (!result.ok) return [];
+      const remainingIds = new Set(result.state.pieces.map((piece) => piece.id));
+      return [...ownPieceIds].some((id) => !remainingIds.has(id)) ? [`${move.x}:${move.y}`] : [];
+    }));
+  }, [legalMoves, selectedPiece, state]);
 
   useEffect(() => {
     const currentIds = new Set(state.pieces.map((piece) => piece.id));
@@ -267,6 +279,7 @@ export function Board({ state, field, typeFields, highContrast, showTypeSums, lo
                   fieldValue={displayField[y][x]}
                   piece={piece}
                   legal={legalMoves.some((move) => samePosition(move, position))}
+                  risky={riskyMoveKeys.has(`${x}:${y}`)}
                   selected={Boolean(piece && interactionPiece && piece.id === interactionPiece.id)}
                   dragging={piece?.id === draggingPieceId}
                   dragPreview={Boolean(draggingPieceId && dragPreview && samePosition(dragPreview, position))}

@@ -76,6 +76,13 @@ function resolveOwnTurnConsequences(player: Player, previous: GameState, candida
   return markInstability(deadlineResolved, selfField);
 }
 
+function lostOwnPieces(player: Player, before: GameState, after: GameState): string[] {
+  const remainingIds = new Set(after.pieces.map((piece) => piece.id));
+  return before.pieces
+    .filter((piece) => piece.owner === player && piece.type !== "king" && !remainingIds.has(piece.id))
+    .map((piece) => piece.type);
+}
+
 function findKingRescue(player: Player, state: GameState): KingRescue | null {
   for (const components of playerComponentOptions) {
     const requiresTuning = JSON.stringify(state.components[player]) !== JSON.stringify(components);
@@ -135,6 +142,10 @@ function completeAction(previous: GameState, candidate: GameState): MoveResult {
     selectedPieceId: null,
     history: [...previous.history, snapshot(previous)],
   });
+  const losses = lostOwnPieces(previous.currentPlayer, previous, next);
+  if (losses.length > 0 && next.status === "playing") {
+    return { ok: true, state: { ...next, message: `${playerName(previous.currentPlayer)} lost ${losses.join(", ")} · ${next.message}` } };
+  }
   return { ok: true, state: next };
 }
 

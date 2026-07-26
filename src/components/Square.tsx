@@ -8,6 +8,7 @@ interface SquareProps {
   fieldValue: number;
   piece?: PieceModel;
   legal: boolean;
+  risky: boolean;
   selected: boolean;
   dragging: boolean;
   dragPreview: boolean;
@@ -25,7 +26,7 @@ function formatSigned(value: number) {
   return `${value > 0 ? "+" : ""}${magnitude.replace(".0", "")}`;
 }
 
-export function Square({ position, territory, fieldValue, piece, legal, selected, dragging, dragPreview, influenceTerritory, influenceOpacity, highContrast, typeSums, lossPop, onClick }: SquareProps) {
+export function Square({ position, territory, fieldValue, piece, legal, risky, selected, dragging, dragPreview, influenceTerritory, influenceOpacity, highContrast, typeSums, lossPop, onClick }: SquareProps) {
   const marker = territory === "red" ? "+" : territory === "blue" ? "-" : "0";
   const influenceSummary = influenceTerritory
     ? ` Selected piece influence ${influenceTerritory}.`
@@ -35,11 +36,11 @@ export function Square({ position, territory, fieldValue, piece, legal, selected
     : "";
   return (
     <button
-      className={`square ${territory} ${legal ? "legal" : ""} ${selected ? "selected-square" : ""} ${dragPreview ? "drag-preview-square" : ""} ${typeSums ? "type-sums-visible" : ""}`}
+      className={`square ${territory} ${legal ? "legal" : ""} ${risky ? "risky-move" : ""} ${selected ? "selected-square" : ""} ${dragPreview ? "drag-preview-square" : ""} ${typeSums ? "type-sums-visible" : ""}`}
       onClick={onClick}
       data-board-x={position.x}
       data-board-y={position.y}
-      aria-label={`Square ${position.x + 1},${position.y + 1}. ${territory} territory. Field ${fieldValue.toFixed(3)}.${influenceSummary}${typeSummary}`}
+      aria-label={`Square ${position.x + 1},${position.y + 1}. ${territory} territory. Field ${fieldValue.toFixed(3)}.${risky ? " Moving here loses a piece." : ""}${influenceSummary}${typeSummary}`}
     >
       {influenceOpacity > 0 && influenceTerritory !== "neutral" && (
         <span
@@ -52,7 +53,8 @@ export function Square({ position, territory, fieldValue, piece, legal, selected
         <span className={`square-outline ${dragPreview ? "drag-outline" : "selection-outline"}`} aria-hidden="true" />
       )}
       {highContrast && <span className="territory-marker">{marker}</span>}
-      {legal && <span className="legal-dot" />}
+      {legal && <span className={risky ? "legal-dot risky-dot" : "legal-dot"} />}
+      {risky && <span className="risk-marker" aria-hidden="true">!</span>}
       {piece && <Piece piece={piece} selected={selected} dragging={dragging} />}
       {piece?.unstable && <span className="unstable" aria-label="unstable">!</span>}
       {lossPop && (
