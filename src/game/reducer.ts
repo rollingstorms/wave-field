@@ -1,7 +1,7 @@
 import { cloneDefinitions, DEFAULT_COMPONENTS, validateDefinition, validateDefinitions } from "../field/componentDefinitions";
 import { playHeuristicTurn } from "./ai";
 import { createInitialState, fromSnapshot } from "./initialState";
-import { applyMove, applyTuning, beginTurn } from "./rules";
+import { applyMove, applyTuning, beginTurn, resignInCheck } from "./rules";
 import { isTuningWithinStrength } from "./tuning";
 import type { BasisDefinition, Coefficient, GameState, PieceType, Position } from "./types";
 
@@ -9,6 +9,7 @@ export type GameAction =
   | { type: "select"; pieceId: string | null }
   | { type: "move"; pieceId: string; destination: Position }
   | { type: "tune"; pieceType: PieceType; componentIndex: number; value: Coefficient }
+  | { type: "resign" }
   | { type: "ai-turn" }
   | { type: "undo" }
   | { type: "restart"; keepDefinitions?: boolean }
@@ -28,6 +29,10 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
     }
     case "tune": {
       const result = applyTuning(state.currentPlayer, action.pieceType, action.componentIndex, action.value, state);
+      return result.ok ? result.state : { ...state, message: result.reason ?? state.message };
+    }
+    case "resign": {
+      const result = resignInCheck(state);
       return result.ok ? result.state : { ...state, message: result.reason ?? state.message };
     }
     case "ai-turn":

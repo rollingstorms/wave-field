@@ -84,6 +84,7 @@ export function App() {
           locked={aiTurn}
           onSelect={(pieceId) => dispatch({ type: "select", pieceId })}
           onMove={(pieceId: string, destination: Position) => dispatch({ type: "move", pieceId, destination })}
+          onResign={() => dispatch({ type: "resign" })}
         />
         <ComponentControls
           state={state}

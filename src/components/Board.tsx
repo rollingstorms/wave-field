@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { Flag } from "lucide-react";
 import type {
   MouseEvent as ReactMouseEvent,
   PointerEvent as ReactPointerEvent,
@@ -23,6 +24,7 @@ interface BoardProps {
   locked?: boolean;
   onSelect: (pieceId: string | null) => void;
   onMove: (pieceId: string, destination: Position) => void;
+  onResign: () => void;
 }
 
 interface ActiveDrag {
@@ -38,7 +40,7 @@ interface LossPop {
   position: Position;
 }
 
-export function Board({ state, field, typeFields, highContrast, showTypeSums, locked = false, onSelect, onMove }: BoardProps) {
+export function Board({ state, field, typeFields, highContrast, showTypeSums, locked = false, onSelect, onMove, onResign }: BoardProps) {
   const boardRef = useRef<HTMLDivElement>(null);
   const dragRef = useRef<ActiveDrag | null>(null);
   const previousPiecesRef = useRef(state.pieces);
@@ -320,12 +322,22 @@ export function Board({ state, field, typeFields, highContrast, showTypeSums, lo
       </div>
       <div className="files bottom">{Array.from({ length: BOARD_SIZE }, (_, x) => <span key={x}>{x + 1}</span>)}</div>
       {selectedPiece?.unstable && (
-        <p className="piece-alert-hint" role="status" aria-live="polite">
-          <strong>{selectedPiece.type === "king" ? "UNPROTECTED KING" : "UNSTABLE PIECE"}</strong>
-          {selectedPiece.type === "king"
-            ? "Tune the field until the king's square is friendly or neutral before moving. You cannot end the turn with an unprotected king."
-            : "Move this piece or tune the field until its square is friendly or neutral. Otherwise it disappears when the turn ends."}
-        </p>
+        <div className="piece-alert-hint">
+          <div role="status" aria-live="polite">
+            <strong>{selectedPiece.type === "king" ? "UNPROTECTED KING" : "UNSTABLE PIECE"}</strong>
+            <p>
+              {selectedPiece.type === "king"
+                ? "Try alternate component tuning to create a legal escape, then move any piece that leaves the king on friendly or neutral territory."
+                : "Move this piece or tune the field until its square is friendly or neutral. Otherwise it disappears when the turn ends."}
+            </p>
+          </div>
+          {selectedPiece.type === "king" && selectedPiece.owner === state.currentPlayer && (
+            <button type="button" className="resign-button" onClick={onResign}>
+              <Flag size={15} aria-hidden="true" />
+              Resign
+            </button>
+          )}
+        </div>
       )}
     </section>
   );

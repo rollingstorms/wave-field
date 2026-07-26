@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { isKingUnprotected, getUnstablePieces, removeUnrescuedPieces } from "../game/victory";
 import { createInitialState } from "../game/initialState";
-import { applyMove, beginTurn, getPlayableMoves } from "../game/rules";
+import { applyMove, beginTurn, getPlayableMoves, resignInCheck } from "../game/rules";
 import type { GameState } from "../game/types";
 
 const field = (value = 0) => Array.from({ length: 7 }, () => Array.from({ length: 7 }, () => value));
@@ -192,5 +192,30 @@ describe("stability and victory", () => {
 
     expect(started.status).toBe("blue-won");
     expect(started.message).toContain("Red king is checkmated");
+  });
+
+  it("allows the current player to resign while in check", () => {
+    const state = createInitialState();
+    state.currentPlayer = "red";
+    state.definitions.pawn[0] = { kind: "preset", name: "Flat", preset: "constant-basin", decayBase: 2, originScale: 1 };
+    state.pieces = [
+      { id: "red-king", owner: "red", type: "king", position: { x: 3, y: 3 }, unstable: true },
+      { id: "blue-pawn", owner: "blue", type: "pawn", position: { x: 0, y: 0 }, unstable: false },
+    ];
+    state.components.red.king = [0, 0, 0];
+    state.components.blue.pawn = [1];
+
+    const result = resignInCheck(state);
+
+    expect(result.ok).toBe(true);
+    expect(result.state.status).toBe("blue-won");
+    expect(result.state.message).toContain("Red resigned while in check");
+  });
+
+  it("rejects resignation when the current king is protected", () => {
+    const result = resignInCheck(createInitialState());
+
+    expect(result.ok).toBe(false);
+    expect(result.reason).toContain("only while your king is in check");
   });
 });

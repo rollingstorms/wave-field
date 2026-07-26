@@ -148,6 +148,9 @@ rescue exists, the status line gives a concrete hint such as "tune, then move
 spy to 4,5". If no rescue exists, the checked king is checkmated and the moving
 player wins.
 
+While in check, a player may resign from the unprotected-king warning instead
+of continuing to search for an alternate tuning and legal escape.
+
 Kings are never captured or removed. A lost king is represented as checkmate,
 not as a disappearing piece.
 

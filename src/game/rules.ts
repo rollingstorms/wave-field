@@ -184,6 +184,24 @@ export function getPlayableMoves(pieceId: string, state: GameState, field: numbe
   return getLegalMoves(pieceId, state, field).filter((destination) => applyMove(pieceId, destination, state).ok);
 }
 
+export function resignInCheck(state: GameState): MoveResult {
+  if (state.status !== "playing") return { ok: false, state, reason: "The game is over." };
+  const resolved = markInstability(state, evaluateField(state));
+  if (!isKingUnprotected(state.currentPlayer, resolved, evaluateField(resolved))) {
+    return { ok: false, state, reason: "You can resign only while your king is in check." };
+  }
+  return {
+    ok: true,
+    state: {
+      ...resolved,
+      status: winStatus(opponent(state.currentPlayer)),
+      selectedPieceId: null,
+      history: [...state.history, snapshot(state)],
+      message: `${playerName(state.currentPlayer)} resigned while in check`,
+    },
+  };
+}
+
 export function applyTuning(
   player: Player,
   pieceType: PieceType,

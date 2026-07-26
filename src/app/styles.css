@@ -234,6 +234,25 @@ h1 {
   color: var(--influence);
 }
 
+.piece-alert-hint p {
+  margin: 0;
+}
+
+.resign-button {
+  min-height: 36px;
+  margin-top: 9px;
+  padding: 0 12px;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  border-color: var(--red);
+  color: #ff776d;
+}
+
+.resign-button:hover {
+  background: rgba(207, 72, 61, 0.14);
+}
+
 .type-sums {
   position: absolute;
   inset: 0;
