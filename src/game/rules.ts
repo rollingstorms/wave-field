@@ -31,6 +31,10 @@ interface KingRescue {
   requiresTuning: boolean;
 }
 
+interface RuleOptions {
+  analyzeCheckmate?: boolean;
+}
+
 function componentOptions(pieceType: PieceType, count: number): Coefficient[][] {
   const options: Coefficient[][] = [];
   function build(values: Coefficient[]) {
@@ -43,19 +47,6 @@ function componentOptions(pieceType: PieceType, count: number): Coefficient[][] 
   build([]);
   return options;
 }
-
-const playerComponentOptions: PlayerComponents[] = componentOptions("pawn", 1).flatMap((pawn) =>
-  componentOptions("rook", 2).flatMap((rook) =>
-    componentOptions("spy", 3).flatMap((spy) =>
-      componentOptions("king", 3).map((king) => ({
-        pawn: pawn as [Coefficient],
-        rook: rook as [Coefficient, Coefficient],
-        spy: spy as [Coefficient, Coefficient, Coefficient],
-        king: king as [Coefficient, Coefficient, Coefficient],
-      })),
-    ),
-  ),
-);
 
 function movePiece(state: GameState, pieceId: string, destination: Position): GameState {
   return {
@@ -83,8 +74,27 @@ function lostOwnPieces(player: Player, before: GameState, after: GameState): str
     .map((piece) => piece.type);
 }
 
+function rescueComponentOptions(state: GameState, player: Player): PlayerComponents[] {
+  const current = state.components[player];
+  const options = [structuredClone(current)];
+  const seen = new Set([JSON.stringify(current)]);
+
+  for (const pieceType of pieceTypes) {
+    for (const profile of componentOptions(pieceType, current[pieceType].length)) {
+      const next = structuredClone(current);
+      next[pieceType] = profile as never;
+      const key = JSON.stringify(next);
+      if (!seen.has(key)) {
+        seen.add(key);
+        options.push(next);
+      }
+    }
+  }
+  return options;
+}
+
 function findKingRescue(player: Player, state: GameState): KingRescue | null {
-  for (const components of playerComponentOptions) {
+  for (const components of rescueComponentOptions(state, player)) {
     const requiresTuning = JSON.stringify(state.components[player]) !== JSON.stringify(components);
     const tuned = {
       ...state,
@@ -107,11 +117,15 @@ function findKingRescue(player: Player, state: GameState): KingRescue | null {
   return null;
 }
 
-export function beginTurn(state: GameState): GameState {
+export function beginTurn(state: GameState, options: RuleOptions = {}): GameState {
+  const analyzeCheckmate = options.analyzeCheckmate ?? true;
   if (state.status !== "playing") return state;
   const resolved = markInstability(state, evaluateField(state));
   const field = evaluateField(resolved);
   if (isKingUnprotected(state.currentPlayer, resolved, field)) {
+    if (!analyzeCheckmate) {
+      return { ...resolved, message: `${playerName(state.currentPlayer)} king is in check` };
+    }
     const rescue = findKingRescue(state.currentPlayer, resolved);
     if (rescue) {
       const rescueHint = rescue.requiresTuning
@@ -128,7 +142,7 @@ export function beginTurn(state: GameState): GameState {
   return { ...resolved, message: `${playerName(state.currentPlayer)} to move` };
 }
 
-function completeAction(previous: GameState, candidate: GameState): MoveResult {
+function completeAction(previous: GameState, candidate: GameState, options: RuleOptions = {}): MoveResult {
   const selfResolved = resolveOwnTurnConsequences(previous.currentPlayer, previous, candidate);
   const selfField = evaluateField(selfResolved);
   if (isKingUnprotected(previous.currentPlayer, selfResolved, selfField)) {
@@ -141,7 +155,7 @@ function completeAction(previous: GameState, candidate: GameState): MoveResult {
     turnNumber: previous.currentPlayer === "red" ? previous.turnNumber + 1 : previous.turnNumber,
     selectedPieceId: null,
     history: [...previous.history, snapshot(previous)],
-  });
+  }, options);
   const losses = lostOwnPieces(previous.currentPlayer, previous, next);
   if (losses.length > 0 && next.status === "playing") {
     return { ok: true, state: { ...next, message: `${playerName(previous.currentPlayer)} lost ${losses.join(", ")} · ${next.message}` } };
@@ -149,7 +163,7 @@ function completeAction(previous: GameState, candidate: GameState): MoveResult {
   return { ok: true, state: next };
 }
 
-export function applyMove(pieceId: string, destination: Position, state: GameState): MoveResult {
+export function applyMove(pieceId: string, destination: Position, state: GameState, options: RuleOptions = {}): MoveResult {
   if (state.status !== "playing") return { ok: false, state, reason: "The game is over." };
   const field = evaluateField(state);
   const piece = state.pieces.find((candidate) => candidate.id === pieceId);
@@ -163,7 +177,7 @@ export function applyMove(pieceId: string, destination: Position, state: GameSta
     ...state,
     pieces: state.pieces.map((item) => item.id === pieceId ? { ...item, position: destination } : item),
   };
-  return completeAction(state, candidate);
+  return completeAction(state, candidate, options);
 }
 
 export function getPlayableMoves(pieceId: string, state: GameState, field: number[][] = evaluateField(state)): Position[] {

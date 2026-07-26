@@ -11,6 +11,7 @@ import { getUnstablePieces, isKingUnprotected, markInstability } from "./victory
 const pieceTypes: PieceType[] = ["pawn", "rook", "spy", "king"];
 const coefficients: Coefficient[] = [-1, 0, 1];
 const materialValue = { pawn: 2, rook: 4, spy: 3, king: 100 } as const;
+const exactCandidateLimit = 8;
 
 function componentProfiles(pieceType: PieceType): Coefficient[][] {
   const count = COMPONENT_COUNTS[pieceType];
@@ -80,7 +81,7 @@ function scoreState(state: GameState, player: Player): number {
     const value = field[ownKing.position.y][ownKing.position.x];
     score += isSquareCompatible(player, value) ? Math.min(Math.abs(value), 4) * 25 : -10_000;
   }
-  if (isKingUnprotected(enemy, state, field)) score += 15_000;
+  if (isKingUnprotected(enemy, state, field)) score += 400_000;
 
   return score;
 }
@@ -88,7 +89,7 @@ function scoreState(state: GameState, player: Player): number {
 export function playHeuristicTurn(state: GameState, player: Player = "red"): GameState {
   if (state.status !== "playing" || state.currentPlayer !== player) return state;
 
-  let bestState: GameState | null = null;
+  const choices: Array<{ tuned: GameState; pieceId: string; destination: { x: number; y: number }; score: number }> = [];
   let bestScore = Number.NEGATIVE_INFINITY;
 
   for (const profile of tuningCandidates(state, player)) {
@@ -99,17 +100,28 @@ export function playHeuristicTurn(state: GameState, player: Player = "red"): Gam
 
     for (const piece of tuned.pieces.filter((candidate) => candidate.owner === player)) {
       for (const destination of getLegalMoves(piece.id, tuned, field)) {
-        const result = applyMove(piece.id, destination, tuned);
+        const result = applyMove(piece.id, destination, tuned, { analyzeCheckmate: false });
         if (!result.ok) continue;
         const score = scoreState(result.state, player);
-        if (score > bestScore) {
-          bestScore = score;
-          bestState = result.state;
+        if (choices.length < exactCandidateLimit || score > bestScore) {
+          choices.push({ tuned, pieceId: piece.id, destination, score });
+          choices.sort((a, b) => b.score - a.score);
+          choices.length = Math.min(choices.length, exactCandidateLimit);
+          bestScore = choices.at(-1)?.score ?? Number.NEGATIVE_INFINITY;
         }
       }
     }
   }
 
-  if (!bestState) return { ...state, message: `${player === "red" ? "Red" : "Blue"} has no legal move` };
-  return { ...bestState, history: [...state.history, snapshot(state)] };
+  if (choices.length === 0) return { ...state, message: `${player === "red" ? "Red" : "Blue"} has no legal move` };
+  let fallback: GameState | null = null;
+  for (const choice of choices) {
+    const result = applyMove(choice.pieceId, choice.destination, choice.tuned);
+    if (!result.ok) continue;
+    if (result.state.status === `${player}-won`) return { ...result.state, history: [...state.history, snapshot(state)] };
+    fallback ??= result.state;
+  }
+  return fallback
+    ? { ...fallback, history: [...state.history, snapshot(state)] }
+    : { ...state, message: `${player === "red" ? "Red" : "Blue"} has no legal move` };
 }
