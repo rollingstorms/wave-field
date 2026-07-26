@@ -1,8 +1,8 @@
 import { evaluateField } from "../field/evaluateField";
 import { PIECE_STRENGTH } from "./constants";
-import type { Coefficient, GameState, MoveResult, PieceType, Player, Position } from "./types";
+import type { Coefficient, GameState, MoveResult, PieceType, Player, PlayerComponents, Position } from "./types";
 import { getLegalMoves, samePosition } from "./movement";
-import { canSetComponentValue } from "./tuning";
+import { canSetComponentValue, isTuningWithinStrength } from "./tuning";
 import { getUnstablePieces, isKingUnprotected, markInstability, removeUnrescuedPieces } from "./victory";
 import { snapshot } from "./initialState";
 
@@ -14,40 +14,103 @@ function winStatus(winner: Player) {
   return winner === "red" ? "red-won" as const : "blue-won" as const;
 }
 
+function playerName(player: Player): string {
+  return player === "red" ? "Red" : "Blue";
+}
+
+const pieceTypes: PieceType[] = ["pawn", "rook", "spy", "king"];
+const coefficientValues: Coefficient[] = [1, 0, -1];
+
+function componentOptions(pieceType: PieceType, count: number): Coefficient[][] {
+  const options: Coefficient[][] = [];
+  function build(values: Coefficient[]) {
+    if (values.length === count) {
+      if (isTuningWithinStrength(pieceType, values)) options.push(values);
+      return;
+    }
+    for (const value of coefficientValues) build([...values, value]);
+  }
+  build([]);
+  return options;
+}
+
+const playerComponentOptions: PlayerComponents[] = componentOptions("pawn", 1).flatMap((pawn) =>
+  componentOptions("rook", 2).flatMap((rook) =>
+    componentOptions("spy", 3).flatMap((spy) =>
+      componentOptions("king", 3).map((king) => ({
+        pawn: pawn as [Coefficient],
+        rook: rook as [Coefficient, Coefficient],
+        spy: spy as [Coefficient, Coefficient, Coefficient],
+        king: king as [Coefficient, Coefficient, Coefficient],
+      })),
+    ),
+  ),
+);
+
+function movePiece(state: GameState, pieceId: string, destination: Position): GameState {
+  return {
+    ...state,
+    pieces: state.pieces.map((piece) => piece.id === pieceId ? { ...piece, position: destination } : piece),
+  };
+}
+
+function resolveOwnTurnConsequences(player: Player, previous: GameState, candidate: GameState): GameState {
+  const rescueDeadlineIds = new Set(
+    getUnstablePieces(player, previous, evaluateField(previous))
+      .filter((piece) => piece.type !== "king")
+      .map((piece) => piece.id),
+  );
+  const marked = markInstability(candidate, evaluateField(candidate));
+  const deadlineResolved = removeUnrescuedPieces(player, marked, rescueDeadlineIds);
+  const selfField = evaluateField(deadlineResolved);
+  return markInstability(deadlineResolved, selfField);
+}
+
+function canRescueKing(player: Player, state: GameState): boolean {
+  for (const components of playerComponentOptions) {
+    const tuned = {
+      ...state,
+      components: {
+        ...state.components,
+        [player]: structuredClone(components),
+      },
+    };
+    const field = evaluateField(tuned);
+    const pieces = tuned.pieces.filter((piece) => piece.owner === player);
+    for (const piece of pieces) {
+      for (const destination of getLegalMoves(piece.id, tuned, field)) {
+        const resolved = resolveOwnTurnConsequences(player, tuned, movePiece(tuned, piece.id, destination));
+        if (!isKingUnprotected(player, resolved, evaluateField(resolved))) return true;
+      }
+    }
+  }
+  return false;
+}
+
 export function beginTurn(state: GameState): GameState {
   if (state.status !== "playing") return state;
   const resolved = markInstability(state, evaluateField(state));
   const field = evaluateField(resolved);
   if (isKingUnprotected(state.currentPlayer, resolved, field)) {
-    return { ...resolved, status: winStatus(opponent(state.currentPlayer)), message: `${state.currentPlayer === "red" ? "Red" : "Blue"} king is unprotected` };
+    if (canRescueKing(state.currentPlayer, resolved)) {
+      return { ...resolved, message: `${playerName(state.currentPlayer)} king is in check · rescue the king` };
+    }
+    return { ...resolved, status: winStatus(opponent(state.currentPlayer)), message: `${playerName(state.currentPlayer)} king is checkmated` };
   }
   const unstable = getUnstablePieces(state.currentPlayer, resolved, field).filter((piece) => piece.type !== "king");
   if (unstable.length > 0) {
-    return { ...resolved, message: `${state.currentPlayer === "red" ? "Red" : "Blue"} must rescue an unstable ${unstable[0].type}` };
+    return { ...resolved, message: `${playerName(state.currentPlayer)} must rescue an unstable ${unstable[0].type}` };
   }
-  return { ...resolved, message: `${state.currentPlayer === "red" ? "Red" : "Blue"} to move` };
+  return { ...resolved, message: `${playerName(state.currentPlayer)} to move` };
 }
 
 function completeAction(previous: GameState, candidate: GameState): MoveResult {
-  const rescueDeadlineIds = new Set(
-    getUnstablePieces(previous.currentPlayer, previous, evaluateField(previous))
-      .filter((piece) => piece.type !== "king")
-      .map((piece) => piece.id),
-  );
-  const marked = markInstability(candidate, evaluateField(candidate));
-  const deadlineResolved = removeUnrescuedPieces(previous.currentPlayer, marked, rescueDeadlineIds);
-  const selfField = evaluateField(deadlineResolved);
-  const selfResolved = markInstability(deadlineResolved, selfField);
+  const selfResolved = resolveOwnTurnConsequences(previous.currentPlayer, previous, candidate);
+  const selfField = evaluateField(selfResolved);
   if (isKingUnprotected(previous.currentPlayer, selfResolved, selfField)) {
     return { ok: false, state: previous, reason: "That move would leave your king unprotected." };
   }
   const enemy = opponent(previous.currentPlayer);
-  if (isKingUnprotected(enemy, selfResolved, selfField)) {
-    return {
-      ok: true,
-      state: { ...selfResolved, status: winStatus(previous.currentPlayer), history: [...previous.history, snapshot(previous)], selectedPieceId: null, message: `${enemy === "red" ? "Red" : "Blue"} king is unprotected` },
-    };
-  }
   const next = beginTurn({
     ...selfResolved,
     currentPlayer: enemy,
@@ -97,13 +160,16 @@ export function applyTuning(
   nextComponents[player][pieceType][componentIndex] = value;
   const candidate = { ...state, components: nextComponents };
   const marked = markInstability(candidate, evaluateField(candidate));
+  const message = isKingUnprotected(player, marked, evaluateField(marked))
+    ? `${playerName(player)} king is in check · move to rescue the king`
+    : `${playerName(player)} tuning · move a piece to end the turn`;
 
   return {
     ok: true,
     state: {
       ...marked,
       history: [...state.history, snapshot(state)],
-      message: `${player === "red" ? "Red" : "Blue"} tuning · move a piece to end the turn`,
+      message,
     },
   };
 }

@@ -150,7 +150,7 @@ describe("stability and victory", () => {
     expect(getPlayableMoves("blue-spy", state)).not.toContainEqual({ x: 1, y: 0 });
   });
 
-  it("a move that leaves the opposing king unprotected wins immediately", () => {
+  it("a move that leaves the opposing king unprotected gives a rescue turn when possible", () => {
     const state = createInitialState();
     state.pieces = [
       { id: "blue-king", owner: "blue", type: "king", position: { x: 0, y: 0 }, unstable: false },
@@ -164,7 +164,32 @@ describe("stability and victory", () => {
     const result = applyMove("blue-spy", { x: 0, y: 1 }, state);
 
     expect(result.ok).toBe(true);
-    expect(result.state.status).toBe("blue-won");
-    expect(result.state.message).toContain("Red king is unprotected");
+    expect(result.state.status).toBe("playing");
+    expect(result.state.currentPlayer).toBe("red");
+    expect(result.state.message).toContain("Red king is in check");
+  });
+
+  it("a checked king with no rescue is checkmated", () => {
+    const state = createInitialState();
+    state.currentPlayer = "red";
+    state.definitions.pawn[0] = { kind: "preset", name: "Flat", preset: "constant-basin", decayBase: 2, originScale: 1 };
+    state.pieces = [
+      { id: "red-king", owner: "red", type: "king", position: { x: 3, y: 3 }, unstable: false },
+      { id: "blue-pawn-1", owner: "blue", type: "pawn", position: { x: 2, y: 2 }, unstable: false },
+      { id: "blue-pawn-2", owner: "blue", type: "pawn", position: { x: 3, y: 2 }, unstable: false },
+      { id: "blue-pawn-3", owner: "blue", type: "pawn", position: { x: 4, y: 2 }, unstable: false },
+      { id: "blue-pawn-4", owner: "blue", type: "pawn", position: { x: 2, y: 3 }, unstable: false },
+      { id: "blue-pawn-5", owner: "blue", type: "pawn", position: { x: 4, y: 3 }, unstable: false },
+      { id: "blue-pawn-6", owner: "blue", type: "pawn", position: { x: 2, y: 4 }, unstable: false },
+      { id: "blue-pawn-7", owner: "blue", type: "pawn", position: { x: 3, y: 4 }, unstable: false },
+      { id: "blue-pawn-8", owner: "blue", type: "pawn", position: { x: 4, y: 4 }, unstable: false },
+    ];
+    state.components.red.king = [0, 0, 0];
+    state.components.blue.pawn = [1];
+
+    const started = beginTurn(state);
+
+    expect(started.status).toBe("blue-won");
+    expect(started.message).toContain("Red king is checkmated");
   });
 });

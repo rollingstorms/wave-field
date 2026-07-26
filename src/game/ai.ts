@@ -6,7 +6,7 @@ import { getLegalMoves } from "./movement";
 import { applyMove } from "./rules";
 import { isTuningWithinStrength } from "./tuning";
 import type { Coefficient, GameState, PieceType, Player, PlayerComponents } from "./types";
-import { getUnstablePieces, markInstability } from "./victory";
+import { getUnstablePieces, isKingUnprotected, markInstability } from "./victory";
 
 const pieceTypes: PieceType[] = ["pawn", "rook", "spy", "king"];
 const coefficients: Coefficient[] = [-1, 0, 1];
@@ -80,6 +80,7 @@ function scoreState(state: GameState, player: Player): number {
     const value = field[ownKing.position.y][ownKing.position.x];
     score += isSquareCompatible(player, value) ? Math.min(Math.abs(value), 4) * 25 : -10_000;
   }
+  if (isKingUnprotected(enemy, state, field)) score += 15_000;
 
   return score;
 }
