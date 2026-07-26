@@ -120,13 +120,10 @@ Spies are never unstable and are never removed by hostile territory.
 
 ## Victory
 
-A king is trapped when:
-
-1. It occupies hostile territory.
-2. It has no legal escape along any unblocked friendly or neutral ray.
-
-When a move produces that state for the opposing king, the moving player wins.
-Kings are not captured or removed.
+A king must be protected by friendly or Neutral territory at the end of every
+move. A player cannot complete a move that leaves their own king on hostile
+territory. When a completed move places the opposing king on hostile territory,
+the moving player wins immediately. Kings are not captured or removed.
 
 ## Starting Position
 

@@ -20,10 +20,9 @@ export function markInstability(state: GameState, field: number[][]): GameState 
   };
 }
 
-export function isKingTrapped(player: Player, state: GameState, field: number[][]): boolean {
+export function isKingUnprotected(player: Player, state: GameState, field: number[][]): boolean {
   const king = state.pieces.find((piece) => piece.owner === player && piece.type === "king");
-  if (!king || isSquareCompatible(player, field[king.position.y][king.position.x])) return false;
-  return getLegalMoves(king.id, state, field).length === 0;
+  return Boolean(king && !isSquareCompatible(player, field[king.position.y][king.position.x]));
 }
 
 export function removeUnrescuedPieces(

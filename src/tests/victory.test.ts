@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
-import { isKingTrapped, getUnstablePieces, removeUnrescuedPieces, resolveForcedRemovals } from "../game/victory";
+import { isKingUnprotected, getUnstablePieces, removeUnrescuedPieces, resolveForcedRemovals } from "../game/victory";
 import { createInitialState } from "../game/initialState";
-import { applyMove } from "../game/rules";
+import { applyMove, getPlayableMoves } from "../game/rules";
 import type { GameState } from "../game/types";
 
 const field = (value = 0) => Array.from({ length: 7 }, () => Array.from({ length: 7 }, () => value));
@@ -22,19 +22,19 @@ describe("stability and victory", () => {
   it("stable immobile king does not lose", () => {
     const state = kingState();
     state.pieces.push(...Array.from({ length: 8 }, (_, i) => ({ id: `block-${i}`, owner: "blue" as const, type: "pawn" as const, unstable: false, position: { x: 2 + (i % 3), y: 2 + Math.floor(i / 3) } })).filter((piece) => piece.position.x !== 3 || piece.position.y !== 3));
-    expect(isKingTrapped("red", state, field(1))).toBe(false);
+    expect(isKingUnprotected("red", state, field(1))).toBe(false);
   });
 
-  it("unstable king with one stable escape does not lose", () => {
+  it("a king on hostile territory is unprotected even when an escape exists", () => {
     const state = kingState();
     const hostile = field(-1);
     hostile[3][4] = 0;
-    expect(isKingTrapped("red", state, hostile)).toBe(false);
+    expect(isKingUnprotected("red", state, hostile)).toBe(true);
   });
 
-  it("unstable king with no stable escape loses", () => {
+  it("a king on hostile territory is unprotected with no escape", () => {
     const state = kingState();
-    expect(isKingTrapped("red", state, field(-1))).toBe(true);
+    expect(isKingUnprotected("red", state, field(-1))).toBe(true);
   });
 
   it("unstable piece without escape is removed at turn start", () => {
@@ -78,17 +78,37 @@ describe("stability and victory", () => {
     expect(resolved.pieces.map((piece) => piece.id)).toContain("red-pawn");
   });
 
-  it("self-trapping moves are illegal", () => {
+  it("moves that leave the moving player's king unprotected are illegal and not offered", () => {
     const state = createInitialState();
     state.pieces = [
       { id: "blue-king", owner: "blue", type: "king", position: { x: 0, y: 0 }, unstable: false },
-      { id: "blue-pawn", owner: "blue", type: "pawn", position: { x: 1, y: 1 }, unstable: false },
+      { id: "blue-spy", owner: "blue", type: "spy", position: { x: 2, y: 0 }, unstable: false },
       { id: "red-king", owner: "red", type: "king", position: { x: 6, y: 6 }, unstable: false },
     ];
-    state.components.blue.king = [-1, 0, 0];
-    state.components.blue.pawn = [0];
-    state.components.red.king = [1, 0, 0];
-    const result = applyMove("blue-pawn", { x: 1, y: 0 }, state);
+    state.components.blue.king = [0, 0, 0];
+    state.components.blue.spy = [1, 0, 0];
+    state.components.red.king = [0, 0, 0];
+    const result = applyMove("blue-spy", { x: 1, y: 0 }, state);
     expect(result.ok).toBe(false);
+    expect(result.reason).toContain("unprotected");
+    expect(getPlayableMoves("blue-spy", state)).not.toContainEqual({ x: 1, y: 0 });
+  });
+
+  it("a move that leaves the opposing king unprotected wins immediately", () => {
+    const state = createInitialState();
+    state.pieces = [
+      { id: "blue-king", owner: "blue", type: "king", position: { x: 0, y: 0 }, unstable: false },
+      { id: "blue-spy", owner: "blue", type: "spy", position: { x: 1, y: 1 }, unstable: false },
+      { id: "red-king", owner: "red", type: "king", position: { x: 6, y: 6 }, unstable: false },
+    ];
+    state.components.blue.king = [0, 0, 0];
+    state.components.blue.spy = [-1, 0, 0];
+    state.components.red.king = [0, 0, 0];
+
+    const result = applyMove("blue-spy", { x: 0, y: 1 }, state);
+
+    expect(result.ok).toBe(true);
+    expect(result.state.status).toBe("blue-won");
+    expect(result.state.message).toContain("Red king is unprotected");
   });
 });

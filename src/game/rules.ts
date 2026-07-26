@@ -3,7 +3,7 @@ import { PIECE_STRENGTH } from "./constants";
 import type { Coefficient, GameState, MoveResult, PieceType, Player, Position } from "./types";
 import { getLegalMoves, samePosition } from "./movement";
 import { canSetComponentValue } from "./tuning";
-import { getUnstablePieces, isKingTrapped, markInstability, removeUnrescuedPieces, resolveForcedRemovals } from "./victory";
+import { getUnstablePieces, isKingUnprotected, markInstability, removeUnrescuedPieces, resolveForcedRemovals } from "./victory";
 import { snapshot } from "./initialState";
 
 export function opponent(player: Player): Player {
@@ -18,8 +18,8 @@ export function beginTurn(state: GameState): GameState {
   if (state.status !== "playing") return state;
   const resolved = resolveForcedRemovals(state.currentPlayer, state);
   const field = evaluateField(resolved);
-  if (isKingTrapped(state.currentPlayer, resolved, field)) {
-    return { ...resolved, status: winStatus(opponent(state.currentPlayer)), message: `${state.currentPlayer === "red" ? "Red" : "Blue"} king is trapped` };
+  if (isKingUnprotected(state.currentPlayer, resolved, field)) {
+    return { ...resolved, status: winStatus(opponent(state.currentPlayer)), message: `${state.currentPlayer === "red" ? "Red" : "Blue"} king is unprotected` };
   }
   const unstable = getUnstablePieces(state.currentPlayer, resolved, field).filter((piece) => piece.type !== "king");
   if (unstable.length > 0) {
@@ -38,14 +38,14 @@ function completeAction(previous: GameState, candidate: GameState): MoveResult {
   const deadlineResolved = removeUnrescuedPieces(previous.currentPlayer, marked, rescueDeadlineIds);
   const selfResolved = resolveForcedRemovals(previous.currentPlayer, deadlineResolved);
   const selfField = evaluateField(selfResolved);
-  if (isKingTrapped(previous.currentPlayer, selfResolved, selfField)) {
-    return { ok: false, state: previous, reason: "That action would trap your own king." };
+  if (isKingUnprotected(previous.currentPlayer, selfResolved, selfField)) {
+    return { ok: false, state: previous, reason: "That move would leave your king unprotected." };
   }
   const enemy = opponent(previous.currentPlayer);
-  if (isKingTrapped(enemy, selfResolved, selfField)) {
+  if (isKingUnprotected(enemy, selfResolved, selfField)) {
     return {
       ok: true,
-      state: { ...selfResolved, status: winStatus(previous.currentPlayer), history: [...previous.history, snapshot(previous)], selectedPieceId: null, message: `${enemy === "red" ? "Red" : "Blue"} king is trapped` },
+      state: { ...selfResolved, status: winStatus(previous.currentPlayer), history: [...previous.history, snapshot(previous)], selectedPieceId: null, message: `${enemy === "red" ? "Red" : "Blue"} king is unprotected` },
     };
   }
   const next = beginTurn({
@@ -77,6 +77,10 @@ export function applyMove(pieceId: string, destination: Position, state: GameSta
     pieces: state.pieces.map((item) => item.id === pieceId ? { ...item, position: destination } : item),
   };
   return completeAction(state, candidate);
+}
+
+export function getPlayableMoves(pieceId: string, state: GameState, field: number[][] = evaluateField(state)): Position[] {
+  return getLegalMoves(pieceId, state, field).filter((destination) => applyMove(pieceId, destination, state).ok);
 }
 
 export function applyTuning(

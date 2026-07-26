@@ -8,7 +8,8 @@ import { BOARD_SIZE } from "../game/constants";
 import { contributionGrid, evaluateField, evaluateTypeFields } from "../field/evaluateField";
 import type { TypeFields } from "../field/evaluateField";
 import { projectFieldValue } from "../field/projection";
-import { getLegalMoves, getPieceAt, samePosition } from "../game/movement";
+import { getPieceAt, samePosition } from "../game/movement";
+import { getPlayableMoves } from "../game/rules";
 import type { GameState, Position } from "../game/types";
 import { Square } from "./Square";
 
@@ -38,7 +39,7 @@ export function Board({ state, field, typeFields, highContrast, showTypeSums, on
   const [dragPreview, setDragPreview] = useState<Position | null>(null);
   const selectedPiece = state.pieces.find((piece) => piece.id === state.selectedPieceId);
   const interactionPiece = state.pieces.find((piece) => piece.id === draggingPieceId) ?? selectedPiece;
-  const legalMoves = interactionPiece ? getLegalMoves(interactionPiece.id, state, field) : [];
+  const legalMoves = interactionPiece ? getPlayableMoves(interactionPiece.id, state, field) : [];
   const previewState = useMemo<GameState>(() => {
     if (!draggingPieceId || !dragPreview) return state;
     return {
@@ -84,7 +85,7 @@ export function Board({ state, field, typeFields, highContrast, showTypeSums, on
     const piece = position ? getPieceAt(state, position) : undefined;
     if (!piece || piece.owner !== state.currentPlayer) return false;
 
-    const moves = getLegalMoves(piece.id, state, field);
+    const moves = getPlayableMoves(piece.id, state, field);
     dragRef.current = { pieceId: piece.id, contactId, input, start: piece.position, legalMoves: moves };
     setDraggingPieceId(piece.id);
     setDragPreview(piece.position);
@@ -251,8 +252,10 @@ export function Board({ state, field, typeFields, highContrast, showTypeSums, on
       <div className="files bottom">{Array.from({ length: BOARD_SIZE }, (_, x) => <span key={x}>{x + 1}</span>)}</div>
       {selectedPiece?.unstable && (
         <p className="piece-alert-hint" role="status" aria-live="polite">
-          <strong>UNSTABLE PIECE</strong>
-          Move this piece or tune the field until its square is friendly or neutral. Otherwise it disappears when the turn ends.
+          <strong>{selectedPiece.type === "king" ? "UNPROTECTED KING" : "UNSTABLE PIECE"}</strong>
+          {selectedPiece.type === "king"
+            ? "Tune the field until the king's square is friendly or neutral before moving. You cannot end the turn with an unprotected king."
+            : "Move this piece or tune the field until its square is friendly or neutral. Otherwise it disappears when the turn ends."}
         </p>
       )}
     </section>
