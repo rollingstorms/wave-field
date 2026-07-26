@@ -19,6 +19,7 @@ interface BoardProps {
   typeFields: TypeFields;
   highContrast: boolean;
   showTypeSums: boolean;
+  locked?: boolean;
   onSelect: (pieceId: string | null) => void;
   onMove: (pieceId: string, destination: Position) => void;
 }
@@ -31,7 +32,7 @@ interface ActiveDrag {
   legalMoves: Position[];
 }
 
-export function Board({ state, field, typeFields, highContrast, showTypeSums, onSelect, onMove }: BoardProps) {
+export function Board({ state, field, typeFields, highContrast, showTypeSums, locked = false, onSelect, onMove }: BoardProps) {
   const boardRef = useRef<HTMLDivElement>(null);
   const dragRef = useRef<ActiveDrag | null>(null);
   const suppressClickRef = useRef(false);
@@ -39,7 +40,7 @@ export function Board({ state, field, typeFields, highContrast, showTypeSums, on
   const [dragPreview, setDragPreview] = useState<Position | null>(null);
   const selectedPiece = state.pieces.find((piece) => piece.id === state.selectedPieceId);
   const interactionPiece = state.pieces.find((piece) => piece.id === draggingPieceId) ?? selectedPiece;
-  const legalMoves = interactionPiece ? getPlayableMoves(interactionPiece.id, state, field) : [];
+  const legalMoves = !locked && interactionPiece ? getPlayableMoves(interactionPiece.id, state, field) : [];
   const previewState = useMemo<GameState>(() => {
     if (!draggingPieceId || !dragPreview) return state;
     return {
@@ -80,7 +81,7 @@ export function Board({ state, field, typeFields, highContrast, showTypeSums, on
   }
 
   function startDrag(contactId: number, input: ActiveDrag["input"], clientX: number, clientY: number) {
-    if (state.status !== "playing" || dragRef.current) return false;
+    if (locked || state.status !== "playing" || dragRef.current) return false;
     const position = positionFromPointer(clientX, clientY);
     const piece = position ? getPieceAt(state, position) : undefined;
     if (!piece || piece.owner !== state.currentPlayer) return false;
@@ -175,6 +176,7 @@ export function Board({ state, field, typeFields, highContrast, showTypeSums, on
   }
 
   function handleSquare(position: Position) {
+    if (locked) return;
     const piece = getPieceAt(state, position);
     const isLegal = selectedPiece && legalMoves.some((move) => samePosition(move, position));
     if (selectedPiece && isLegal) {

@@ -1,4 +1,4 @@
-import { Grid2X2, RotateCcw, Undo2, Wrench } from "lucide-react";
+import { Bot, Grid2X2, RotateCcw, Undo2, Wrench } from "lucide-react";
 import type { GameState } from "../game/types";
 
 interface TurnStatusProps {
@@ -6,14 +6,17 @@ interface TurnStatusProps {
   developerMode: boolean;
   highContrast: boolean;
   showTypeSums: boolean;
+  aiEnabled: boolean;
+  aiThinking: boolean;
   onUndo: () => void;
   onRestart: () => void;
   onToggleDeveloper: () => void;
   onToggleContrast: () => void;
   onToggleTypeSums: () => void;
+  onToggleAi: () => void;
 }
 
-export function TurnStatus({ state, developerMode, highContrast, showTypeSums, onUndo, onRestart, onToggleDeveloper, onToggleContrast, onToggleTypeSums }: TurnStatusProps) {
+export function TurnStatus({ state, developerMode, highContrast, showTypeSums, aiEnabled, aiThinking, onUndo, onRestart, onToggleDeveloper, onToggleContrast, onToggleTypeSums, onToggleAi }: TurnStatusProps) {
   const winner = state.status === "red-won" ? "Red wins" : state.status === "blue-won" ? "Blue wins" : null;
   return (
     <header className="topbar">
@@ -23,7 +26,7 @@ export function TurnStatus({ state, developerMode, highContrast, showTypeSums, o
       </div>
       <div className="turn-block">
         <span>TURN {state.turnNumber}</span>
-        <strong>{winner ?? state.message}</strong>
+        <strong>{winner ?? (aiThinking ? "Red AI thinking..." : state.message)}</strong>
       </div>
       <div className="actions">
         <button title="Undo" aria-label="Undo" onClick={onUndo}><Undo2 size={18} /></button>
@@ -37,6 +40,15 @@ export function TurnStatus({ state, developerMode, highContrast, showTypeSums, o
           onClick={onToggleTypeSums}
         >
           <Grid2X2 size={18} />
+        </button>
+        <button
+          className={aiEnabled ? "active" : ""}
+          title={aiEnabled ? "Red AI enabled" : "Red AI disabled"}
+          aria-label="Red AI opponent"
+          aria-pressed={aiEnabled}
+          onClick={onToggleAi}
+        >
+          <Bot size={18} />
         </button>
         <button className={highContrast ? "active" : ""} onClick={onToggleContrast}>A11Y</button>
       </div>

@@ -1,4 +1,4 @@
-import { useMemo, useReducer, useState } from "react";
+import { useEffect, useMemo, useReducer, useState } from "react";
 import { Board } from "../components/Board";
 import { ComponentControls } from "../components/ComponentControls";
 import { DebugPanel } from "../components/DebugPanel";
@@ -15,9 +15,22 @@ export function App() {
   const [developerMode, setDeveloperMode] = useState(false);
   const [highContrast, setHighContrast] = useState(false);
   const [showTypeSums, setShowTypeSums] = useState(false);
+  const [aiEnabled, setAiEnabled] = useState(true);
+  const [aiThinking, setAiThinking] = useState(false);
   const [editorSelection, setEditorSelection] = useState<{ pieceType: PieceType; componentIndex: number }>({ pieceType: "rook", componentIndex: 0 });
   const field = useMemo(() => evaluateField(state), [state]);
   const typeFields = useMemo(() => evaluateTypeFields(state), [state]);
+  const aiTurn = aiEnabled && state.currentPlayer === "red" && state.status === "playing";
+
+  useEffect(() => {
+    if (!aiTurn) {
+      setAiThinking(false);
+      return;
+    }
+    setAiThinking(true);
+    const timer = globalThis.setTimeout(() => dispatch({ type: "ai-turn" }), 450);
+    return () => globalThis.clearTimeout(timer);
+  }, [aiTurn, state.turnNumber]);
 
   function updateDefinition(definition: BasisDefinition) {
     dispatch({ type: "update-definition", ...editorSelection, definition });
@@ -31,6 +44,13 @@ export function App() {
     });
   }
 
+  function undo() {
+    if (aiEnabled && state.history.at(-1)?.currentPlayer === "red") {
+      setAiEnabled(false);
+    }
+    dispatch({ type: "undo" });
+  }
+
   return (
     <main className={`app ${highContrast ? "high-contrast" : ""}`}>
       <TurnStatus
@@ -38,11 +58,14 @@ export function App() {
         developerMode={developerMode}
         highContrast={highContrast}
         showTypeSums={showTypeSums}
-        onUndo={() => dispatch({ type: "undo" })}
+        aiEnabled={aiEnabled}
+        aiThinking={aiThinking}
+        onUndo={undo}
         onRestart={() => dispatch({ type: "restart", keepDefinitions: true })}
         onToggleDeveloper={() => setDeveloperMode((value) => !value)}
         onToggleContrast={() => setHighContrast((value) => !value)}
         onToggleTypeSums={() => setShowTypeSums((value) => !value)}
+        onToggleAi={() => setAiEnabled((value) => !value)}
       />
       <div className="play-area">
         <Board
@@ -51,11 +74,13 @@ export function App() {
           typeFields={typeFields}
           highContrast={highContrast}
           showTypeSums={showTypeSums}
+          locked={aiTurn}
           onSelect={(pieceId) => dispatch({ type: "select", pieceId })}
           onMove={(pieceId: string, destination: Position) => dispatch({ type: "move", pieceId, destination })}
         />
         <ComponentControls
           state={state}
+          locked={aiTurn}
           onTune={(pieceType, componentIndex, value) => dispatch({ type: "tune", pieceType, componentIndex, value })}
         />
       </div>

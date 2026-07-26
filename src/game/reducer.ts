@@ -1,4 +1,5 @@
 import { cloneDefinitions, validateDefinition, validateDefinitions } from "../field/componentDefinitions";
+import { playHeuristicTurn } from "./ai";
 import { createInitialState, fromSnapshot } from "./initialState";
 import { applyMove, applyTuning, beginTurn } from "./rules";
 import type { BasisDefinition, Coefficient, GameState, PieceType, Position } from "./types";
@@ -7,6 +8,7 @@ export type GameAction =
   | { type: "select"; pieceId: string | null }
   | { type: "move"; pieceId: string; destination: Position }
   | { type: "tune"; pieceType: PieceType; componentIndex: number; value: Coefficient }
+  | { type: "ai-turn" }
   | { type: "undo" }
   | { type: "restart"; keepDefinitions?: boolean }
   | { type: "update-definition"; pieceType: PieceType; componentIndex: number; definition: BasisDefinition }
@@ -25,6 +27,8 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
       const result = applyTuning(state.currentPlayer, action.pieceType, action.componentIndex, action.value, state);
       return result.ok ? result.state : { ...state, message: result.reason ?? state.message };
     }
+    case "ai-turn":
+      return playHeuristicTurn(state);
     case "undo": {
       const previous = state.history.at(-1);
       if (!previous) return { ...state, message: "Nothing to undo" };

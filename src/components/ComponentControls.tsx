@@ -9,10 +9,11 @@ const label = (value: Coefficient) => value === 1 ? "+" : value === -1 ? "-" : "
 
 interface ComponentControlsProps {
   state: GameState;
+  locked?: boolean;
   onTune: (pieceType: PieceType, componentIndex: number, value: Coefficient) => void;
 }
 
-export function ComponentControls({ state, onTune }: ComponentControlsProps) {
+export function ComponentControls({ state, locked = false, onTune }: ComponentControlsProps) {
   const player = state.currentPlayer;
   return (
     <aside className="control-panel" aria-label={`${player} component controls`}>
@@ -40,7 +41,8 @@ export function ComponentControls({ state, onTune }: ComponentControlsProps) {
                   type="button"
                   className={coefficient === value ? `chosen ${player}` : ""}
                   disabled={
-                    state.status !== "playing"
+                    locked
+                    || state.status !== "playing"
                     || coefficient === value
                     || !canSetComponentValue(state.components[player], pieceType, index, value)
                   }
