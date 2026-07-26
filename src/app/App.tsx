@@ -2,6 +2,7 @@ import { useEffect, useMemo, useReducer, useState } from "react";
 import { Board } from "../components/Board";
 import { ComponentControls } from "../components/ComponentControls";
 import { DebugPanel } from "../components/DebugPanel";
+import { RulesPage } from "../components/RulesPage";
 import { TurnStatus } from "../components/TurnStatus";
 import { WaveEditor } from "../components/WaveEditor";
 import { cloneDefinitions, DEFAULT_DEFINITIONS } from "../field/componentDefinitions";
@@ -15,6 +16,7 @@ export function App() {
   const [developerMode, setDeveloperMode] = useState(false);
   const [highContrast, setHighContrast] = useState(false);
   const [showTypeSums, setShowTypeSums] = useState(false);
+  const [showRules, setShowRules] = useState(false);
   const [aiEnabled, setAiEnabled] = useState(true);
   const [aiThinking, setAiThinking] = useState(false);
   const [editorSelection, setEditorSelection] = useState<{ pieceType: PieceType; componentIndex: number }>({ pieceType: "rook", componentIndex: 0 });
@@ -51,6 +53,10 @@ export function App() {
     dispatch({ type: "undo" });
   }
 
+  if (showRules) {
+    return <RulesPage onBack={() => setShowRules(false)} />;
+  }
+
   return (
     <main className={`app ${highContrast ? "high-contrast" : ""}`}>
       <TurnStatus
@@ -66,6 +72,7 @@ export function App() {
         onToggleContrast={() => setHighContrast((value) => !value)}
         onToggleTypeSums={() => setShowTypeSums((value) => !value)}
         onToggleAi={() => setAiEnabled((value) => !value)}
+        onShowRules={() => setShowRules(true)}
       />
       <div className="play-area">
         <Board

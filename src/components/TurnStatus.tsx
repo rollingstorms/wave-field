@@ -1,4 +1,4 @@
-import { Bot, Grid2X2, RotateCcw, Undo2, Wrench } from "lucide-react";
+import { Bot, CircleHelp, Grid2X2, RotateCcw, Undo2, Wrench } from "lucide-react";
 import type { GameState } from "../game/types";
 
 interface TurnStatusProps {
@@ -14,9 +14,10 @@ interface TurnStatusProps {
   onToggleContrast: () => void;
   onToggleTypeSums: () => void;
   onToggleAi: () => void;
+  onShowRules: () => void;
 }
 
-export function TurnStatus({ state, developerMode, highContrast, showTypeSums, aiEnabled, aiThinking, onUndo, onRestart, onToggleDeveloper, onToggleContrast, onToggleTypeSums, onToggleAi }: TurnStatusProps) {
+export function TurnStatus({ state, developerMode, highContrast, showTypeSums, aiEnabled, aiThinking, onUndo, onRestart, onToggleDeveloper, onToggleContrast, onToggleTypeSums, onToggleAi, onShowRules }: TurnStatusProps) {
   const winner = state.status === "red-won" ? "Red wins" : state.status === "blue-won" ? "Blue wins" : null;
   return (
     <header className="topbar">
@@ -29,6 +30,7 @@ export function TurnStatus({ state, developerMode, highContrast, showTypeSums, a
         <strong>{winner ?? (aiThinking ? "Red AI thinking..." : state.message)}</strong>
       </div>
       <div className="actions">
+        <button title="How to play" aria-label="How to play" onClick={onShowRules}><CircleHelp size={18} /></button>
         <button title="Undo" aria-label="Undo" onClick={onUndo}><Undo2 size={18} /></button>
         <button title="Restart" aria-label="Restart" onClick={onRestart}><RotateCcw size={18} /></button>
         <button className={developerMode ? "active" : ""} title="Developer mode" aria-label="Developer mode" onClick={onToggleDeveloper}><Wrench size={18} /></button>
