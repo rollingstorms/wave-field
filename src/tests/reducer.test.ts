@@ -3,6 +3,7 @@ import { evaluateField } from "../field/evaluateField";
 import { gameReducer } from "../game/reducer";
 import { createInitialState } from "../game/initialState";
 import { getLegalMoves } from "../game/movement";
+import { beginTurn } from "../game/rules";
 
 describe("reducer", () => {
   it("allows multiple tuning changes without ending the turn", () => {
@@ -78,7 +79,12 @@ describe("reducer", () => {
       definition: { kind: "preset", name: "Flat", preset: "constant-basin", decayBase: 2, originScale: 1 },
     });
     const restarted = gameReducer(edited, { type: "restart", keepDefinitions: true });
+    const expected = beginTurn(createInitialState(edited.defaultComponents, edited.definitions));
+
     expect(restarted.definitions.pawn[0].name).toBe("Flat");
+    expect(restarted.status).toBe(expected.status);
+    expect(restarted.message).toBe(expected.message);
+    expect(restarted.pieces.map((piece) => piece.unstable)).toEqual(expected.pieces.map((piece) => piece.unstable));
   });
 
   it("applies edited default controls to both players on restart", () => {

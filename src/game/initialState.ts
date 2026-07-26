@@ -1,5 +1,5 @@
 import { cloneDefinitions, DEFAULT_COMPONENTS } from "../field/componentDefinitions";
-import type { GameSnapshot, GameState, Piece, Player, PlayerComponents, PieceType } from "./types";
+import type { ComponentDefinitions, GameSnapshot, GameState, Piece, Player, PlayerComponents, PieceType } from "./types";
 
 function piece(owner: Player, type: PieceType, x: number, y: number, n: number): Piece {
   return { id: `${owner}-${type}-${n}`, owner, type, position: { x, y }, unstable: false };
@@ -22,7 +22,10 @@ export function createInitialPieces(): Piece[] {
   ];
 }
 
-export function createInitialState(defaultComponents: PlayerComponents = DEFAULT_COMPONENTS): GameState {
+export function createInitialState(
+  defaultComponents: PlayerComponents = DEFAULT_COMPONENTS,
+  definitions: ComponentDefinitions = cloneDefinitions(),
+): GameState {
   return {
     pieces: createInitialPieces(),
     currentPlayer: "blue",
@@ -31,7 +34,7 @@ export function createInitialState(defaultComponents: PlayerComponents = DEFAULT
       red: structuredClone(defaultComponents),
     },
     defaultComponents: structuredClone(defaultComponents),
-    definitions: cloneDefinitions(),
+    definitions: structuredClone(definitions),
     selectedPieceId: null,
     status: "playing",
     history: [],

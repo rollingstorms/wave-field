@@ -38,8 +38,8 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
       return fromSnapshot(previous, state.history.slice(0, -1), state.defaultComponents);
     }
     case "restart": {
-      const initial = beginTurn(createInitialState(state.defaultComponents));
-      return action.keepDefinitions ? { ...initial, definitions: state.definitions } : initial;
+      const definitions = action.keepDefinitions ? state.definitions : cloneDefinitions();
+      return beginTurn(createInitialState(state.defaultComponents, definitions));
     }
     case "update-default-component": {
       const defaultComponents = structuredClone(state.defaultComponents);
