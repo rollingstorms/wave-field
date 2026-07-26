@@ -40,7 +40,6 @@ export function Square({ position, territory, fieldValue, piece, legal, selected
       data-board-y={position.y}
       aria-label={`Square ${position.x + 1},${position.y + 1}. ${territory} territory. Field ${fieldValue.toFixed(3)}.${influenceSummary}${typeSummary}`}
     >
-      {influenceTerritory && <span className="field-fade" aria-hidden="true" />}
       {influenceOpacity > 0 && influenceTerritory !== "neutral" && (
         <span
           className={`influence-overlay influence-${influenceTerritory}`}

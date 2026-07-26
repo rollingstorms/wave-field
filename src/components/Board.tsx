@@ -203,7 +203,7 @@ export function Board({ state, field, typeFields, highContrast, showTypeSums, on
       <div className="board-row-wrap">
         <div className="ranks left">{Array.from({ length: BOARD_SIZE }, (_, i) => <span key={i}>{BOARD_SIZE - i}</span>)}</div>
         <div
-          className={`board ${draggingPieceId ? "dragging" : ""} ${influenceGrid ? "influence-mode" : ""}`}
+          className={`board ${draggingPieceId ? "dragging" : ""}`}
           ref={boardRef}
           onPointerDown={handlePointerDown}
           onPointerMove={handlePointerMove}
@@ -234,7 +234,7 @@ export function Board({ state, field, typeFields, highContrast, showTypeSums, on
                   dragPreview={Boolean(draggingPieceId && dragPreview && samePosition(dragPreview, position))}
                   influenceTerritory={influenceGrid ? projectFieldValue(influenceValue) : null}
                   influenceOpacity={maximumInfluence > 0 && influence > 0
-                    ? 0.32 + (influence / maximumInfluence) * 0.68
+                    ? 0.45 + (influence / maximumInfluence) * 0.55
                     : 0}
                   highContrast={highContrast}
                   typeSums={showTypeSums ? {

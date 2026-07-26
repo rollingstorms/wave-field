@@ -145,7 +145,7 @@ The opening formation is rotationally symmetric:
 
 ## The Live Rules Demo
 
-The demo includes a faded-board selected-piece influence overlay,
+The demo includes selected-piece influence borders colored by contribution,
 drag-to-preview field updates, live wave-pattern thumbnails, a per-square
 piece-type contribution overlay, legal-move indicators, instability warnings,
 undo and restart, high-contrast territory markers, and a developer mode for
