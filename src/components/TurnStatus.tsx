@@ -1,4 +1,4 @@
-import { Bot, CircleHelp, Grid2X2, RotateCcw, Undo2, Wrench } from "lucide-react";
+import { Bot, CircleHelp, Grid2X2, Palette, RotateCcw, Undo2, Wrench } from "lucide-react";
 import type { GameState } from "../game/types";
 
 interface TurnStatusProps {
@@ -6,6 +6,7 @@ interface TurnStatusProps {
   developerMode: boolean;
   highContrast: boolean;
   showTypeSums: boolean;
+  energyView: boolean;
   aiEnabled: boolean;
   aiThinking: boolean;
   onUndo: () => void;
@@ -13,11 +14,12 @@ interface TurnStatusProps {
   onToggleDeveloper: () => void;
   onToggleContrast: () => void;
   onToggleTypeSums: () => void;
+  onToggleEnergyView: () => void;
   onToggleAi: () => void;
   onShowRules: () => void;
 }
 
-export function TurnStatus({ state, developerMode, highContrast, showTypeSums, aiEnabled, aiThinking, onUndo, onRestart, onToggleDeveloper, onToggleContrast, onToggleTypeSums, onToggleAi, onShowRules }: TurnStatusProps) {
+export function TurnStatus({ state, developerMode, highContrast, showTypeSums, energyView, aiEnabled, aiThinking, onUndo, onRestart, onToggleDeveloper, onToggleContrast, onToggleTypeSums, onToggleEnergyView, onToggleAi, onShowRules }: TurnStatusProps) {
   const winner = state.status === "red-won" ? "Red wins" : state.status === "blue-won" ? "Blue wins" : null;
   return (
     <header className="topbar">
@@ -42,6 +44,15 @@ export function TurnStatus({ state, developerMode, highContrast, showTypeSums, a
           onClick={onToggleTypeSums}
         >
           <Grid2X2 size={18} />
+        </button>
+        <button
+          className={energyView ? "active" : ""}
+          title="CMYK energy view"
+          aria-label="CMYK energy view"
+          aria-pressed={energyView}
+          onClick={onToggleEnergyView}
+        >
+          <Palette size={18} />
         </button>
         <button
           className={aiEnabled ? "active" : ""}

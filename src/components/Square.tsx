@@ -18,6 +18,9 @@ interface SquareProps {
   highContrast: boolean;
   typeSums: Record<PieceType, number> | null;
   lossPop: boolean;
+  energyColor?: string;
+  energySummary?: string;
+  energySelected?: boolean;
   onClick: () => void;
 }
 
@@ -27,7 +30,7 @@ function formatSigned(value: number) {
   return `${value > 0 ? "+" : ""}${magnitude.replace(".0", "")}`;
 }
 
-export function Square({ position, territory, fieldValue, piece, legal, risky, kingBlocked, selected, dragging, dragPreview, influenceTerritory, influenceOpacity, highContrast, typeSums, lossPop, onClick }: SquareProps) {
+export function Square({ position, territory, fieldValue, piece, legal, risky, kingBlocked, selected, dragging, dragPreview, influenceTerritory, influenceOpacity, highContrast, typeSums, lossPop, energyColor, energySummary = "", energySelected = false, onClick }: SquareProps) {
   const marker = territory === "red" ? "+" : territory === "blue" ? "-" : "0";
   const influenceSummary = influenceTerritory
     ? ` Selected piece influence ${influenceTerritory}.`
@@ -37,11 +40,12 @@ export function Square({ position, territory, fieldValue, piece, legal, risky, k
     : "";
   return (
     <button
-      className={`square ${territory} ${legal ? "legal" : ""} ${risky ? "risky-move" : ""} ${selected ? "selected-square" : ""} ${dragPreview ? "drag-preview-square" : ""} ${typeSums ? "type-sums-visible" : ""}`}
+      className={`square ${territory} ${energyColor ? "energy-square" : ""} ${energySelected ? "energy-selected" : ""} ${legal ? "legal" : ""} ${risky ? "risky-move" : ""} ${selected ? "selected-square" : ""} ${dragPreview ? "drag-preview-square" : ""} ${typeSums ? "type-sums-visible" : ""}`}
+      style={energyColor ? { background: energyColor } : undefined}
       onClick={onClick}
       data-board-x={position.x}
       data-board-y={position.y}
-      aria-label={`Square ${position.x + 1},${position.y + 1}. ${territory} territory. Field ${fieldValue.toFixed(3)}.${risky ? " Moving here loses a piece." : ""}${kingBlocked ? " Reachable, but blocked because it would leave your king unprotected." : ""}${influenceSummary}${typeSummary}`}
+      aria-label={`Square ${position.x + 1},${position.y + 1}. ${territory} territory. Field ${fieldValue.toFixed(3)}.${energySummary}${risky ? " Moving here loses a piece." : ""}${kingBlocked ? " Reachable, but blocked because it would leave your king unprotected." : ""}${influenceSummary}${typeSummary}`}
     >
       {influenceOpacity > 0 && influenceTerritory !== "neutral" && (
         <span

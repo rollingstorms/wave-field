@@ -6,6 +6,8 @@ import { RulesPage } from "../components/RulesPage";
 import { TurnStatus } from "../components/TurnStatus";
 import { WaveEditor } from "../components/WaveEditor";
 import { cloneDefinitions, DEFAULT_DEFINITIONS } from "../field/componentDefinitions";
+import { ALL_ENERGY_CHANNELS } from "../field/cmykEnergy";
+import type { EnergyChannelState } from "../field/cmykEnergy";
 import { evaluateField, evaluateTypeFields } from "../field/evaluateField";
 import { createInitialState } from "../game/initialState";
 import { gameReducer } from "../game/reducer";
@@ -16,13 +18,15 @@ export function App() {
   const [developerMode, setDeveloperMode] = useState(false);
   const [highContrast, setHighContrast] = useState(false);
   const [showTypeSums, setShowTypeSums] = useState(false);
+  const [energyView, setEnergyView] = useState(false);
+  const [energyChannels, setEnergyChannels] = useState<EnergyChannelState>({ ...ALL_ENERGY_CHANNELS });
   const [showRules, setShowRules] = useState(false);
   const [aiEnabled, setAiEnabled] = useState(true);
   const [aiThinking, setAiThinking] = useState(false);
   const [editorSelection, setEditorSelection] = useState<{ pieceType: PieceType; componentIndex: number }>({ pieceType: "rook", componentIndex: 0 });
   const field = useMemo(() => evaluateField(state), [state]);
   const typeFields = useMemo(() => evaluateTypeFields(state), [state]);
-  const aiTurn = aiEnabled && state.currentPlayer === "red" && state.status === "playing";
+  const aiTurn = aiEnabled && !energyView && state.currentPlayer === "red" && state.status === "playing";
 
   useEffect(() => {
     if (!aiTurn) {
@@ -64,13 +68,21 @@ export function App() {
         developerMode={developerMode}
         highContrast={highContrast}
         showTypeSums={showTypeSums}
+        energyView={energyView}
         aiEnabled={aiEnabled}
         aiThinking={aiThinking}
         onUndo={undo}
         onRestart={() => dispatch({ type: "restart", keepDefinitions: true })}
         onToggleDeveloper={() => setDeveloperMode((value) => !value)}
         onToggleContrast={() => setHighContrast((value) => !value)}
-        onToggleTypeSums={() => setShowTypeSums((value) => !value)}
+        onToggleTypeSums={() => {
+          setEnergyView(false);
+          setShowTypeSums((value) => !value);
+        }}
+        onToggleEnergyView={() => {
+          setShowTypeSums(false);
+          setEnergyView((value) => !value);
+        }}
         onToggleAi={() => setAiEnabled((value) => !value)}
         onShowRules={() => setShowRules(true)}
       />
@@ -81,10 +93,13 @@ export function App() {
           typeFields={typeFields}
           highContrast={highContrast}
           showTypeSums={showTypeSums}
-          locked={aiTurn}
+          energyView={energyView}
+          energyChannels={energyChannels}
+          locked={aiTurn || energyView}
           onSelect={(pieceId) => dispatch({ type: "select", pieceId })}
           onMove={(pieceId: string, destination: Position) => dispatch({ type: "move", pieceId, destination })}
           onResign={() => dispatch({ type: "resign" })}
+          onToggleEnergyChannel={(pieceType) => setEnergyChannels((channels) => ({ ...channels, [pieceType]: !channels[pieceType] }))}
         />
         <ComponentControls
           state={state}

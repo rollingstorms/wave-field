@@ -6,6 +6,8 @@ import type {
   TouchEvent as ReactTouchEvent,
 } from "react";
 import { BOARD_SIZE } from "../game/constants";
+import { createCmykEnergyGrid, ENERGY_CHANNELS } from "../field/cmykEnergy";
+import type { EnergyChannelState } from "../field/cmykEnergy";
 import { contributionGrid, evaluateField, evaluateTypeFields } from "../field/evaluateField";
 import type { TypeFields } from "../field/evaluateField";
 import { projectFieldValue } from "../field/projection";
@@ -21,10 +23,13 @@ interface BoardProps {
   typeFields: TypeFields;
   highContrast: boolean;
   showTypeSums: boolean;
+  energyView: boolean;
+  energyChannels: EnergyChannelState;
   locked?: boolean;
   onSelect: (pieceId: string | null) => void;
   onMove: (pieceId: string, destination: Position) => void;
   onResign: () => void;
+  onToggleEnergyChannel: (pieceType: keyof EnergyChannelState) => void;
 }
 
 interface ActiveDrag {
@@ -40,7 +45,7 @@ interface LossPop {
   position: Position;
 }
 
-export function Board({ state, field, typeFields, highContrast, showTypeSums, locked = false, onSelect, onMove, onResign }: BoardProps) {
+export function Board({ state, field, typeFields, highContrast, showTypeSums, energyView, energyChannels, locked = false, onSelect, onMove, onResign, onToggleEnergyChannel }: BoardProps) {
   const boardRef = useRef<HTMLDivElement>(null);
   const dragRef = useRef<ActiveDrag | null>(null);
   const previousPiecesRef = useRef(state.pieces);
@@ -49,8 +54,9 @@ export function Board({ state, field, typeFields, highContrast, showTypeSums, lo
   const [draggingPieceId, setDraggingPieceId] = useState<string | null>(null);
   const [dragPreview, setDragPreview] = useState<Position | null>(null);
   const [lossPops, setLossPops] = useState<LossPop[]>([]);
+  const [energySelection, setEnergySelection] = useState<Position | null>(null);
   const selectedPiece = state.pieces.find((piece) => piece.id === state.selectedPieceId);
-  const interactionPiece = state.pieces.find((piece) => piece.id === draggingPieceId) ?? selectedPiece;
+  const interactionPiece = energyView ? undefined : state.pieces.find((piece) => piece.id === draggingPieceId) ?? selectedPiece;
   const reachableMoves = !locked && interactionPiece ? getLegalMoves(interactionPiece.id, state, field) : [];
   const legalMoves = !locked && interactionPiece ? getPlayableMoves(interactionPiece.id, state, field) : [];
   const previewState = useMemo<GameState>(() => {
@@ -72,6 +78,11 @@ export function Board({ state, field, typeFields, highContrast, showTypeSums, lo
     () => previewing ? evaluateTypeFields(previewState) : typeFields,
     [previewState, previewing, typeFields],
   );
+  const energyGrid = useMemo(
+    () => createCmykEnergyGrid(displayTypeFields, energyChannels),
+    [displayTypeFields, energyChannels],
+  );
+  const selectedEnergy = energySelection ? energyGrid[energySelection.y][energySelection.x] : null;
   const displaySelectedPiece = interactionPiece
     ? previewState.pieces.find((piece) => piece.id === interactionPiece.id)
     : undefined;
@@ -133,6 +144,10 @@ export function Board({ state, field, typeFields, highContrast, showTypeSums, lo
       for (const timer of lossPopTimersRef.current) globalThis.clearTimeout(timer);
     };
   }, []);
+
+  useEffect(() => {
+    if (!energyView) setEnergySelection(null);
+  }, [energyView]);
 
   function positionFromPointer(clientX: number, clientY: number): Position | null {
     const board = boardRef.current;
@@ -240,6 +255,10 @@ export function Board({ state, field, typeFields, highContrast, showTypeSums, lo
   }
 
   function handleSquare(position: Position) {
+    if (energyView) {
+      setEnergySelection(position);
+      return;
+    }
     if (locked) return;
     const piece = getPieceAt(state, position);
     const isLegal = selectedPiece && legalMoves.some((move) => samePosition(move, position));
@@ -256,6 +275,26 @@ export function Board({ state, field, typeFields, highContrast, showTypeSums, lo
 
   return (
     <section className="board-wrap" aria-label="Wave Field board">
+      {energyView && (
+        <div className="energy-toolbar" aria-label="CMYK energy channels">
+          <strong>CMYK ENERGY</strong>
+          <div className="energy-channel-controls">
+            {ENERGY_CHANNELS.map(({ pieceType, letter, channel }) => (
+              <button
+                type="button"
+                key={pieceType}
+                className={`${channel} ${energyChannels[pieceType] ? "active" : ""}`}
+                title={`${pieceType} ${channel} channel`}
+                aria-label={`${pieceType} energy channel`}
+                aria-pressed={energyChannels[pieceType]}
+                onClick={() => onToggleEnergyChannel(pieceType)}
+              >
+                {letter}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
       {showTypeSums && (
         <div className="type-sum-key" aria-label="Type sum corner key">
           <strong>TYPE SUMS</strong>
@@ -287,6 +326,10 @@ export function Board({ state, field, typeFields, highContrast, showTypeSums, lo
               const piece = getPieceAt(previewState, position);
               const influenceValue = influenceGrid?.[y][x] ?? 0;
               const influence = Math.abs(influenceValue);
+              const energy = energyGrid[y][x];
+              const energySummary = energyView
+                ? ` CMYK energy: ${ENERGY_CHANNELS.map(({ pieceType, letter }) => `${letter} ${Math.round(energy.ratios[pieceType] * 100)} percent`).join(", ")}.`
+                : "";
               return (
                 <Square
                   key={`${x}-${y}`}
@@ -294,24 +337,27 @@ export function Board({ state, field, typeFields, highContrast, showTypeSums, lo
                   territory={projectFieldValue(displayField[y][x])}
                   fieldValue={displayField[y][x]}
                   piece={piece}
-                  legal={legalMoves.some((move) => samePosition(move, position))}
-                  risky={riskyMoveKeys.has(`${x}:${y}`)}
-                  kingBlocked={kingBlockedMoveKeys.has(`${x}:${y}`)}
+                  legal={!energyView && legalMoves.some((move) => samePosition(move, position))}
+                  risky={!energyView && riskyMoveKeys.has(`${x}:${y}`)}
+                  kingBlocked={!energyView && kingBlockedMoveKeys.has(`${x}:${y}`)}
                   selected={Boolean(piece && interactionPiece && piece.id === interactionPiece.id)}
                   dragging={piece?.id === draggingPieceId}
                   dragPreview={Boolean(draggingPieceId && dragPreview && samePosition(dragPreview, position))}
-                  influenceTerritory={influenceGrid ? projectFieldValue(influenceValue) : null}
-                  influenceOpacity={maximumInfluence > 0 && influence > 0
+                  influenceTerritory={!energyView && influenceGrid ? projectFieldValue(influenceValue) : null}
+                  influenceOpacity={!energyView && maximumInfluence > 0 && influence > 0
                     ? 0.45 + (influence / maximumInfluence) * 0.55
                     : 0}
                   highContrast={highContrast}
-                  typeSums={showTypeSums ? {
+                  typeSums={!energyView && showTypeSums ? {
                     pawn: displayTypeFields.pawn[y][x],
                     rook: displayTypeFields.rook[y][x],
                     spy: displayTypeFields.spy[y][x],
                     king: displayTypeFields.king[y][x],
                   } : null}
                   lossPop={lossPopKeys.has(`${x}:${y}`)}
+                  energyColor={energyView ? energy.color : undefined}
+                  energySummary={energySummary}
+                  energySelected={Boolean(energyView && energySelection && samePosition(energySelection, position))}
                   onClick={() => handleSquare(position)}
                 />
               );
@@ -321,7 +367,22 @@ export function Board({ state, field, typeFields, highContrast, showTypeSums, lo
         <div className="ranks right">{Array.from({ length: BOARD_SIZE }, (_, i) => <span key={i}>{BOARD_SIZE - i}</span>)}</div>
       </div>
       <div className="files bottom">{Array.from({ length: BOARD_SIZE }, (_, x) => <span key={x}>{x + 1}</span>)}</div>
-      {selectedPiece?.unstable && (
+      {energyView && energySelection && selectedEnergy && (
+        <div className="energy-readout" aria-live="polite">
+          <strong>SQUARE {energySelection.x + 1},{BOARD_SIZE - energySelection.y}</strong>
+          <span>Intensity {Math.round(selectedEnergy.intensity * 100)}%</span>
+          <div>
+            {ENERGY_CHANNELS.map(({ pieceType, letter, channel }) => (
+              <span className={!energyChannels[pieceType] ? "disabled" : ""} key={pieceType}>
+                <i className={channel}>{letter}</i>
+                <b>{Math.round(selectedEnergy.ratios[pieceType] * 100)}%</b>
+                <small>{selectedEnergy.raw[pieceType] >= 0 ? "+" : ""}{selectedEnergy.raw[pieceType].toFixed(2)}</small>
+              </span>
+            ))}
+          </div>
+        </div>
+      )}
+      {!energyView && selectedPiece?.unstable && (
         <div className="piece-alert-hint">
           <div role="status" aria-live="polite">
             <strong>{selectedPiece.type === "king" ? "UNPROTECTED KING" : "UNSTABLE PIECE"}</strong>

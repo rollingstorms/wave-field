@@ -180,6 +180,8 @@ The opening formation is rotationally symmetric:
 The demo includes an optional heuristic Red opponent, selected-piece influence
 borders colored by contribution, drag-to-preview field updates, live
 wave-pattern thumbnails, a per-square piece-type contribution overlay,
+an interactive CMYK energy view with isolatable pawn, rook, spy, and king
+channels and per-square composition ratios,
 legal-move indicators, blocked-king move markers, instability warnings, loss
 burst animations, undo and restart, high-contrast territory markers, a compact
 mobile tuning panel, and a developer mode for inspecting the raw field, piece
