@@ -294,6 +294,82 @@ h1 {
   z-index: 7;
 }
 
+.loss-pop {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  z-index: 9;
+  width: 72%;
+  height: 72%;
+  pointer-events: none;
+  transform: translate(-50%, -50%);
+}
+
+.loss-pop::before {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 18%;
+  aspect-ratio: 1;
+  border: 2px solid #090b0b;
+  background: var(--influence);
+  transform: translate(-50%, -50%);
+  animation: loss-pop-core 520ms ease-out forwards;
+}
+
+.loss-pop i {
+  --pop-angle: 0deg;
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 38%;
+  height: 4px;
+  background: #090b0b;
+  border-right: 14px solid var(--influence);
+  transform-origin: 0 50%;
+  transform: rotate(var(--pop-angle)) translateX(5%) scaleX(0.2);
+  animation: loss-pop-ray 520ms ease-out forwards;
+}
+
+.loss-pop i:nth-child(1) { --pop-angle: 0deg; }
+.loss-pop i:nth-child(2) { --pop-angle: 45deg; }
+.loss-pop i:nth-child(3) { --pop-angle: 90deg; }
+.loss-pop i:nth-child(4) { --pop-angle: 135deg; }
+.loss-pop i:nth-child(5) { --pop-angle: 180deg; }
+.loss-pop i:nth-child(6) { --pop-angle: 225deg; }
+.loss-pop i:nth-child(7) { --pop-angle: 270deg; }
+.loss-pop i:nth-child(8) { --pop-angle: 315deg; }
+
+@keyframes loss-pop-core {
+  0% {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(0.45);
+  }
+  18% {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1.25);
+  }
+  100% {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(0.15);
+  }
+}
+
+@keyframes loss-pop-ray {
+  0% {
+    opacity: 0;
+    transform: rotate(var(--pop-angle)) translateX(5%) scaleX(0.2);
+  }
+  18% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+    transform: rotate(var(--pop-angle)) translateX(39%) scaleX(1);
+  }
+}
+
 .piece {
   position: absolute;
   inset: 15%;
@@ -646,6 +722,13 @@ select, .editor-bar button, .secondary, .import-button {
 .high-contrast .square.red { background: #e65648; }
 .high-contrast .square.neutral { background: #ddd9cf; }
 .high-contrast .square.blue { background: #3f7fd3; }
+
+@media (prefers-reduced-motion: reduce) {
+  .loss-pop::before,
+  .loss-pop i {
+    animation-duration: 120ms;
+  }
+}
 
 @media (max-width: 900px) {
   .app { padding: 16px 6px; }

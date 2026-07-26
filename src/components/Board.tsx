@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type {
   MouseEvent as ReactMouseEvent,
   PointerEvent as ReactPointerEvent,
@@ -32,12 +32,20 @@ interface ActiveDrag {
   legalMoves: Position[];
 }
 
+interface LossPop {
+  id: string;
+  position: Position;
+}
+
 export function Board({ state, field, typeFields, highContrast, showTypeSums, locked = false, onSelect, onMove }: BoardProps) {
   const boardRef = useRef<HTMLDivElement>(null);
   const dragRef = useRef<ActiveDrag | null>(null);
+  const previousPiecesRef = useRef(state.pieces);
+  const lossPopTimersRef = useRef<Array<ReturnType<typeof globalThis.setTimeout>>>([]);
   const suppressClickRef = useRef(false);
   const [draggingPieceId, setDraggingPieceId] = useState<string | null>(null);
   const [dragPreview, setDragPreview] = useState<Position | null>(null);
+  const [lossPops, setLossPops] = useState<LossPop[]>([]);
   const selectedPiece = state.pieces.find((piece) => piece.id === state.selectedPieceId);
   const interactionPiece = state.pieces.find((piece) => piece.id === draggingPieceId) ?? selectedPiece;
   const legalMoves = !locked && interactionPiece ? getPlayableMoves(interactionPiece.id, state, field) : [];
@@ -69,6 +77,34 @@ export function Board({ state, field, typeFields, highContrast, showTypeSums, lo
   const maximumInfluence = influenceGrid
     ? Math.max(...influenceGrid.flat().map((value) => Math.abs(value)), 0)
     : 0;
+  const lossPopKeys = useMemo(
+    () => new Set(lossPops.map((pop) => `${pop.position.x}:${pop.position.y}`)),
+    [lossPops],
+  );
+
+  useEffect(() => {
+    const currentIds = new Set(state.pieces.map((piece) => piece.id));
+    const lost = previousPiecesRef.current.filter((piece) => !currentIds.has(piece.id));
+    previousPiecesRef.current = state.pieces;
+    if (lost.length === 0) return;
+
+    const created = lost.map((piece) => ({
+      id: `${piece.id}:${globalThis.performance.now()}`,
+      position: piece.position,
+    }));
+    setLossPops((pops) => [...pops, ...created]);
+    const timer = globalThis.setTimeout(() => {
+      setLossPops((pops) => pops.filter((pop) => !created.some((candidate) => candidate.id === pop.id)));
+      lossPopTimersRef.current = lossPopTimersRef.current.filter((candidate) => candidate !== timer);
+    }, 560);
+    lossPopTimersRef.current.push(timer);
+  }, [state.pieces]);
+
+  useEffect(() => {
+    return () => {
+      for (const timer of lossPopTimersRef.current) globalThis.clearTimeout(timer);
+    };
+  }, []);
 
   function positionFromPointer(clientX: number, clientY: number): Position | null {
     const board = boardRef.current;
@@ -245,6 +281,7 @@ export function Board({ state, field, typeFields, highContrast, showTypeSums, lo
                     spy: displayTypeFields.spy[y][x],
                     king: displayTypeFields.king[y][x],
                   } : null}
+                  lossPop={lossPopKeys.has(`${x}:${y}`)}
                   onClick={() => handleSquare(position)}
                 />
               );

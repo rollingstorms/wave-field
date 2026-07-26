@@ -15,6 +15,7 @@ interface SquareProps {
   influenceOpacity: number;
   highContrast: boolean;
   typeSums: Record<PieceType, number> | null;
+  lossPop: boolean;
   onClick: () => void;
 }
 
@@ -24,7 +25,7 @@ function formatSigned(value: number) {
   return `${value > 0 ? "+" : ""}${magnitude.replace(".0", "")}`;
 }
 
-export function Square({ position, territory, fieldValue, piece, legal, selected, dragging, dragPreview, influenceTerritory, influenceOpacity, highContrast, typeSums, onClick }: SquareProps) {
+export function Square({ position, territory, fieldValue, piece, legal, selected, dragging, dragPreview, influenceTerritory, influenceOpacity, highContrast, typeSums, lossPop, onClick }: SquareProps) {
   const marker = territory === "red" ? "+" : territory === "blue" ? "-" : "0";
   const influenceSummary = influenceTerritory
     ? ` Selected piece influence ${influenceTerritory}.`
@@ -54,6 +55,11 @@ export function Square({ position, territory, fieldValue, piece, legal, selected
       {legal && <span className="legal-dot" />}
       {piece && <Piece piece={piece} selected={selected} dragging={dragging} />}
       {piece?.unstable && <span className="unstable" aria-label="unstable">!</span>}
+      {lossPop && (
+        <span className="loss-pop" aria-hidden="true">
+          {Array.from({ length: 8 }, (_, index) => <i key={index} />)}
+        </span>
+      )}
       {typeSums && (
         <span className="type-sums" aria-hidden="true">
           <i className="type-sum-value pawn">{formatSigned(typeSums.pawn)}</i>
