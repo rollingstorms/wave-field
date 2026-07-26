@@ -52,12 +52,12 @@ describe("reducer", () => {
     expect(tuned.message).toContain("move a piece to end the turn");
   });
 
-  it("rejects tuning the king's locked C1 component", () => {
+  it("allows tuning the king's initially neutral C1 component", () => {
     const state = createInitialState();
-    const tuned = gameReducer(state, { type: "tune", pieceType: "king", componentIndex: 0, value: 1 });
+    const tuned = gameReducer(state, { type: "tune", pieceType: "king", componentIndex: 0, value: -1 });
 
-    expect(tuned.components.blue.king).toEqual([0, 1, 0]);
-    expect(tuned.message).toContain("fixed at Neutral");
+    expect(tuned.components.blue.king).toEqual([-1, 1, 0]);
+    expect(tuned.message).toContain("move a piece to end the turn");
   });
 
   it("undo restores the previous in-turn tuning state", () => {

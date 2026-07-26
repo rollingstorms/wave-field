@@ -2,7 +2,7 @@ import { evaluateField } from "../field/evaluateField";
 import { PIECE_STRENGTH } from "./constants";
 import type { Coefficient, GameState, MoveResult, PieceType, Player, Position } from "./types";
 import { getLegalMoves, samePosition } from "./movement";
-import { canSetComponentValue, isComponentLocked } from "./tuning";
+import { canSetComponentValue } from "./tuning";
 import { getUnstablePieces, isKingUnprotected, markInstability, removeUnrescuedPieces } from "./victory";
 import { snapshot } from "./initialState";
 
@@ -88,9 +88,6 @@ export function applyTuning(
 ): MoveResult {
   if (state.status !== "playing" || player !== state.currentPlayer) return { ok: false, state, reason: "It is not that player's turn." };
   if (state.components[player][pieceType][componentIndex] === value) return { ok: false, state, reason: "Choose a different coefficient." };
-  if (isComponentLocked(pieceType, componentIndex)) {
-    return { ok: false, state, reason: "King C1 is fixed at Neutral." };
-  }
   if (!canSetComponentValue(state.components[player], pieceType, componentIndex, value)) {
     const strength = PIECE_STRENGTH[pieceType];
     return { ok: false, state, reason: `${pieceType[0].toUpperCase()}${pieceType.slice(1)} strength allows up to ${strength} active component${strength === 1 ? "" : "s"}.` };

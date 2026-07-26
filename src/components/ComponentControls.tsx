@@ -1,6 +1,5 @@
-import { Lock } from "lucide-react";
 import { COMPONENT_COUNTS, PIECE_STRENGTH } from "../game/constants";
-import { canSetComponentValue, getTuningLoad, isComponentLocked } from "../game/tuning";
+import { canSetComponentValue, getTuningLoad } from "../game/tuning";
 import type { Coefficient, GameState, PieceType } from "../game/types";
 import { WaveThumbnail } from "./WaveThumbnail";
 
@@ -36,58 +35,46 @@ export function ComponentControls({ state, locked = false, onTune }: ComponentCo
               </span>
             </div>
           </div>
-          {state.components[player][pieceType].map((coefficient, index) => {
-            const componentLocked = isComponentLocked(pieceType, index);
-            return (
-              <div className={`coefficient-row${componentLocked ? " locked-coefficient-row" : ""}`} key={`${pieceType}-${index}`}>
-                <span>C{index + 1}</span>
-                {componentLocked ? (
-                  <span className="locked-coefficient" aria-label={`${player} king component 1 fixed at neutral`}>
-                    <Lock size={14} aria-hidden="true" />
-                    <span>0</span>
-                  </span>
-                ) : (
-                  <>
-                    {values.map((value) => (
-                      <button
-                        key={value}
-                        type="button"
-                        className={coefficient === value ? `chosen ${player}` : ""}
-                        disabled={
-                          locked
-                          || state.status !== "playing"
-                          || coefficient === value
-                          || !canSetComponentValue(state.components[player], pieceType, index, value)
-                        }
-                        onClick={() => onTune(pieceType, index, value)}
-                        aria-pressed={coefficient === value}
-                        aria-label={`${player} ${pieceType} component ${index + 1} set to ${label(value)}`}
-                      >
-                        {label(value)}
-                      </button>
-                    ))}
-                    <select
-                      className="compact-coefficient"
-                      value={coefficient}
-                      disabled={locked || state.status !== "playing"}
-                      onChange={(event) => onTune(pieceType, index, Number(event.target.value) as Coefficient)}
-                      aria-label={`${player} ${pieceType} component ${index + 1}`}
-                    >
-                      {values.map((value) => (
-                        <option
-                          key={value}
-                          value={value}
-                          disabled={!canSetComponentValue(state.components[player], pieceType, index, value)}
-                        >
-                          {label(value)}
-                        </option>
-                      ))}
-                    </select>
-                  </>
-                )}
-              </div>
-            );
-          })}
+          {state.components[player][pieceType].map((coefficient, index) => (
+            <div className="coefficient-row" key={`${pieceType}-${index}`}>
+              <span>C{index + 1}</span>
+              {values.map((value) => (
+                <button
+                  key={value}
+                  type="button"
+                  className={coefficient === value ? `chosen ${player}` : ""}
+                  disabled={
+                    locked
+                    || state.status !== "playing"
+                    || coefficient === value
+                    || !canSetComponentValue(state.components[player], pieceType, index, value)
+                  }
+                  onClick={() => onTune(pieceType, index, value)}
+                  aria-pressed={coefficient === value}
+                  aria-label={`${player} ${pieceType} component ${index + 1} set to ${label(value)}`}
+                >
+                  {label(value)}
+                </button>
+              ))}
+              <select
+                className="compact-coefficient"
+                value={coefficient}
+                disabled={locked || state.status !== "playing"}
+                onChange={(event) => onTune(pieceType, index, Number(event.target.value) as Coefficient)}
+                aria-label={`${player} ${pieceType} component ${index + 1}`}
+              >
+                {values.map((value) => (
+                  <option
+                    key={value}
+                    value={value}
+                    disabled={!canSetComponentValue(state.components[player], pieceType, index, value)}
+                  >
+                    {label(value)}
+                  </option>
+                ))}
+              </select>
+            </div>
+          ))}
         </section>
       ))}
     </aside>

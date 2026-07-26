@@ -49,15 +49,14 @@ first.
 | Pawn | 1 | 1 | `+` | Any distance in one direction |
 | Rook | 2 | 2 | `+ -` | Any distance in one direction |
 | Spy | 3 | 1 | `+ 0 0` | Any distance in one direction, ignoring territory |
-| King | 3 total (C1 fixed Neutral) | 2 | `0 + 0` | Any distance in one direction |
+| King | 3 | 2 | `0 + 0` | Any distance in one direction |
 
 A direction may be horizontal, vertical, or diagonal, giving eight possible
 rays. Despite their familiar names, pieces do not use chess movement.
 
-The king's C1 high-frequency component is permanently Neutral and remains
-visible as a locked control. C2 and C3 are tunable. This prevents the king from
-activating that band to protect itself and preserves the possibility of a
-spectral trap.
+All three king components are tunable. C1 starts Neutral, while C2 starts
+positive and C3 starts Neutral. The king's strength of 2 means no more than two
+of those components may be active at once.
 
 ## Turn
 
@@ -81,8 +80,9 @@ Each component can be set to:
 - `-` for a negative wave.
 
 The number of active `+` and `-` components combined cannot exceed that piece
-type's strength. For example, the king's two tunable components may both be
-active; the spy has three available components but may activate only one.
+type's strength. For example, the king has three tunable components but may
+activate only two at once; the spy has three available components but may
+activate only one.
 
 Tuning is shared by piece type. Both of a player's rooks always use that
 player's rook settings, while the opposing player controls a separate set.
