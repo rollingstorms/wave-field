@@ -7,5 +7,5 @@ export function pushHistory(state: GameState): GameState {
 
 export function popHistory(state: GameState): GameState {
   const previous = state.history.at(-1);
-  return previous ? fromSnapshot(previous, state.history.slice(0, -1)) : state;
+  return previous ? fromSnapshot(previous, state.history.slice(0, -1), state.defaultComponents) : state;
 }

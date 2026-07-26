@@ -450,6 +450,109 @@ h1 {
   color: var(--muted);
 }
 
+.default-component-editor {
+  padding: 16px;
+  border-top: 1px solid var(--line);
+  border-bottom: 1px solid var(--line);
+}
+
+.default-editor-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 14px;
+}
+
+.default-editor-heading h2 {
+  margin: 0 0 3px;
+  font-size: 1rem;
+}
+
+.default-editor-heading p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.8rem;
+}
+
+.default-editor-heading .icon-button {
+  width: 38px;
+  height: 38px;
+  min-height: 38px;
+  padding: 0;
+  display: grid;
+  place-items: center;
+}
+
+.default-piece-list {
+  display: grid;
+}
+
+.default-piece-row {
+  display: grid;
+  grid-template-columns: 110px minmax(0, 1fr);
+  gap: 14px;
+  align-items: center;
+  padding: 10px 0;
+  border-top: 1px solid var(--line);
+}
+
+.default-piece-name {
+  display: grid;
+  gap: 2px;
+}
+
+.default-piece-name small {
+  color: var(--muted);
+}
+
+.default-component-list {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.default-component {
+  display: grid;
+  grid-template-columns: 24px minmax(0, 1fr);
+  gap: 5px;
+  align-items: center;
+}
+
+.default-component > span {
+  color: var(--muted);
+  font-size: 0.72rem;
+}
+
+.default-segmented {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.default-segmented button {
+  min-width: 0;
+  min-height: 38px;
+  padding: 0;
+  border-right-width: 0;
+}
+
+.default-segmented button:last-child {
+  border-right-width: 1px;
+}
+
+.default-segmented .active {
+  background: var(--neutral);
+  color: #111313;
+}
+
+.default-segmented button:disabled:not(.active) {
+  opacity: 0.38;
+}
+
+.restart-with-defaults {
+  margin-top: 12px;
+}
+
 .field-table, .kernel {
   display: grid;
   grid-template-columns: repeat(7, 1fr);
@@ -559,11 +662,37 @@ select, .editor-bar button, .secondary, .import-button {
   .metrics, .editor-grid {
     grid-template-columns: 1fr;
   }
+  .default-piece-row {
+    grid-template-columns: 82px minmax(0, 1fr);
+  }
 }
 
 @media (max-width: 540px) {
   .app {
     padding: 10px 6px;
+  }
+  .default-component-editor {
+    padding: 12px 8px;
+  }
+  .default-piece-row {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 6px;
+  }
+  .default-piece-name {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+  }
+  .default-component-list {
+    gap: 5px;
+  }
+  .default-component {
+    grid-template-columns: 13px minmax(0, 1fr);
+    gap: 2px;
+  }
+  .default-segmented button {
+    min-height: 34px;
+    font-size: 0.8rem;
   }
   .topbar {
     grid-template-columns: minmax(0, 1fr) auto;

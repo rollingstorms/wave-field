@@ -81,6 +81,36 @@ describe("reducer", () => {
     expect(restarted.definitions.pawn[0].name).toBe("Flat");
   });
 
+  it("applies edited default controls to both players on restart", () => {
+    const state = createInitialState();
+    const edited = gameReducer(state, { type: "update-default-component", pieceType: "king", componentIndex: 0, value: -1 });
+
+    expect(edited.components.blue.king).toEqual([0, 1, 0]);
+    expect(edited.defaultComponents.king).toEqual([-1, 1, 0]);
+
+    const restarted = gameReducer(edited, { type: "restart", keepDefinitions: true });
+    expect(restarted.components.blue.king).toEqual([-1, 1, 0]);
+    expect(restarted.components.red.king).toEqual([-1, 1, 0]);
+  });
+
+  it("keeps edited defaults when undoing a game action", () => {
+    const state = createInitialState();
+    const tuned = gameReducer(state, { type: "tune", pieceType: "pawn", componentIndex: 0, value: -1 });
+    const edited = gameReducer(tuned, { type: "update-default-component", pieceType: "king", componentIndex: 0, value: -1 });
+    const undone = gameReducer(edited, { type: "undo" });
+
+    expect(undone.components.blue.pawn).toEqual([1]);
+    expect(undone.defaultComponents.king).toEqual([-1, 1, 0]);
+  });
+
+  it("rejects default controls beyond a piece's strength", () => {
+    const state = createInitialState();
+    const first = gameReducer(state, { type: "update-default-component", pieceType: "spy", componentIndex: 1, value: -1 });
+
+    expect(first.defaultComponents.spy).toEqual([1, 0, 0]);
+    expect(first.message).toContain("exceed its strength");
+  });
+
   it("rejects wave definitions that break base-2 decay", () => {
     const state = createInitialState();
     const edited = gameReducer(state, {

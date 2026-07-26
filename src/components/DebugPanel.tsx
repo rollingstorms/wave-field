@@ -3,13 +3,18 @@ import { contributionGrid, evaluateSignedPieceContribution } from "../field/eval
 import { projectFieldValue } from "../field/projection";
 import { getLegalMoves } from "../game/movement";
 import type { GameState } from "../game/types";
+import type { Coefficient, PieceType } from "../game/types";
+import { DefaultComponentEditor } from "./DefaultComponentEditor";
 
 interface DebugPanelProps {
   state: GameState;
   field: number[][];
+  onUpdateDefault: (pieceType: PieceType, componentIndex: number, value: Coefficient) => void;
+  onResetDefaults: () => void;
+  onRestart: () => void;
 }
 
-export function DebugPanel({ state, field }: DebugPanelProps) {
+export function DebugPanel({ state, field, onUpdateDefault, onResetDefaults, onRestart }: DebugPanelProps) {
   const values = field.flat();
   const globalBias = values.reduce((sum, value) => sum + value, 0);
   const energy = values.reduce((sum, value) => sum + value * value, 0);
@@ -30,6 +35,12 @@ export function DebugPanel({ state, field }: DebugPanelProps) {
         <span>Symmetry {symmetry.toExponential(2)}</span>
         <span>R/N/B {counts.red}/{counts.neutral}/{counts.blue}</span>
       </div>
+      <DefaultComponentEditor
+        defaults={state.defaultComponents}
+        onUpdate={onUpdateDefault}
+        onReset={onResetDefaults}
+        onRestart={onRestart}
+      />
       <div className="field-table" aria-label="Raw field values">
         {field.map((row, y) => row.map((value, x) => <span key={`${x}-${y}`}>{value.toFixed(2)}</span>))}
       </div>

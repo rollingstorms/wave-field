@@ -66,6 +66,7 @@ export interface GameSnapshot {
 }
 
 export interface GameState extends GameSnapshot {
+  defaultComponents: PlayerComponents;
   history: GameSnapshot[];
   message: string;
 }

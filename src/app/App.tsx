@@ -87,7 +87,13 @@ export function App() {
       {state.status !== "playing" && <div className="win-banner">{state.status === "red-won" ? "Red wins" : "Blue wins"}</div>}
       {developerMode && (
         <div className="developer">
-          <DebugPanel state={state} field={field} />
+          <DebugPanel
+            state={state}
+            field={field}
+            onUpdateDefault={(pieceType, componentIndex, value) => dispatch({ type: "update-default-component", pieceType, componentIndex, value })}
+            onResetDefaults={() => dispatch({ type: "reset-default-components" })}
+            onRestart={() => dispatch({ type: "restart", keepDefinitions: true })}
+          />
           <WaveEditor
             definitions={state.definitions}
             selected={editorSelection}
