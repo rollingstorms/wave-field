@@ -17,7 +17,15 @@ export type FormulaPreset =
   | "pulse-gap"
   | "block-checker"
   | "diamond-core"
-  | "astigmatism";
+  | "astigmatism"
+  | "local-flip"
+  | "adjacent-opinion"
+  | "sink"
+  | "deep-sink"
+  | "far-crown"
+  | "slow-governance"
+  | "dipole-x"
+  | "dipole-y";
 
 export interface Position {
   x: number;

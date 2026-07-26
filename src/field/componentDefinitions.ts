@@ -46,6 +46,14 @@ const formulaPresets: FormulaPreset[] = [
   "block-checker",
   "diamond-core",
   "astigmatism",
+  "local-flip",
+  "adjacent-opinion",
+  "sink",
+  "deep-sink",
+  "far-crown",
+  "slow-governance",
+  "dipole-x",
+  "dipole-y",
 ];
 
 export function validateDefinition(value: unknown): value is BasisDefinition {

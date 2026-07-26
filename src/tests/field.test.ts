@@ -21,6 +21,14 @@ const allPresets: FormulaPreset[] = [
   "block-checker",
   "diamond-core",
   "astigmatism",
+  "local-flip",
+  "adjacent-opinion",
+  "sink",
+  "deep-sink",
+  "far-crown",
+  "slow-governance",
+  "dipole-x",
+  "dipole-y",
 ];
 
 function tuned(pieceType: PieceType, values: Coefficient[]): GameState {

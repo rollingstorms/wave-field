@@ -50,6 +50,24 @@ function presetSign(preset: FormulaPreset, delta: Position, r: number): Coeffici
     case "astigmatism":
       if (absX === absY) return 0;
       return absX > absY ? 1 : -1;
+    case "local-flip":
+      return r <= 1 ? 1 : 0;
+    case "adjacent-opinion":
+      return r === 1 ? 1 : 0;
+    case "sink":
+      return r === 0 ? 1 : -1;
+    case "deep-sink":
+      return r <= 1 ? 1 : -1;
+    case "far-crown":
+      return r >= 3 ? 1 : 0;
+    case "slow-governance":
+      return r <= 2 ? 1 : -1;
+    case "dipole-x":
+      if (delta.x === 0) return 0;
+      return delta.x > 0 ? 1 : -1;
+    case "dipole-y":
+      if (delta.y === 0) return 0;
+      return delta.y > 0 ? 1 : -1;
   }
 }
 

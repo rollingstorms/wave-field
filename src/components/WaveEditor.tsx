@@ -18,6 +18,14 @@ const presets: FormulaPreset[] = [
   "block-checker",
   "diamond-core",
   "astigmatism",
+  "local-flip",
+  "adjacent-opinion",
+  "sink",
+  "deep-sink",
+  "far-crown",
+  "slow-governance",
+  "dipole-x",
+  "dipole-y",
 ];
 const coefficients: Coefficient[] = [1, 0, -1];
 
