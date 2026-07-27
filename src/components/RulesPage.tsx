@@ -56,7 +56,7 @@ const pieceDetails: Record<PieceType, { components: string; energy: string; acti
     home: "0",
     default: "0 + +",
     movement: "Any distance in one direction",
-    note: "The king contributes no energy to its own square and must end every move protected.",
+    note: "The king contributes no energy to its own square. An unstable king is trapped and must be rescued.",
   },
 };
 
@@ -146,10 +146,11 @@ export function RulesPage({ onBack }: RulesPageProps) {
 
       <section className="rules-hero">
         <div className="rules-copy">
-          <h2>Win by checkmating the opposing king.</h2>
+          <h2>Win by trapping the opposing king.</h2>
           <p>
-            Every piece emits waves. Add the waves together and each square becomes Red,
-            Neutral, or Blue territory. Moving one piece can reshape the whole board.
+            Every piece emits a controllable wave pattern. Add the active patterns together
+            and each square becomes Red, Neutral, or Blue territory. Moving one piece can
+            reshape the whole board.
           </p>
         </div>
         <SetupBoard />
@@ -159,7 +160,7 @@ export function RulesPage({ onBack }: RulesPageProps) {
         <article className="rules-panel">
           <Waves size={22} />
           <h2>Territory</h2>
-          <p>Red waves count positive. Blue waves count negative. The total on a square decides who controls it. The gradient view shades each square by its normalized field magnitude.</p>
+          <p>Each wave pattern can contain both positive and negative energy. The total on a square decides who controls it. The gradient view shades each square by its normalized field magnitude.</p>
           <div className="territory-rule">
             <span className="swatch red" /> <strong>Red</strong> <small>total above 0</small>
             <span className="swatch neutral" /> <strong>Neutral</strong> <small>total equals 0</small>
@@ -199,8 +200,8 @@ export function RulesPage({ onBack }: RulesPageProps) {
 
         <article className="rules-panel">
           <Crown size={22} />
-          <h2>Check</h2>
-          <p>Your king must end every move on friendly or Neutral territory. In check, Hint applies the nearest rescuing tuning profile. If no rescue is found, the checked player still gets the turn.</p>
+          <h2>Trapped Kings</h2>
+          <p>Your king must end every move on friendly or Neutral territory. A king on hostile territory is unstable and trapped. Hint applies the nearest rescuing tuning profile. If no rescue is found, the trapped player still gets the turn.</p>
         </article>
       </section>
 
@@ -241,8 +242,8 @@ export function RulesPage({ onBack }: RulesPageProps) {
           <h2>Wave Patterns</h2>
           <p>
             These thumbnails show the default Blue contribution shape for one piece placed
-            in the center. Blue squares are friendly for Blue, red squares are hostile, and
-            the outlined center is the piece's origin.
+            in the center. Each pattern may mix positive and negative energy; the outlined
+            center is the piece's origin.
           </p>
         </div>
         <div className="wave-pattern-grid">
@@ -284,7 +285,8 @@ export function RulesPage({ onBack }: RulesPageProps) {
           <p>
             A non-king piece on hostile territory is unstable. Rescue it on your next turn by
             moving it to safety or by moving another piece so the field protects it. If it is
-            still unstable after your move, it is removed.
+            still unstable after your move, it is removed. An unstable king is different:
+            it is trapped and must be rescued, resigned, or undone.
           </p>
         </div>
         <div className="marker-demo" aria-label="Move marker examples">
