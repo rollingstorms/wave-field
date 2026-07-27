@@ -15,7 +15,8 @@ import { createInitialState } from "../game/initialState";
 import { gameReducer } from "../game/reducer";
 import type { BasisDefinition, PieceType, Position } from "../game/types";
 
-const arenaEnabled = import.meta.env.DEV && import.meta.env.MODE === "arena";
+const arenaEnabled = globalThis.location?.pathname.replace(/\/$/, "").endsWith("/arena")
+  || (import.meta.env.DEV && import.meta.env.MODE === "arena");
 
 export function App() {
   const [state, dispatch] = useReducer(gameReducer, undefined, createInitialState);
