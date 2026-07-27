@@ -1,7 +1,7 @@
 import { cloneDefinitions, DEFAULT_COMPONENTS, validateDefinition, validateDefinitions } from "../field/componentDefinitions";
 import { playHeuristicTurn } from "./ai";
 import { createInitialState, fromSnapshot } from "./initialState";
-import { applyMove, applyTuning, beginTurn, resignInCheck } from "./rules";
+import { applyClosestPlayableHint, applyMove, applyTuning, beginTurn, randomizeTuning, resignInCheck } from "./rules";
 import { isTuningWithinStrength } from "./tuning";
 import type { BasisDefinition, Coefficient, GameState, PieceType, Position } from "./types";
 
@@ -10,6 +10,8 @@ export type GameAction =
   | { type: "move"; pieceId: string; destination: Position }
   | { type: "tune"; pieceType: PieceType; componentIndex: number; value: Coefficient }
   | { type: "resign" }
+  | { type: "hint" }
+  | { type: "randomize-tuning" }
   | { type: "ai-turn" }
   | { type: "undo" }
   | { type: "restart"; keepDefinitions?: boolean }
@@ -33,6 +35,14 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
     }
     case "resign": {
       const result = resignInCheck(state);
+      return result.ok ? result.state : { ...state, message: result.reason ?? state.message };
+    }
+    case "hint": {
+      const result = applyClosestPlayableHint(state);
+      return result.ok ? result.state : { ...state, message: result.reason ?? state.message };
+    }
+    case "randomize-tuning": {
+      const result = randomizeTuning(state);
       return result.ok ? result.state : { ...state, message: result.reason ?? state.message };
     }
     case "ai-turn":

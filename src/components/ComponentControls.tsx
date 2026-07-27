@@ -14,9 +14,10 @@ interface ComponentControlsProps {
   state: GameState;
   locked?: boolean;
   onTune: (pieceType: PieceType, componentIndex: number, value: Coefficient) => void;
+  onRandomize: () => void;
 }
 
-export function ComponentControls({ state, locked = false, onTune }: ComponentControlsProps) {
+export function ComponentControls({ state, locked = false, onTune, onRandomize }: ComponentControlsProps) {
   const player = state.currentPlayer;
   return (
     <aside className="control-panel" aria-label={`${player} component controls`}>
@@ -24,6 +25,16 @@ export function ComponentControls({ state, locked = false, onTune }: ComponentCo
         <span><i className="swatch red" /> &gt; 0</span>
         <span><i className="swatch neutral" /> = 0</span>
         <span><i className="swatch blue" /> &lt; 0</span>
+        <button
+          type="button"
+          className="randomize-controls"
+          title="Randomize tuning"
+          aria-label="Randomize tuning"
+          disabled={locked || state.status !== "playing"}
+          onClick={onRandomize}
+        >
+          <Dices size={18} />
+        </button>
       </div>
       {pieceTypes.map((pieceType) => (
         <section className={`component-group components-${COMPONENT_COUNTS[pieceType]}`} key={pieceType}>
@@ -83,3 +94,4 @@ export function ComponentControls({ state, locked = false, onTune }: ComponentCo
     </aside>
   );
 }
+import { Dices } from "lucide-react";

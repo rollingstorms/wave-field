@@ -359,13 +359,35 @@ h1 {
   margin: 0;
 }
 
-.resign-button {
-  min-height: 36px;
+.check-actions {
+  display: flex;
+  gap: 8px;
   margin-top: 9px;
+}
+
+.check-actions button {
+  min-height: 36px;
   padding: 0 12px;
   display: inline-flex;
   align-items: center;
   gap: 7px;
+}
+
+.hint-button {
+  border-color: var(--influence);
+  color: var(--influence);
+}
+
+.hint-button:hover {
+  background: rgba(255, 216, 77, 0.12);
+}
+
+.hint-button:disabled {
+  opacity: 0.62;
+  cursor: wait;
+}
+
+.resign-button {
   border-color: var(--red);
   color: #ff776d;
 }
@@ -599,15 +621,29 @@ h1 {
 
 .legend {
   display: grid;
+  grid-template-columns: minmax(0, 1fr) 42px;
   gap: 10px;
   padding: 18px;
   border-bottom: 1px solid var(--line);
 }
 
 .legend span {
+  grid-column: 1;
   display: flex;
   align-items: center;
   gap: 14px;
+}
+
+.randomize-controls {
+  grid-column: 2;
+  grid-row: 1 / 4;
+  align-self: center;
+  width: 42px;
+  height: 42px;
+  min-height: 42px;
+  padding: 0;
+  display: grid;
+  place-items: center;
 }
 
 .swatch {
@@ -1442,13 +1478,21 @@ select, .editor-bar button, .secondary, .import-button {
     font-size: 0.48rem;
   }
   .legend {
-    grid-template-columns: repeat(3, 1fr);
+    grid-template-columns: repeat(3, minmax(0, 1fr)) 38px;
     gap: 4px;
     padding: 7px 10px;
     font-size: 0.72rem;
   }
   .legend span {
+    grid-column: auto;
     gap: 6px;
+  }
+  .randomize-controls {
+    grid-column: 4;
+    grid-row: 1;
+    width: 38px;
+    height: 38px;
+    min-height: 38px;
   }
   .swatch {
     width: 16px;

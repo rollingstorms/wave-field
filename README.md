@@ -72,6 +72,9 @@ During a turn, a player may:
 
 Moving a piece ends the turn. Tuning does not.
 
+The dice control randomizes every piece type's tuning while respecting each
+strength limit. It counts as tuning and does not end the turn.
+
 A tuning change may temporarily leave the player's king unprotected because the
 player can keep tuning during the turn. The turn-ending move must leave their
 king safe.
@@ -145,14 +148,16 @@ move. A player cannot complete a move that leaves their own king on hostile
 territory.
 
 When a completed move places the opposing king on hostile territory, the
-opponent begins their turn in check. The game looks for a rescue using the
-current tuning or a retune of one piece type, followed by one legal move. If a
-rescue exists, the status line gives a concrete hint such as "tune, then move
-spy to 4,5". If no rescue exists, the checked king is checkmated and the moving
-player wins.
+opponent begins their turn in check. The game looks for a rescue across every
+valid combined tuning profile, followed by one legal move. If a rescue exists,
+the status line gives a concrete hint such as "tune, then move spy to 4,5". If
+no rescue exists, the checked king is checkmated and the moving player wins.
 
 While in check, a player may resign from the unprotected-king warning instead
-of continuing to search for an alternate tuning and legal escape.
+of continuing to search for an alternate tuning and legal escape. The adjacent
+Hint control searches every valid combined tuning profile, applies the profile
+with the fewest changed component slots, and selects a piece with a legal
+rescuing move.
 
 Kings are never captured or removed. A lost king is represented as checkmate,
 not as a disappearing piece.

@@ -25,10 +25,12 @@ function boardCoordinate(position: Position): string {
 const pieceTypes: PieceType[] = ["pawn", "rook", "spy", "king"];
 const coefficientValues: Coefficient[] = [1, 0, -1];
 
-interface KingRescue {
+export interface PlayableConfigurationHint {
+  components: PlayerComponents;
+  pieceId: string;
   pieceType: PieceType;
   destination: Position;
-  requiresTuning: boolean;
+  changedComponents: number;
 }
 
 interface RuleOptions {
@@ -78,28 +80,39 @@ function lostOwnPieces(player: Player, before: GameState, after: GameState): str
     .map((piece) => piece.type);
 }
 
-function rescueComponentOptions(state: GameState, player: Player): PlayerComponents[] {
-  const current = state.components[player];
-  const options = [structuredClone(current)];
-  const seen = new Set([JSON.stringify(current)]);
+function componentDistance(left: PlayerComponents, right: PlayerComponents): number {
+  return pieceTypes.reduce((distance, pieceType) =>
+    distance + left[pieceType].filter((value, index) => value !== right[pieceType][index]).length, 0);
+}
 
-  for (const pieceType of pieceTypes) {
-    for (const profile of componentOptions(pieceType, current[pieceType].length)) {
-      const next = structuredClone(current);
-      next[pieceType] = profile as never;
-      const key = JSON.stringify(next);
-      if (!seen.has(key)) {
-        seen.add(key);
-        options.push(next);
+function allComponentOptions(state: GameState, player: Player): PlayerComponents[] {
+  const current = state.components[player];
+  const profiles = Object.fromEntries(pieceTypes.map((pieceType) => [
+    pieceType,
+    componentOptions(pieceType, current[pieceType].length),
+  ])) as Record<PieceType, Coefficient[][]>;
+  const options: PlayerComponents[] = [];
+
+  for (const pawn of profiles.pawn) {
+    for (const rook of profiles.rook) {
+      for (const spy of profiles.spy) {
+        for (const king of profiles.king) {
+          options.push({
+            pawn: pawn as PlayerComponents["pawn"],
+            rook: rook as PlayerComponents["rook"],
+            spy: spy as PlayerComponents["spy"],
+            king: king as PlayerComponents["king"],
+          });
+        }
       }
     }
   }
-  return options;
+  return options.sort((left, right) => componentDistance(left, current) - componentDistance(right, current));
 }
 
-function findKingRescue(player: Player, state: GameState): KingRescue | null {
-  for (const components of rescueComponentOptions(state, player)) {
-    const requiresTuning = JSON.stringify(state.components[player]) !== JSON.stringify(components);
+export function findClosestPlayableConfiguration(player: Player, state: GameState): PlayableConfigurationHint | null {
+  const current = state.components[player];
+  for (const components of allComponentOptions(state, player)) {
     const tuned = {
       ...state,
       components: {
@@ -113,7 +126,13 @@ function findKingRescue(player: Player, state: GameState): KingRescue | null {
       for (const destination of getLegalMoves(piece.id, tuned, field)) {
         const resolved = resolveOwnTurnConsequences(player, tuned, movePiece(tuned, piece.id, destination));
         if (!isKingUnprotected(player, resolved, evaluateField(resolved))) {
-          return { pieceType: piece.type, destination, requiresTuning };
+          return {
+            components,
+            pieceId: piece.id,
+            pieceType: piece.type,
+            destination,
+            changedComponents: componentDistance(components, current),
+          };
         }
       }
     }
@@ -130,9 +149,9 @@ export function beginTurn(state: GameState, options: RuleOptions = {}): GameStat
     if (!analyzeCheckmate) {
       return { ...resolved, message: `${playerName(state.currentPlayer)} king is in check` };
     }
-    const rescue = findKingRescue(state.currentPlayer, resolved);
+    const rescue = findClosestPlayableConfiguration(state.currentPlayer, resolved);
     if (rescue) {
-      const rescueHint = rescue.requiresTuning
+      const rescueHint = rescue.changedComponents > 0
         ? `tune, then move ${rescue.pieceType} to ${boardCoordinate(rescue.destination)}`
         : `move ${rescue.pieceType} to ${boardCoordinate(rescue.destination)}`;
       return { ...resolved, message: `${playerName(state.currentPlayer)} king is in check · ${rescueHint}` };
@@ -202,6 +221,63 @@ export function resignInCheck(state: GameState): MoveResult {
       selectedPieceId: null,
       history: [...state.history, snapshot(state)],
       message: `${playerName(state.currentPlayer)} resigned while in check`,
+    },
+  };
+}
+
+export function applyClosestPlayableHint(state: GameState): MoveResult {
+  if (state.status !== "playing") return { ok: false, state, reason: "The game is over." };
+  const resolved = markInstability(state, evaluateField(state));
+  if (!isKingUnprotected(state.currentPlayer, resolved, evaluateField(resolved))) {
+    return { ok: false, state, reason: "Hints are available only while your king is in check." };
+  }
+  const hint = findClosestPlayableConfiguration(state.currentPlayer, resolved);
+  if (!hint) return { ok: false, state, reason: "No legal escape exists." };
+
+  const components = structuredClone(resolved.components);
+  components[state.currentPlayer] = structuredClone(hint.components);
+  const tuned = markInstability({ ...resolved, components }, evaluateField({ ...resolved, components }));
+  const changeText = hint.changedComponents === 0
+    ? "Current tuning works"
+    : `${hint.changedComponents} control${hint.changedComponents === 1 ? "" : "s"} changed`;
+  return {
+    ok: true,
+    state: {
+      ...tuned,
+      selectedPieceId: hint.pieceId,
+      history: [...state.history, snapshot(state)],
+      message: `Hint · ${changeText} · move ${hint.pieceType} to ${boardCoordinate(hint.destination)}`,
+    },
+  };
+}
+
+export function randomizeTuning(state: GameState, random: () => number = Math.random): MoveResult {
+  if (state.status !== "playing") return { ok: false, state, reason: "The game is over." };
+  const player = state.currentPlayer;
+  const randomized = structuredClone(state.components[player]);
+  for (const pieceType of pieceTypes) {
+    const options = componentOptions(pieceType, randomized[pieceType].length);
+    randomized[pieceType] = options[Math.floor(random() * options.length)] as never;
+  }
+  if (componentDistance(randomized, state.components[player]) === 0) {
+    const alternatives = componentOptions("pawn", randomized.pawn.length)
+      .filter((profile) => profile.some((value, index) => value !== randomized.pawn[index]));
+    randomized.pawn = alternatives[0] as PlayerComponents["pawn"];
+  }
+  const components = structuredClone(state.components);
+  components[player] = randomized;
+  const candidate = { ...state, components };
+  const marked = markInstability(candidate, evaluateField(candidate));
+  const message = isKingUnprotected(player, marked, evaluateField(marked))
+    ? `${playerName(player)} randomized tuning · king remains in check`
+    : `${playerName(player)} randomized tuning · move a piece to end the turn`;
+  return {
+    ok: true,
+    state: {
+      ...marked,
+      selectedPieceId: null,
+      history: [...state.history, snapshot(state)],
+      message,
     },
   };
 }

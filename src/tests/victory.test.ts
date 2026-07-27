@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { isKingUnprotected, getUnstablePieces, removeUnrescuedPieces } from "../game/victory";
 import { createInitialState } from "../game/initialState";
-import { applyMove, beginTurn, getPlayableMoves, resignInCheck } from "../game/rules";
+import { applyClosestPlayableHint, applyMove, beginTurn, findClosestPlayableConfiguration, getPlayableMoves, resignInCheck } from "../game/rules";
 import type { GameState } from "../game/types";
 import { evaluateField } from "../field/evaluateField";
 
@@ -187,6 +187,16 @@ describe("stability and victory", () => {
     expect(result.state.status).toBe("playing");
     expect(result.state.currentPlayer).toBe("red");
     expect(result.state.message).toContain("Red king is in check");
+
+    const hint = findClosestPlayableConfiguration("red", result.state);
+    expect(hint).not.toBeNull();
+    expect(hint?.changedComponents).toBeGreaterThanOrEqual(0);
+
+    const applied = applyClosestPlayableHint(result.state);
+    expect(applied.ok).toBe(true);
+    expect(applied.state.selectedPieceId).toBe(hint?.pieceId);
+    expect(applied.state.components.red).toEqual(hint?.components);
+    expect(applied.state.message).toContain(`move ${hint?.pieceType}`);
   });
 
   it("a checked king with no rescue is checkmated", () => {

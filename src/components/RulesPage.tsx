@@ -166,7 +166,7 @@ export function RulesPage({ onBack }: RulesPageProps) {
             <li>Tune any of your piece-type wave controls.</li>
             <li>Move exactly one piece to end the turn.</li>
           </ol>
-          <p>Tuning is shared by type, so both of your rooks use the same rook settings. Red controls show positive friendly waves; Blue controls show negative friendly waves.</p>
+          <p>Tuning is shared by type, so both of your rooks use the same rook settings. The dice randomizes a valid profile. Red controls show positive friendly waves; Blue controls show negative friendly waves.</p>
         </article>
 
         <article className="rules-panel rules-piece-panel">
@@ -191,7 +191,7 @@ export function RulesPage({ onBack }: RulesPageProps) {
         <article className="rules-panel">
           <Crown size={22} />
           <h2>Check</h2>
-          <p>Your king must end every move on friendly or Neutral territory. If the enemy king starts its turn in hostile territory and has no rescue, it is checkmate.</p>
+          <p>Your king must end every move on friendly or Neutral territory. In check, Hint applies the nearest rescuing tuning profile. If no rescue exists, it is checkmate.</p>
         </article>
       </section>
 

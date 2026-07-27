@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Flag } from "lucide-react";
+import { Flag, Lightbulb } from "lucide-react";
 import type {
   MouseEvent as ReactMouseEvent,
   PointerEvent as ReactPointerEvent,
@@ -29,6 +29,8 @@ interface BoardProps {
   onSelect: (pieceId: string | null) => void;
   onMove: (pieceId: string, destination: Position) => void;
   onResign: () => void;
+  onHint: () => void;
+  hintSearching?: boolean;
   onToggleEnergyChannel: (pieceType: keyof EnergyChannelState) => void;
 }
 
@@ -45,7 +47,7 @@ interface LossPop {
   position: Position;
 }
 
-export function Board({ state, field, typeFields, highContrast, showTypeSums, energyView, energyChannels, locked = false, onSelect, onMove, onResign, onToggleEnergyChannel }: BoardProps) {
+export function Board({ state, field, typeFields, highContrast, showTypeSums, energyView, energyChannels, locked = false, onSelect, onMove, onResign, onHint, hintSearching = false, onToggleEnergyChannel }: BoardProps) {
   const boardRef = useRef<HTMLDivElement>(null);
   const dragRef = useRef<ActiveDrag | null>(null);
   const previousPiecesRef = useRef(state.pieces);
@@ -393,10 +395,16 @@ export function Board({ state, field, typeFields, highContrast, showTypeSums, en
             </p>
           </div>
           {selectedPiece.type === "king" && selectedPiece.owner === state.currentPlayer && (
-            <button type="button" className="resign-button" onClick={onResign}>
-              <Flag size={15} aria-hidden="true" />
-              Resign
-            </button>
+            <div className="check-actions">
+              <button type="button" className="hint-button" disabled={hintSearching} onClick={onHint}>
+                <Lightbulb size={15} aria-hidden="true" />
+                {hintSearching ? "Searching..." : "Hint"}
+              </button>
+              <button type="button" className="resign-button" onClick={onResign}>
+                <Flag size={15} aria-hidden="true" />
+                Resign
+              </button>
+            </div>
           )}
         </div>
       )}

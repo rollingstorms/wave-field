@@ -23,6 +23,7 @@ export function App() {
   const [showRules, setShowRules] = useState(false);
   const [aiEnabled, setAiEnabled] = useState(true);
   const [aiThinking, setAiThinking] = useState(false);
+  const [hintSearching, setHintSearching] = useState(false);
   const [editorSelection, setEditorSelection] = useState<{ pieceType: PieceType; componentIndex: number }>({ pieceType: "rook", componentIndex: 0 });
   const field = useMemo(() => evaluateField(state), [state]);
   const typeFields = useMemo(() => evaluateTypeFields(state), [state]);
@@ -55,6 +56,15 @@ export function App() {
       setAiEnabled(false);
     }
     dispatch({ type: "undo" });
+  }
+
+  function requestHint() {
+    if (hintSearching) return;
+    setHintSearching(true);
+    globalThis.setTimeout(() => {
+      dispatch({ type: "hint" });
+      setHintSearching(false);
+    }, 40);
   }
 
   if (showRules) {
@@ -99,12 +109,15 @@ export function App() {
           onSelect={(pieceId) => dispatch({ type: "select", pieceId })}
           onMove={(pieceId: string, destination: Position) => dispatch({ type: "move", pieceId, destination })}
           onResign={() => dispatch({ type: "resign" })}
+          onHint={requestHint}
+          hintSearching={hintSearching}
           onToggleEnergyChannel={(pieceType) => setEnergyChannels((channels) => ({ ...channels, [pieceType]: !channels[pieceType] }))}
         />
         <ComponentControls
           state={state}
           locked={aiTurn}
           onTune={(pieceType, componentIndex, value) => dispatch({ type: "tune", pieceType, componentIndex, value })}
+          onRandomize={() => dispatch({ type: "randomize-tuning" })}
         />
       </div>
       {state.status !== "playing" && <div className="win-banner">{state.status === "red-won" ? "Red wins" : "Blue wins"}</div>}

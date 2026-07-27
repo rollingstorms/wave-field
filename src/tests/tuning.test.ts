@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { createInitialState } from "../game/initialState";
 import { canSetComponentValue, getTuningLoad, isTuningWithinStrength } from "../game/tuning";
 import { coefficientLabel } from "../components/ComponentControls";
+import { randomizeTuning } from "../game/rules";
 
 describe("component strength budget", () => {
   it("starts both players' rooks at positive-positive", () => {
@@ -44,5 +45,27 @@ describe("component strength budget", () => {
     expect(coefficientLabel("blue", 1)).toBe("-");
     expect(coefficientLabel("blue", -1)).toBe("+");
     expect(coefficientLabel("blue", 0)).toBe("0");
+  });
+
+  it("randomizes every type within its strength budget without ending the turn", () => {
+    const state = createInitialState();
+    const result = randomizeTuning(state, () => 0.75);
+
+    expect(result.ok).toBe(true);
+    expect(result.state.currentPlayer).toBe("blue");
+    expect(result.state.history).toHaveLength(1);
+    (["pawn", "rook", "spy", "king"] as const).forEach((pieceType) => {
+      expect(isTuningWithinStrength(pieceType, result.state.components.blue[pieceType])).toBe(true);
+    });
+    expect(result.state.components.red).toEqual(state.components.red);
+  });
+
+  it("forces at least one change when a roll matches the current profile", () => {
+    const state = createInitialState();
+    const rolls = [0, 0, 0, 0.27];
+    const result = randomizeTuning(state, () => rolls.shift() ?? 0);
+
+    expect(result.ok).toBe(true);
+    expect(result.state.components.blue).not.toEqual(state.components.blue);
   });
 });
