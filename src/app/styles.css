@@ -636,7 +636,7 @@ h1 {
 
 .legend {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 42px;
+  grid-template-columns: minmax(0, 1fr) repeat(2, 42px);
   gap: 10px;
   padding: 18px;
   border-bottom: 1px solid var(--line);
@@ -649,8 +649,8 @@ h1 {
   gap: 14px;
 }
 
-.randomize-controls {
-  grid-column: 2;
+.randomize-controls,
+.reset-controls {
   grid-row: 1 / 4;
   align-self: center;
   width: 42px;
@@ -660,6 +660,9 @@ h1 {
   display: grid;
   place-items: center;
 }
+
+.randomize-controls { grid-column: 2; }
+.reset-controls { grid-column: 3; }
 
 .swatch {
   width: 28px;
@@ -1679,7 +1682,7 @@ select, .editor-bar button, .secondary, .import-button {
     font-size: 0.48rem;
   }
   .legend {
-    grid-template-columns: repeat(3, minmax(0, 1fr)) 38px;
+    grid-template-columns: repeat(3, minmax(0, 1fr)) repeat(2, 38px);
     gap: 4px;
     padding: 7px 10px;
     font-size: 0.72rem;
@@ -1688,13 +1691,15 @@ select, .editor-bar button, .secondary, .import-button {
     grid-column: auto;
     gap: 6px;
   }
-  .randomize-controls {
-    grid-column: 4;
+  .randomize-controls,
+  .reset-controls {
     grid-row: 1;
     width: 38px;
     height: 38px;
     min-height: 38px;
   }
+  .randomize-controls { grid-column: 4; }
+  .reset-controls { grid-column: 5; }
   .swatch {
     width: 16px;
     height: 16px;

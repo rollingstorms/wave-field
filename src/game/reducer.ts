@@ -2,7 +2,7 @@ import { cloneDefinitions, DEFAULT_COMPONENTS, validateDefinition, validateDefin
 import { DEFAULT_HOME_ENERGY, DEFAULT_WAVE_SCALES } from "./constants";
 import { playHeuristicTurn } from "./ai";
 import { createInitialState, fromSnapshot, snapshot } from "./initialState";
-import { applyClosestPlayableHint, applyMove, applyTuning, beginTurn, randomizeTuning, resignInCheck } from "./rules";
+import { applyClosestPlayableHint, applyMove, applyTuning, beginTurn, randomizeTuning, resetTuning, resignInCheck } from "./rules";
 import { isTuningWithinStrength } from "./tuning";
 import type { BasisDefinition, Coefficient, GameState, PieceType, Position } from "./types";
 
@@ -13,6 +13,7 @@ export type GameAction =
   | { type: "resign" }
   | { type: "hint" }
   | { type: "randomize-tuning" }
+  | { type: "reset-tuning" }
   | { type: "ai-turn" }
   | { type: "undo" }
   | { type: "restart"; keepDefinitions?: boolean }
@@ -48,6 +49,10 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
     }
     case "randomize-tuning": {
       const result = randomizeTuning(state);
+      return result.ok ? result.state : { ...state, message: result.reason ?? state.message };
+    }
+    case "reset-tuning": {
+      const result = resetTuning(state);
       return result.ok ? result.state : { ...state, message: result.reason ?? state.message };
     }
     case "ai-turn":

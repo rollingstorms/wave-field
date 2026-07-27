@@ -1,3 +1,4 @@
+import { Dices, RotateCcw } from "lucide-react";
 import { COMPONENT_COUNTS, TUNING_STRENGTH } from "../game/constants";
 import { canSetComponentValue, getTuningLoad } from "../game/tuning";
 import type { Coefficient, GameState, PieceType, Player } from "../game/types";
@@ -15,10 +16,12 @@ interface ComponentControlsProps {
   locked?: boolean;
   onTune: (pieceType: PieceType, componentIndex: number, value: Coefficient) => void;
   onRandomize: () => void;
+  onReset: () => void;
 }
 
-export function ComponentControls({ state, locked = false, onTune, onRandomize }: ComponentControlsProps) {
+export function ComponentControls({ state, locked = false, onTune, onRandomize, onReset }: ComponentControlsProps) {
   const player = state.currentPlayer;
+  const controlsAtDefaults = JSON.stringify(state.components[player]) === JSON.stringify(state.defaultComponents);
   return (
     <aside className="control-panel" aria-label={`${player} component controls`}>
       <div className="legend">
@@ -34,6 +37,16 @@ export function ComponentControls({ state, locked = false, onTune, onRandomize }
           onClick={onRandomize}
         >
           <Dices size={18} />
+        </button>
+        <button
+          type="button"
+          className="reset-controls"
+          title="Reset tuning to defaults"
+          aria-label="Reset tuning to defaults"
+          disabled={locked || state.status !== "playing" || controlsAtDefaults}
+          onClick={onReset}
+        >
+          <RotateCcw size={17} />
         </button>
       </div>
       {pieceTypes.map((pieceType) => (
@@ -94,4 +107,3 @@ export function ComponentControls({ state, locked = false, onTune, onRandomize }
     </aside>
   );
 }
-import { Dices } from "lucide-react";

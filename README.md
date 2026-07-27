@@ -82,6 +82,8 @@ Moving a piece ends the turn. Tuning does not.
 
 The dice control randomizes every piece type's tuning while respecting each
 strength limit. It counts as tuning and does not end the turn.
+The adjacent reset control restores the current player to the configured
+defaults as one undoable tuning action.
 
 A tuning change may temporarily leave the player's king unprotected because the
 player can keep tuning during the turn. The turn-ending move must leave their

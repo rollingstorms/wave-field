@@ -120,6 +120,7 @@ export function App() {
             locked={aiTurn}
             onTune={(pieceType, componentIndex, value) => dispatch({ type: "tune", pieceType, componentIndex, value })}
             onRandomize={() => dispatch({ type: "randomize-tuning" })}
+            onReset={() => dispatch({ type: "reset-tuning" })}
           />
           <HistoryRoll state={state} />
         </div>

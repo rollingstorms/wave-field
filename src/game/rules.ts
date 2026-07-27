@@ -282,6 +282,30 @@ export function randomizeTuning(state: GameState, random: () => number = Math.ra
   };
 }
 
+export function resetTuning(state: GameState): MoveResult {
+  if (state.status !== "playing") return { ok: false, state, reason: "The game is over." };
+  const player = state.currentPlayer;
+  if (componentDistance(state.components[player], state.defaultComponents) === 0) {
+    return { ok: false, state, reason: "Tuning already matches the defaults." };
+  }
+  const components = structuredClone(state.components);
+  components[player] = structuredClone(state.defaultComponents);
+  const candidate = { ...state, components };
+  const marked = markInstability(candidate, evaluateField(candidate));
+  const message = isKingUnprotected(player, marked, evaluateField(marked))
+    ? `${playerName(player)} reset tuning · king remains in check`
+    : `${playerName(player)} reset tuning · move a piece to end the turn`;
+  return {
+    ok: true,
+    state: {
+      ...marked,
+      selectedPieceId: null,
+      history: [...state.history, snapshot(state)],
+      message,
+    },
+  };
+}
+
 export function applyTuning(
   player: Player,
   pieceType: PieceType,

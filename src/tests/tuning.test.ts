@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { createInitialState } from "../game/initialState";
 import { canSetComponentValue, getTuningLoad, isTuningWithinStrength } from "../game/tuning";
 import { coefficientLabel } from "../components/ComponentControls";
-import { randomizeTuning } from "../game/rules";
+import { randomizeTuning, resetTuning } from "../game/rules";
 
 describe("component strength budget", () => {
   it("starts both players' rooks at positive-positive", () => {
@@ -69,5 +69,25 @@ describe("component strength budget", () => {
 
     expect(result.ok).toBe(true);
     expect(result.state.components.blue).not.toEqual(state.components.blue);
+  });
+
+  it("resets only the current player's tuning to the configured defaults", () => {
+    const state = createInitialState();
+    state.components.blue.pawn = [0];
+    const result = resetTuning(state);
+
+    expect(result.ok).toBe(true);
+    expect(result.state.components.blue).toEqual(state.defaultComponents);
+    expect(result.state.components.red).toEqual(state.components.red);
+    expect(result.state.currentPlayer).toBe("blue");
+    expect(result.state.history).toHaveLength(1);
+  });
+
+  it("does not add history when tuning already matches the defaults", () => {
+    const result = resetTuning(createInitialState());
+
+    expect(result.ok).toBe(false);
+    expect(result.reason).toContain("already matches");
+    expect(result.state.history).toHaveLength(0);
   });
 });
