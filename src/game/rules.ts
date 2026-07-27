@@ -56,11 +56,15 @@ function movePiece(state: GameState, pieceId: string, destination: Position): Ga
 }
 
 function resolveOwnTurnConsequences(player: Player, previous: GameState, candidate: GameState): GameState {
+  const previousField = evaluateField(previous);
   const rescueDeadlineIds = new Set(
-    getUnstablePieces(player, previous, evaluateField(previous))
-      .filter((piece) => piece.type !== "king")
+    previous.pieces
+      .filter((piece) => piece.owner === player && piece.type !== "king" && piece.unstable)
       .map((piece) => piece.id),
   );
+  for (const piece of getUnstablePieces(player, previous, previousField).filter((piece) => piece.type !== "king")) {
+    rescueDeadlineIds.add(piece.id);
+  }
   const marked = markInstability(candidate, evaluateField(candidate));
   const deadlineResolved = removeUnrescuedPieces(player, marked, rescueDeadlineIds);
   const selfField = evaluateField(deadlineResolved);

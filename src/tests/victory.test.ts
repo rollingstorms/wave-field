@@ -3,6 +3,7 @@ import { isKingUnprotected, getUnstablePieces, removeUnrescuedPieces } from "../
 import { createInitialState } from "../game/initialState";
 import { applyMove, beginTurn, getPlayableMoves, resignInCheck } from "../game/rules";
 import type { GameState } from "../game/types";
+import { evaluateField } from "../field/evaluateField";
 
 const field = (value = 0) => Array.from({ length: 7 }, () => Array.from({ length: 7 }, () => value));
 
@@ -133,6 +134,24 @@ describe("stability and victory", () => {
     expect(result.ok).toBe(true);
     expect(result.state.pieces.some((piece) => piece.id === "blue-pawn")).toBe(false);
     expect(result.state.message).toContain("Blue lost pawn");
+  });
+
+  it("uses the visible unstable marker as a rescue deadline", () => {
+    const state = createInitialState();
+    state.pieces = [
+      { id: "blue-pawn", owner: "blue", type: "pawn", position: { x: 3, y: 3 }, unstable: true },
+      { id: "blue-spy", owner: "blue", type: "spy", position: { x: 2, y: 3 }, unstable: false },
+      { id: "red-pawn", owner: "red", type: "pawn", position: { x: 4, y: 3 }, unstable: false },
+    ];
+    state.components.blue.pawn = [0];
+    state.components.blue.spy = [-1, 0, 0];
+    state.components.red.pawn = [-1];
+    expect(getUnstablePieces("blue", state, evaluateField(state)).map((piece) => piece.id)).not.toContain("blue-pawn");
+
+    const result = applyMove("blue-spy", { x: 0, y: 3 }, state);
+
+    expect(result.ok).toBe(true);
+    expect(result.state.pieces.some((piece) => piece.id === "blue-pawn")).toBe(false);
   });
 
   it("moves that leave the moving player's king unprotected are illegal and not offered", () => {
