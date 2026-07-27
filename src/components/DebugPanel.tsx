@@ -5,6 +5,7 @@ import { getLegalMoves } from "../game/movement";
 import type { GameState } from "../game/types";
 import type { Coefficient, PieceType } from "../game/types";
 import { DefaultComponentEditor } from "./DefaultComponentEditor";
+import { HistoryRoll } from "./HistoryRoll";
 
 interface DebugPanelProps {
   state: GameState;
@@ -41,6 +42,7 @@ export function DebugPanel({ state, field, onUpdateDefault, onResetDefaults, onR
         onReset={onResetDefaults}
         onRestart={onRestart}
       />
+      <HistoryRoll state={state} />
       <div className="field-table" aria-label="Raw field values">
         {field.map((row, y) => row.map((value, x) => <span key={`${x}-${y}`}>{value.toFixed(2)}</span>))}
       </div>

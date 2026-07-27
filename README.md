@@ -192,7 +192,9 @@ burst animations, undo and restart, high-contrast territory markers, a compact
 mobile tuning panel, and a developer mode for inspecting the raw field, piece
 contributions, mobility, and editable wave definitions. Developer mode also
 provides editable default component controls; the selected profile is applied to
-both players on restart.
+both players on restart. Its scrollable History Roll reconstructs moves, tuning
+changes, dice and hint profiles, piece losses, and turn transitions from the
+active undo timeline.
 
 The optional Red AI uses a bounded heuristic search. It evaluates many tuning
 and movement candidates quickly, then runs exact checkmate analysis only on a
