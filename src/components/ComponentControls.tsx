@@ -1,11 +1,28 @@
 import { Dices, RotateCcw } from "lucide-react";
 import { COMPONENT_COUNTS, TUNING_STRENGTH } from "../game/constants";
 import { getTuningLoad } from "../game/tuning";
-import type { Coefficient, GameState, PieceType, Player } from "../game/types";
+import type { Coefficient, GameState, Piece, PieceType, Player } from "../game/types";
+import { Piece as PieceShape } from "./Piece";
 import { WaveThumbnail } from "./WaveThumbnail";
 
 const pieceTypes: PieceType[] = ["pawn", "rook", "spy", "king"];
 const values: Coefficient[] = [1, -1];
+
+function PieceLegend({ player, pieceType }: { player: Player; pieceType: PieceType }) {
+  const piece: Piece = {
+    id: `${player}-${pieceType}-control-legend`,
+    owner: player,
+    type: pieceType,
+    position: { x: 0, y: 0 },
+    unstable: false,
+  };
+  return (
+    <span className="piece-shape-legend" aria-hidden="true">
+      <PieceShape piece={piece} selected={false} dragging={false} />
+    </span>
+  );
+}
+
 export function coefficientLabel(player: Player, value: Coefficient) {
   const fieldSign = player === "blue" ? -value : value;
   return fieldSign === 1 ? "+" : fieldSign === -1 ? "-" : "0";
@@ -53,6 +70,7 @@ export function ComponentControls({ state, locked = false, onTune, onRandomize, 
         <section className={`component-group components-${COMPONENT_COUNTS[pieceType]}`} key={pieceType}>
           <div className="piece-heading">
             <WaveThumbnail state={state} player={player} pieceType={pieceType} />
+            <PieceLegend player={player} pieceType={pieceType} />
             <div className="piece-heading-copy">
               <strong>{pieceType.toUpperCase()}</strong>
               <span className="component-count">({COMPONENT_COUNTS[pieceType]} components)</span>

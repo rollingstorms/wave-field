@@ -676,10 +676,23 @@ h1 {
 
 .piece-heading {
   display: grid;
-  grid-template-columns: 54px minmax(0, 1fr);
+  grid-template-columns: 54px 34px minmax(0, 1fr);
   gap: 10px;
   align-items: center;
   margin-bottom: 12px;
+}
+
+.piece-shape-legend {
+  position: relative;
+  display: block;
+  width: 34px;
+  aspect-ratio: 1;
+}
+
+.piece-shape-legend .piece {
+  inset: 4%;
+  width: 92%;
+  height: 92%;
 }
 
 .piece-heading-copy {
@@ -1693,20 +1706,23 @@ select, .editor-bar button, .secondary, .import-button {
     padding: 6px 8px;
   }
   .component-group.components-1 {
-    grid-template-columns: 82px minmax(0, 1fr);
+    grid-template-columns: 90px minmax(0, 1fr);
   }
   .component-group.components-2 {
-    grid-template-columns: 82px repeat(2, minmax(0, 1fr));
+    grid-template-columns: 90px repeat(2, minmax(0, 1fr));
   }
   .component-group.components-3 {
-    grid-template-columns: 82px repeat(3, minmax(0, 1fr));
+    grid-template-columns: 90px repeat(3, minmax(0, 1fr));
   }
   .piece-heading {
     grid-column: 1;
     grid-row: 1;
-    grid-template-columns: 34px minmax(0, 1fr);
-    gap: 5px;
+    grid-template-columns: 34px 18px minmax(0, 1fr);
+    gap: 3px;
     margin: 0;
+  }
+  .piece-shape-legend {
+    width: 18px;
   }
   .wave-thumbnail {
     width: 34px;
