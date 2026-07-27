@@ -122,8 +122,10 @@ h1 {
 }
 
 .board-wrap {
+  width: min(100%, 760px);
   display: grid;
   gap: 10px;
+  justify-self: center;
   min-width: 0;
 }
 
