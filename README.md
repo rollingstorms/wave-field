@@ -201,7 +201,7 @@ wave-pattern thumbnails, a per-square piece-type contribution overlay,
 an interactive CMYK energy view with isolatable pawn, rook, spy, and king
 channels and per-square composition ratios,
 legal-move indicators, blocked-king move markers, instability warnings, loss
-burst animations, undo and restart, high-contrast territory markers, a compact
+burst animations, undo and restart, continuous field-magnitude shading, a compact
 mobile tuning panel, and a developer mode for inspecting the raw field, piece
 contributions, mobility, and editable wave definitions. Developer mode also
 provides editable default component controls, friendly/hostile wave scales, and

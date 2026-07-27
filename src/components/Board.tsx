@@ -8,6 +8,7 @@ import type {
 import { BOARD_SIZE } from "../game/constants";
 import { createCmykEnergyGrid, ENERGY_CHANNELS } from "../field/cmykEnergy";
 import type { EnergyChannelState } from "../field/cmykEnergy";
+import { continuousFieldColor } from "../field/continuousColor";
 import { contributionGrid, evaluateField, evaluateTypeFields } from "../field/evaluateField";
 import type { TypeFields } from "../field/evaluateField";
 import { projectFieldValue } from "../field/projection";
@@ -21,7 +22,7 @@ interface BoardProps {
   state: GameState;
   field: number[][];
   typeFields: TypeFields;
-  highContrast: boolean;
+  continuousField: boolean;
   showTypeSums: boolean;
   energyView: boolean;
   energyChannels: EnergyChannelState;
@@ -47,7 +48,7 @@ interface LossPop {
   position: Position;
 }
 
-export function Board({ state, field, typeFields, highContrast, showTypeSums, energyView, energyChannels, locked = false, onSelect, onMove, onResign, onHint, hintSearching = false, onToggleEnergyChannel }: BoardProps) {
+export function Board({ state, field, typeFields, continuousField, showTypeSums, energyView, energyChannels, locked = false, onSelect, onMove, onResign, onHint, hintSearching = false, onToggleEnergyChannel }: BoardProps) {
   const boardRef = useRef<HTMLDivElement>(null);
   const dragRef = useRef<ActiveDrag | null>(null);
   const previousPiecesRef = useRef(state.pieces);
@@ -79,6 +80,10 @@ export function Board({ state, field, typeFields, highContrast, showTypeSums, en
   const displayTypeFields = useMemo(
     () => previewing ? evaluateTypeFields(previewState) : typeFields,
     [previewState, previewing, typeFields],
+  );
+  const maximumFieldMagnitude = Math.max(
+    ...displayField.flat().map((value) => Math.abs(value)),
+    0,
   );
   const energyGrid = useMemo(
     () => createCmykEnergyGrid(displayTypeFields, energyChannels),
@@ -332,6 +337,9 @@ export function Board({ state, field, typeFields, highContrast, showTypeSums, en
               const energySummary = energyView
                 ? ` CMYK energy: ${ENERGY_CHANNELS.map(({ pieceType, letter }) => `${letter} ${Math.round(energy.ratios[pieceType] * 100)} percent`).join(", ")}.`
                 : "";
+              const fieldMagnitudePercent = maximumFieldMagnitude > 0
+                ? Math.round((Math.abs(displayField[y][x]) / maximumFieldMagnitude) * 100)
+                : 0;
               return (
                 <Square
                   key={`${x}-${y}`}
@@ -349,7 +357,6 @@ export function Board({ state, field, typeFields, highContrast, showTypeSums, en
                   influenceOpacity={!energyView && maximumInfluence > 0 && influence > 0
                     ? 0.45 + (influence / maximumInfluence) * 0.55
                     : 0}
-                  highContrast={highContrast}
                   typeSums={!energyView && showTypeSums ? {
                     pawn: displayTypeFields.pawn[y][x],
                     rook: displayTypeFields.rook[y][x],
@@ -360,6 +367,12 @@ export function Board({ state, field, typeFields, highContrast, showTypeSums, en
                   energyColor={energyView ? energy.color : undefined}
                   energySummary={energySummary}
                   energySelected={Boolean(energyView && energySelection && samePosition(energySelection, position))}
+                  continuousColor={continuousField && !energyView
+                    ? continuousFieldColor(displayField[y][x], maximumFieldMagnitude)
+                    : undefined}
+                  continuousSummary={continuousField && !energyView
+                    ? ` Relative field magnitude ${fieldMagnitudePercent} percent.`
+                    : ""}
                   onClick={() => handleSquare(position)}
                 />
               );

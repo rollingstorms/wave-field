@@ -159,7 +159,7 @@ export function RulesPage({ onBack }: RulesPageProps) {
         <article className="rules-panel">
           <Waves size={22} />
           <h2>Territory</h2>
-          <p>Red waves count positive. Blue waves count negative. The total on a square decides who controls it.</p>
+          <p>Red waves count positive. Blue waves count negative. The total on a square decides who controls it. The gradient view shades each square by its normalized field magnitude.</p>
           <div className="territory-rule">
             <span className="swatch red" /> <strong>Red</strong> <small>total above 0</small>
             <span className="swatch neutral" /> <strong>Neutral</strong> <small>total equals 0</small>

@@ -17,7 +17,7 @@ import type { BasisDefinition, PieceType, Position } from "../game/types";
 export function App() {
   const [state, dispatch] = useReducer(gameReducer, undefined, createInitialState);
   const [developerMode, setDeveloperMode] = useState(false);
-  const [highContrast, setHighContrast] = useState(false);
+  const [continuousField, setContinuousField] = useState(false);
   const [showTypeSums, setShowTypeSums] = useState(false);
   const [energyView, setEnergyView] = useState(false);
   const [energyChannels, setEnergyChannels] = useState<EnergyChannelState>({ ...ALL_ENERGY_CHANNELS });
@@ -73,11 +73,11 @@ export function App() {
   }
 
   return (
-    <main className={`app ${highContrast ? "high-contrast" : ""}`}>
+    <main className="app">
       <TurnStatus
         state={state}
         developerMode={developerMode}
-        highContrast={highContrast}
+        continuousField={continuousField}
         showTypeSums={showTypeSums}
         energyView={energyView}
         aiEnabled={aiEnabled}
@@ -85,13 +85,17 @@ export function App() {
         onUndo={undo}
         onRestart={() => dispatch({ type: "restart", keepDefinitions: true })}
         onToggleDeveloper={() => setDeveloperMode((value) => !value)}
-        onToggleContrast={() => setHighContrast((value) => !value)}
+        onToggleContinuousField={() => {
+          setEnergyView(false);
+          setContinuousField((value) => !value);
+        }}
         onToggleTypeSums={() => {
           setEnergyView(false);
           setShowTypeSums((value) => !value);
         }}
         onToggleEnergyView={() => {
           setShowTypeSums(false);
+          setContinuousField(false);
           setEnergyView((value) => !value);
         }}
         onToggleAi={() => setAiEnabled((value) => !value)}
@@ -102,7 +106,7 @@ export function App() {
           state={state}
           field={field}
           typeFields={typeFields}
-          highContrast={highContrast}
+          continuousField={continuousField}
           showTypeSums={showTypeSums}
           energyView={energyView}
           energyChannels={energyChannels}

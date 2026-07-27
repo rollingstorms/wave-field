@@ -4,7 +4,7 @@ import type { GameState } from "../game/types";
 interface TurnStatusProps {
   state: GameState;
   developerMode: boolean;
-  highContrast: boolean;
+  continuousField: boolean;
   showTypeSums: boolean;
   energyView: boolean;
   aiEnabled: boolean;
@@ -12,14 +12,14 @@ interface TurnStatusProps {
   onUndo: () => void;
   onRestart: () => void;
   onToggleDeveloper: () => void;
-  onToggleContrast: () => void;
+  onToggleContinuousField: () => void;
   onToggleTypeSums: () => void;
   onToggleEnergyView: () => void;
   onToggleAi: () => void;
   onShowRules: () => void;
 }
 
-export function TurnStatus({ state, developerMode, highContrast, showTypeSums, energyView, aiEnabled, aiThinking, onUndo, onRestart, onToggleDeveloper, onToggleContrast, onToggleTypeSums, onToggleEnergyView, onToggleAi, onShowRules }: TurnStatusProps) {
+export function TurnStatus({ state, developerMode, continuousField, showTypeSums, energyView, aiEnabled, aiThinking, onUndo, onRestart, onToggleDeveloper, onToggleContinuousField, onToggleTypeSums, onToggleEnergyView, onToggleAi, onShowRules }: TurnStatusProps) {
   const winner = state.status === "red-won" ? "Red wins" : state.status === "blue-won" ? "Blue wins" : null;
   return (
     <header className="topbar">
@@ -63,7 +63,15 @@ export function TurnStatus({ state, developerMode, highContrast, showTypeSums, e
         >
           <Bot size={18} />
         </button>
-        <button className={highContrast ? "active" : ""} onClick={onToggleContrast}>A11Y</button>
+        <button
+          className={`gradient-view-toggle ${continuousField ? "active" : ""}`}
+          title="Continuous field shading"
+          aria-label="Continuous field shading"
+          aria-pressed={continuousField}
+          onClick={onToggleContinuousField}
+        >
+          <span className="gradient-swatch" aria-hidden="true" />
+        </button>
       </div>
     </header>
   );
