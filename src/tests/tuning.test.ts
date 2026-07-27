@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { createInitialState } from "../game/initialState";
-import { canSetComponentValue, getTuningLoad, isTuningWithinStrength } from "../game/tuning";
+import { canSetComponentValue, getTuningLoad, isTuningAtStrength, isTuningWithinStrength } from "../game/tuning";
 import { coefficientLabel } from "../components/ComponentControls";
 import { randomizeTuning, resetTuning } from "../game/rules";
 
@@ -21,6 +21,12 @@ describe("component strength budget", () => {
     expect(isTuningWithinStrength("king", [1, 1, -1])).toBe(false);
     expect(isTuningWithinStrength("spy", [1, 0, 0])).toBe(true);
     expect(isTuningWithinStrength("spy", [1, 1, 0])).toBe(false);
+  });
+
+  it("recognizes exact full-strength tuning", () => {
+    expect(isTuningAtStrength("king", [0, 1, -1])).toBe(true);
+    expect(isTuningAtStrength("king", [0, 1, 0])).toBe(false);
+    expect(isTuningAtStrength("spy", [1, 0, 0])).toBe(true);
   });
 
   it("allows flipping an active component while at full strength", () => {
@@ -49,7 +55,7 @@ describe("component strength budget", () => {
     expect(coefficientLabel("blue", 0)).toBe("0");
   });
 
-  it("randomizes every type within its strength budget without ending the turn", () => {
+  it("randomizes every type at full strength without ending the turn", () => {
     const state = createInitialState();
     const result = randomizeTuning(state, () => 0.75);
 
@@ -57,7 +63,7 @@ describe("component strength budget", () => {
     expect(result.state.currentPlayer).toBe("blue");
     expect(result.state.history).toHaveLength(1);
     (["pawn", "rook", "spy", "king"] as const).forEach((pieceType) => {
-      expect(isTuningWithinStrength(pieceType, result.state.components.blue[pieceType])).toBe(true);
+      expect(isTuningAtStrength(pieceType, result.state.components.blue[pieceType])).toBe(true);
     });
     expect(result.state.components.red).toEqual(state.components.red);
   });

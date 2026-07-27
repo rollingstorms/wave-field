@@ -2,7 +2,7 @@ import { evaluateField } from "../field/evaluateField";
 import { BOARD_SIZE, TUNING_STRENGTH } from "./constants";
 import type { Coefficient, GameState, MoveResult, PieceType, Player, PlayerComponents, Position } from "./types";
 import { getLegalMoves, samePosition } from "./movement";
-import { activationOrderForProfile, isTuningWithinStrength } from "./tuning";
+import { activationOrderForProfile, isTuningAtStrength } from "./tuning";
 import { getUnstablePieces, isKingUnprotected, markInstability, removeUnrescuedPieces } from "./victory";
 import { snapshot } from "./initialState";
 
@@ -41,7 +41,7 @@ function componentOptions(pieceType: PieceType, count: number): Coefficient[][] 
   const options: Coefficient[][] = [];
   function build(values: Coefficient[]) {
     if (values.length === count) {
-      if (isTuningWithinStrength(pieceType, values)) options.push(values);
+      if (isTuningAtStrength(pieceType, values)) options.push(values);
       return;
     }
     for (const value of coefficientValues) build([...values, value]);
@@ -321,10 +321,12 @@ export function applyTuning(
   state: GameState,
 ): MoveResult {
   if (state.status !== "playing" || player !== state.currentPlayer) return { ok: false, state, reason: "It is not that player's turn." };
+  if (value === 0) return { ok: false, state, reason: "Controls must stay at full strength." };
   const nextComponents = structuredClone(state.components);
   const activationOrders = structuredClone(state.activationOrders);
   const coefficients = nextComponents[player][pieceType];
   const currentValue = coefficients[componentIndex];
+  if (currentValue === value) return { ok: false, state, reason: "Choose a different sign." };
   const activeIndices = coefficients.flatMap((coefficient, index) => coefficient === 0 ? [] : [index]);
   const existingOrder = activationOrders[player][pieceType]
     .filter((index) => activeIndices.includes(index));
@@ -332,20 +334,15 @@ export function applyTuning(
     if (!existingOrder.includes(index)) existingOrder.push(index);
   }
 
-  if (value === 0 || currentValue === value) {
-    coefficients[componentIndex] = 0;
-    activationOrders[player][pieceType] = existingOrder.filter((index) => index !== componentIndex);
-  } else {
-    const wasActive = currentValue !== 0;
-    const nextOrder = existingOrder.filter((index) => index !== componentIndex);
-    if (!wasActive && activeIndices.length >= TUNING_STRENGTH[pieceType]) {
-      const evictedIndex = nextOrder.shift();
-      if (evictedIndex !== undefined) coefficients[evictedIndex] = 0;
-    }
-    coefficients[componentIndex] = value;
-    nextOrder.push(componentIndex);
-    activationOrders[player][pieceType] = nextOrder;
+  const wasActive = currentValue !== 0;
+  const nextOrder = existingOrder.filter((index) => index !== componentIndex);
+  if (!wasActive && activeIndices.length >= TUNING_STRENGTH[pieceType]) {
+    const evictedIndex = nextOrder.shift();
+    if (evictedIndex !== undefined) coefficients[evictedIndex] = 0;
   }
+  coefficients[componentIndex] = value;
+  nextOrder.push(componentIndex);
+  activationOrders[player][pieceType] = nextOrder;
 
   const candidate = { ...state, components: nextComponents, activationOrders };
   const marked = markInstability(candidate, evaluateField(candidate));

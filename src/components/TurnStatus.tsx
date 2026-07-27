@@ -21,6 +21,7 @@ interface TurnStatusProps {
 
 export function TurnStatus({ state, developerMode, continuousField, showTypeSums, energyView, aiEnabled, aiThinking, onUndo, onRestart, onToggleDeveloper, onToggleContinuousField, onToggleTypeSums, onToggleEnergyView, onToggleAi, onShowRules }: TurnStatusProps) {
   const winner = state.status === "red-won" ? "Red wins" : state.status === "blue-won" ? "Blue wins" : null;
+  const playerName = state.currentPlayer === "blue" ? "Blue" : "Red";
   return (
     <header className="topbar">
       <div>
@@ -29,7 +30,7 @@ export function TurnStatus({ state, developerMode, continuousField, showTypeSums
       </div>
       <div className="turn-block">
         <span>TURN {state.turnNumber}</span>
-        <strong>{winner ?? (aiThinking ? "Red AI thinking..." : state.message)}</strong>
+        <strong>{winner ?? (aiThinking ? `${playerName} AI thinking...` : state.message)}</strong>
       </div>
       <div className="actions">
         <button title="How to play" aria-label="How to play" onClick={onShowRules}><CircleHelp size={18} /></button>
@@ -56,8 +57,8 @@ export function TurnStatus({ state, developerMode, continuousField, showTypeSums
         </button>
         <button
           className={aiEnabled ? "active" : ""}
-          title={aiEnabled ? "Red AI enabled" : "Red AI disabled"}
-          aria-label="Red AI opponent"
+          title={aiEnabled ? "AI enabled" : "AI disabled"}
+          aria-label="AI mode"
           aria-pressed={aiEnabled}
           onClick={onToggleAi}
         >

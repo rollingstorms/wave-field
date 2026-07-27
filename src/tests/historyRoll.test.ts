@@ -8,12 +8,12 @@ import { gameReducer } from "../game/reducer";
 describe("debug history roll", () => {
   it("describes player-relative tuning changes", () => {
     const state = createInitialState();
-    const tuned = gameReducer(state, { type: "tune", pieceType: "pawn", componentIndex: 0, value: 0 });
+    const tuned = gameReducer(state, { type: "tune", pieceType: "pawn", componentIndex: 0, value: -1 });
     const entries = buildHistoryRoll(tuned);
 
     expect(entries).toHaveLength(1);
     expect(entries[0].summary).toBe("Blue tuned 1 control");
-    expect(entries[0].details).toContain("Blue pawn C1 -→0");
+    expect(entries[0].details).toContain("Blue pawn C1 -→+");
   });
 
   it("describes moves with board coordinates", () => {

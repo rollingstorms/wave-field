@@ -8,18 +8,18 @@ import { beginTurn } from "../game/rules";
 describe("reducer", () => {
   it("allows multiple tuning changes without ending the turn", () => {
     const state = createInitialState();
-    const tuned = gameReducer(state, { type: "tune", pieceType: "pawn", componentIndex: 0, value: 0 });
-    const tunedAgain = gameReducer(tuned, { type: "tune", pieceType: "spy", componentIndex: 0, value: 0 });
+    const tuned = gameReducer(state, { type: "tune", pieceType: "pawn", componentIndex: 0, value: -1 });
+    const tunedAgain = gameReducer(tuned, { type: "tune", pieceType: "spy", componentIndex: 1, value: 1 });
 
     expect(tunedAgain.currentPlayer).toBe("blue");
-    expect(tunedAgain.components.blue.pawn[0]).toBe(0);
-    expect(tunedAgain.components.blue.spy[0]).toBe(0);
+    expect(tunedAgain.components.blue.pawn[0]).toBe(-1);
+    expect(tunedAgain.components.blue.spy).toEqual([0, 1, 0]);
     expect(tunedAgain.history).toHaveLength(2);
   });
 
   it("ends the turn only after a piece moves", () => {
     const state = createInitialState();
-    const tuned = gameReducer(state, { type: "tune", pieceType: "pawn", componentIndex: 0, value: 0 });
+    const tuned = gameReducer(state, { type: "tune", pieceType: "pawn", componentIndex: 0, value: -1 });
     const destination = getLegalMoves("blue-pawn-1", tuned, evaluateField(tuned))[0];
     expect(destination).toBeDefined();
 
@@ -61,12 +61,13 @@ describe("reducer", () => {
     expect(tuned.activationOrders.blue.king).toEqual([2, 0]);
   });
 
-  it("pressing an active sign toggles that component off", () => {
+  it("rejects clearing an active component", () => {
     const state = createInitialState();
-    const tuned = gameReducer(state, { type: "tune", pieceType: "pawn", componentIndex: 0, value: 1 });
+    const tuned = gameReducer(state, { type: "tune", pieceType: "pawn", componentIndex: 0, value: 0 });
 
-    expect(tuned.components.blue.pawn).toEqual([0]);
-    expect(tuned.activationOrders.blue.pawn).toEqual([]);
+    expect(tuned.components.blue.pawn).toEqual([1]);
+    expect(tuned.activationOrders.blue.pawn).toEqual([0]);
+    expect(tuned.message).toContain("full strength");
   });
 
   it("a sign flip makes the component most recently active", () => {
@@ -81,7 +82,7 @@ describe("reducer", () => {
 
   it("undo restores the previous in-turn tuning state", () => {
     const state = createInitialState();
-    const tuned = gameReducer(state, { type: "tune", pieceType: "pawn", componentIndex: 0, value: 0 });
+    const tuned = gameReducer(state, { type: "tune", pieceType: "pawn", componentIndex: 0, value: -1 });
     const undone = gameReducer(tuned, { type: "undo" });
 
     expect(undone.currentPlayer).toBe("blue");
@@ -108,24 +109,24 @@ describe("reducer", () => {
 
   it("applies edited default controls to both players on restart", () => {
     const state = createInitialState();
-    const edited = gameReducer(state, { type: "update-default-component", pieceType: "king", componentIndex: 2, value: 0 });
+    const edited = gameReducer(state, { type: "update-default-component", pieceType: "king", componentIndex: 0, value: -1 });
 
     expect(edited.components.blue.king).toEqual([0, 1, 1]);
-    expect(edited.defaultComponents.king).toEqual([0, 1, 0]);
+    expect(edited.defaultComponents.king).toEqual([-1, 0, 1]);
 
     const restarted = gameReducer(edited, { type: "restart", keepDefinitions: true });
-    expect(restarted.components.blue.king).toEqual([0, 1, 0]);
-    expect(restarted.components.red.king).toEqual([0, 1, 0]);
+    expect(restarted.components.blue.king).toEqual([-1, 0, 1]);
+    expect(restarted.components.red.king).toEqual([-1, 0, 1]);
   });
 
   it("keeps edited defaults when undoing a game action", () => {
     const state = createInitialState();
     const tuned = gameReducer(state, { type: "tune", pieceType: "pawn", componentIndex: 0, value: -1 });
-    const edited = gameReducer(tuned, { type: "update-default-component", pieceType: "king", componentIndex: 2, value: 0 });
+    const edited = gameReducer(tuned, { type: "update-default-component", pieceType: "king", componentIndex: 0, value: -1 });
     const undone = gameReducer(edited, { type: "undo" });
 
     expect(undone.components.blue.pawn).toEqual([1]);
-    expect(undone.defaultComponents.king).toEqual([0, 1, 0]);
+    expect(undone.defaultComponents.king).toEqual([-1, 0, 1]);
   });
 
   it("updates wave scales with undo history and preserves them on restart", () => {
@@ -160,12 +161,20 @@ describe("reducer", () => {
     expect(undone.homeEnergy.spy).toBe(0.5);
   });
 
-  it("rejects default controls beyond a piece's strength", () => {
+  it("replaces an existing default control when a type is at full strength", () => {
     const state = createInitialState();
     const first = gameReducer(state, { type: "update-default-component", pieceType: "spy", componentIndex: 1, value: -1 });
 
-    expect(first.defaultComponents.spy).toEqual([1, 0, 0]);
-    expect(first.message).toContain("exceed its active limit");
+    expect(first.defaultComponents.spy).toEqual([0, -1, 0]);
+    expect(first.message).toContain("updated");
+  });
+
+  it("rejects zero default controls", () => {
+    const state = createInitialState();
+    const first = gameReducer(state, { type: "update-default-component", pieceType: "pawn", componentIndex: 0, value: 0 });
+
+    expect(first.defaultComponents.pawn).toEqual([1]);
+    expect(first.message).toContain("full strength");
   });
 
   it("rejects wave definitions that break base-2 decay", () => {

@@ -1,10 +1,9 @@
 import { RotateCcw } from "lucide-react";
 import { COMPONENT_COUNTS, TUNING_STRENGTH } from "../game/constants";
-import { isTuningWithinStrength } from "../game/tuning";
 import type { Coefficient, PieceType, PlayerComponents } from "../game/types";
 
 const pieceTypes: PieceType[] = ["pawn", "rook", "spy", "king"];
-const values: Coefficient[] = [1, 0, -1];
+const values: Coefficient[] = [1, -1];
 const coefficientLabel = (value: Coefficient) => value === 1 ? "+" : value === -1 ? "-" : "0";
 
 interface DefaultComponentEditorProps {
@@ -16,9 +15,7 @@ interface DefaultComponentEditorProps {
 
 export function DefaultComponentEditor({ defaults, onUpdate, onReset, onRestart }: DefaultComponentEditorProps) {
   function canSet(pieceType: PieceType, componentIndex: number, value: Coefficient) {
-    const coefficients = [...defaults[pieceType]];
-    coefficients[componentIndex] = value;
-    return isTuningWithinStrength(pieceType, coefficients);
+    return defaults[pieceType][componentIndex] !== value;
   }
 
   return (

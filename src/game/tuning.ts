@@ -11,6 +11,10 @@ export function isTuningWithinStrength(pieceType: PieceType, coefficients: reado
   return getTuningLoad(coefficients) <= TUNING_STRENGTH[pieceType];
 }
 
+export function isTuningAtStrength(pieceType: PieceType, coefficients: readonly Coefficient[]): boolean {
+  return getTuningLoad(coefficients) === TUNING_STRENGTH[pieceType];
+}
+
 export function canSetComponentValue(
   components: PlayerComponents,
   pieceType: PieceType,

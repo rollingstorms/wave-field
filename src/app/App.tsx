@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useReducer, useState } from "react";
+import { AiDuelPanel } from "../components/AiDuelPanel";
 import { Board } from "../components/Board";
 import { ComponentControls } from "../components/ComponentControls";
 import { DebugPanel } from "../components/DebugPanel";
@@ -14,21 +15,30 @@ import { createInitialState } from "../game/initialState";
 import { gameReducer } from "../game/reducer";
 import type { BasisDefinition, PieceType, Position } from "../game/types";
 
+const arenaEnabled = import.meta.env.DEV && import.meta.env.MODE === "arena";
+
 export function App() {
   const [state, dispatch] = useReducer(gameReducer, undefined, createInitialState);
+  const [duelSeed, setDuelSeed] = useState(() => Math.floor(Math.random() * 1_000_000_000));
   const [developerMode, setDeveloperMode] = useState(false);
   const [continuousField, setContinuousField] = useState(false);
   const [showTypeSums, setShowTypeSums] = useState(false);
   const [energyView, setEnergyView] = useState(false);
   const [energyChannels, setEnergyChannels] = useState<EnergyChannelState>({ ...ALL_ENERGY_CHANNELS });
   const [showRules, setShowRules] = useState(false);
-  const [aiEnabled, setAiEnabled] = useState(true);
+  const [aiMode, setAiMode] = useState<"off" | "red" | "duel">(() => arenaEnabled ? "duel" : "red");
+  const [duelRunning, setDuelRunning] = useState(false);
+  const [duelSpeedMs, setDuelSpeedMs] = useState(450);
+  const [duelMaxTurns, setDuelMaxTurns] = useState(80);
   const [aiThinking, setAiThinking] = useState(false);
   const [hintSearching, setHintSearching] = useState(false);
   const [editorSelection, setEditorSelection] = useState<{ pieceType: PieceType; componentIndex: number }>({ pieceType: "rook", componentIndex: 0 });
   const field = useMemo(() => evaluateField(state), [state]);
   const typeFields = useMemo(() => evaluateTypeFields(state), [state]);
-  const aiTurn = aiEnabled && !energyView && state.currentPlayer === "red" && state.status === "playing";
+  const capReached = arenaEnabled && aiMode === "duel" && state.turnNumber >= duelMaxTurns;
+  const aiTurn = !energyView
+    && state.status === "playing"
+    && ((aiMode === "red" && state.currentPlayer === "red") || (arenaEnabled && aiMode === "duel" && duelRunning && !capReached));
 
   useEffect(() => {
     if (!aiTurn) {
@@ -36,9 +46,16 @@ export function App() {
       return;
     }
     setAiThinking(true);
-    const timer = globalThis.setTimeout(() => dispatch({ type: "ai-turn" }), 450);
+    const timer = globalThis.setTimeout(() => {
+      setAiThinking(false);
+      dispatch({ type: "ai-turn", player: state.currentPlayer, seed: duelSeed, variety: arenaEnabled && aiMode === "duel" ? 0.55 : 0 });
+    }, arenaEnabled && aiMode === "duel" ? duelSpeedMs : 450);
     return () => globalThis.clearTimeout(timer);
-  }, [aiTurn, state.turnNumber]);
+  }, [aiMode, aiTurn, duelSeed, duelSpeedMs, state.currentPlayer, state.turnNumber]);
+
+  useEffect(() => {
+    if (state.status !== "playing" || capReached) setDuelRunning(false);
+  }, [capReached, state.status]);
 
   function updateDefinition(definition: BasisDefinition) {
     dispatch({ type: "update-definition", ...editorSelection, definition });
@@ -53,8 +70,9 @@ export function App() {
   }
 
   function undo() {
-    if (aiEnabled && state.history.at(-1)?.currentPlayer === "red") {
-      setAiEnabled(false);
+    if (aiMode !== "off" && state.history.at(-1)?.currentPlayer === "red") {
+      setAiMode("off");
+      setDuelRunning(false);
     }
     dispatch({ type: "undo" });
   }
@@ -66,6 +84,13 @@ export function App() {
       dispatch({ type: "hint" });
       setHintSearching(false);
     }, 40);
+  }
+
+  function restartGame() {
+    setDuelRunning(false);
+    setAiThinking(false);
+    setDuelSeed(Math.floor(Math.random() * 1_000_000_000));
+    dispatch({ type: "restart", keepDefinitions: true });
   }
 
   if (showRules) {
@@ -80,10 +105,10 @@ export function App() {
         continuousField={continuousField}
         showTypeSums={showTypeSums}
         energyView={energyView}
-        aiEnabled={aiEnabled}
+        aiEnabled={aiMode !== "off"}
         aiThinking={aiThinking}
         onUndo={undo}
-        onRestart={() => dispatch({ type: "restart", keepDefinitions: true })}
+        onRestart={restartGame}
         onToggleDeveloper={() => setDeveloperMode((value) => !value)}
         onToggleContinuousField={() => {
           setEnergyView(false);
@@ -98,7 +123,13 @@ export function App() {
           setContinuousField(false);
           setEnergyView((value) => !value);
         }}
-        onToggleAi={() => setAiEnabled((value) => !value)}
+        onToggleAi={() => {
+          setAiMode((value) => {
+            if (!arenaEnabled) return value === "off" ? "red" : "off";
+            return value === "off" ? "red" : value === "red" ? "duel" : "off";
+          });
+          setDuelRunning(false);
+        }}
         onShowRules={() => setShowRules(true)}
       />
       <div className="play-area">
@@ -110,7 +141,7 @@ export function App() {
           showTypeSums={showTypeSums}
           energyView={energyView}
           energyChannels={energyChannels}
-          locked={aiTurn || energyView}
+          locked={aiTurn || energyView || (arenaEnabled && aiMode === "duel")}
           onSelect={(pieceId) => dispatch({ type: "select", pieceId })}
           onMove={(pieceId: string, destination: Position) => dispatch({ type: "move", pieceId, destination })}
           onResign={() => dispatch({ type: "resign" })}
@@ -119,9 +150,27 @@ export function App() {
           onToggleEnergyChannel={(pieceType) => setEnergyChannels((channels) => ({ ...channels, [pieceType]: !channels[pieceType] }))}
         />
         <div className="config-stack">
+          {arenaEnabled && (
+            <AiDuelPanel
+              state={state}
+              field={field}
+              aiMode={aiMode}
+              duelRunning={duelRunning}
+              speedMs={duelSpeedMs}
+              maxTurns={duelMaxTurns}
+              onSetAiMode={(mode) => {
+                setAiMode(mode);
+                setDuelRunning(false);
+              }}
+              onToggleRunning={() => setDuelRunning((value) => !value)}
+              onStep={() => dispatch({ type: "ai-turn", player: state.currentPlayer, seed: duelSeed, variety: aiMode === "duel" ? 0.55 : 0 })}
+              onSetSpeed={setDuelSpeedMs}
+              onSetMaxTurns={setDuelMaxTurns}
+            />
+          )}
           <ComponentControls
             state={state}
-            locked={aiTurn}
+            locked={aiTurn || (arenaEnabled && aiMode === "duel")}
             onTune={(pieceType, componentIndex, value) => dispatch({ type: "tune", pieceType, componentIndex, value })}
             onRandomize={() => dispatch({ type: "randomize-tuning" })}
             onReset={() => dispatch({ type: "reset-tuning" })}

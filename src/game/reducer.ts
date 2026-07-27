@@ -1,10 +1,9 @@
 import { cloneDefinitions, DEFAULT_COMPONENTS, validateDefinition, validateDefinitions } from "../field/componentDefinitions";
-import { DEFAULT_HOME_ENERGY, DEFAULT_WAVE_SCALES } from "./constants";
+import { DEFAULT_HOME_ENERGY, DEFAULT_WAVE_SCALES, TUNING_STRENGTH } from "./constants";
 import { playHeuristicTurn } from "./ai";
 import { createInitialState, fromSnapshot, snapshot } from "./initialState";
 import { applyClosestPlayableHint, applyMove, applyTuning, beginTurn, randomizeTuning, resetTuning, resignInCheck } from "./rules";
-import { isTuningWithinStrength } from "./tuning";
-import type { BasisDefinition, Coefficient, GameState, PieceType, Position } from "./types";
+import type { BasisDefinition, Coefficient, GameState, PieceType, Player, Position } from "./types";
 
 export type GameAction =
   | { type: "select"; pieceId: string | null }
@@ -14,7 +13,7 @@ export type GameAction =
   | { type: "hint" }
   | { type: "randomize-tuning" }
   | { type: "reset-tuning" }
-  | { type: "ai-turn" }
+  | { type: "ai-turn"; player?: Player; seed?: number; variety?: number }
   | { type: "undo" }
   | { type: "restart"; keepDefinitions?: boolean }
   | { type: "update-default-component"; pieceType: PieceType; componentIndex: number; value: Coefficient }
@@ -26,6 +25,26 @@ export type GameAction =
   | { type: "update-definition"; pieceType: PieceType; componentIndex: number; definition: BasisDefinition }
   | { type: "reset-definitions" }
   | { type: "import-definitions"; payload: unknown };
+
+function setDefaultControlAtStrength(
+  defaults: GameState["defaultComponents"],
+  pieceType: PieceType,
+  componentIndex: number,
+  value: Coefficient,
+): GameState["defaultComponents"] | null {
+  if (value === 0) return null;
+  const next = structuredClone(defaults);
+  const coefficients = next[pieceType];
+  if (coefficients[componentIndex] === value) return null;
+
+  const activeIndices = coefficients.flatMap((coefficient, index) => coefficient === 0 ? [] : [index]);
+  if (coefficients[componentIndex] === 0 && activeIndices.length >= TUNING_STRENGTH[pieceType]) {
+    const evictedIndex = activeIndices.find((index) => index !== componentIndex);
+    if (evictedIndex !== undefined) coefficients[evictedIndex] = 0;
+  }
+  coefficients[componentIndex] = value;
+  return next;
+}
 
 export function gameReducer(state: GameState, action: GameAction): GameState {
   switch (action.type) {
@@ -56,7 +75,7 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
       return result.ok ? result.state : { ...state, message: result.reason ?? state.message };
     }
     case "ai-turn":
-      return playHeuristicTurn(state);
+      return playHeuristicTurn(state, action.player ?? "red", { seed: action.seed, variety: action.variety });
     case "undo": {
       const previous = state.history.at(-1);
       if (!previous) return { ...state, message: "Nothing to undo" };
@@ -97,11 +116,8 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
     case "reset-home-energy":
       return { ...state, homeEnergy: structuredClone(DEFAULT_HOME_ENERGY), history: [...state.history, snapshot(state)], message: "Home energy reset" };
     case "update-default-component": {
-      const defaultComponents = structuredClone(state.defaultComponents);
-      defaultComponents[action.pieceType][action.componentIndex] = action.value;
-      if (!isTuningWithinStrength(action.pieceType, defaultComponents[action.pieceType])) {
-        return { ...state, message: `${action.pieceType[0].toUpperCase()}${action.pieceType.slice(1)} defaults exceed its active limit.` };
-      }
+      const defaultComponents = setDefaultControlAtStrength(state.defaultComponents, action.pieceType, action.componentIndex, action.value);
+      if (!defaultComponents) return { ...state, message: "Default controls must stay at full strength." };
       return { ...state, defaultComponents, message: "Default controls updated · restart to apply" };
     }
     case "reset-default-components":

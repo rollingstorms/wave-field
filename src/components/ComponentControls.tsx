@@ -91,10 +91,11 @@ export function ComponentControls({ state, locked = false, onTune, onRandomize, 
                   disabled={
                     locked
                     || state.status !== "playing"
+                    || coefficient === value
                   }
                   onClick={() => onTune(pieceType, index, value)}
                   aria-pressed={coefficient === value}
-                  aria-label={`${player} ${pieceType} component ${index + 1} ${coefficient === value ? "turn off" : `set to ${coefficientLabel(player, value)}`}`}
+                  aria-label={`${player} ${pieceType} component ${index + 1} set to ${coefficientLabel(player, value)}`}
                 >
                   {coefficientLabel(player, value)}
                 </button>

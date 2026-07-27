@@ -67,9 +67,9 @@ A direction may be horizontal, vertical, or diagonal, giving eight possible
 rays. Despite their familiar names, pieces do not use chess movement.
 
 All three king components are tunable. C1 starts Neutral, while C2 and C3 start
-positive. The king's active limit of 2 means no more than two of those
-components may be active at once. The spy has energy strength 2, but its active
-limit remains 1, so it still uses only one pattern at a time.
+positive. The king's active strength of 2 means exactly two of those components
+are active at once. The spy has energy strength 2, but its active tuning
+strength remains 1, so it still uses exactly one pattern at a time.
 
 ## Turn
 
@@ -80,8 +80,8 @@ During a turn, a player may:
 
 Moving a piece ends the turn. Tuning does not.
 
-The dice control randomizes every piece type's tuning while respecting each
-strength limit. It counts as tuning and does not end the turn.
+The dice control randomizes every piece type's tuning while keeping each type
+at full active strength. It counts as tuning and does not end the turn.
 The adjacent reset control restores the current player to the configured
 defaults as one undoable tuning action.
 
@@ -99,11 +99,11 @@ The controls display each component's signed field contribution:
 Because Blue's owner sign reverses the shared coefficient, the live Blue
 controls display the opposite signs from Red for the same underlying profile.
 
-Tap `+` or `-` to activate a component with that sign. Tap its active sign again
-to turn it off, or tap the other sign to flip it. The number of active
-components cannot exceed that piece type's limit. Activating another component
-at the limit turns off the least recently pressed component: the king keeps the
-last two, while the spy keeps only the last one.
+Tap `+` or `-` to activate a component with that sign. Tap the other sign to
+flip an active component. Each piece type keeps exactly its strength count
+active; activating another component at the limit turns off the least recently
+pressed component: the king keeps the last two, while the spy keeps only the
+last one.
 
 Tuning is shared by piece type. Both of a player's rooks always use that
 player's rook settings, while the opposing player controls a separate set.

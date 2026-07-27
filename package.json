@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite --host 127.0.0.1",
+    "arena": "vite --host 127.0.0.1 --mode arena",
     "build": "tsc && vite build",
     "test": "vitest run",
     "test:watch": "vitest"
