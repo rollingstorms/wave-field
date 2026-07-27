@@ -36,7 +36,7 @@ export function Square({ position, territory, fieldValue, piece, legal, risky, k
     ? ` Selected piece influence ${influenceTerritory}.`
     : "";
   const typeSummary = typeSums
-    ? ` Pawn ${formatSigned(typeSums.pawn)}, rook ${formatSigned(typeSums.rook)}, spy ${formatSigned(typeSums.spy)}, king ${formatSigned(typeSums.king)}.`
+    ? ` Total ${formatSigned(fieldValue)}. Pawn ${formatSigned(typeSums.pawn)}, rook ${formatSigned(typeSums.rook)}, spy ${formatSigned(typeSums.spy)}, king ${formatSigned(typeSums.king)}.`
     : "";
   return (
     <button
@@ -72,6 +72,7 @@ export function Square({ position, territory, fieldValue, piece, legal, risky, k
         <span className="type-sums" aria-hidden="true">
           <i className="type-sum-value pawn">{formatSigned(typeSums.pawn)}</i>
           <i className="type-sum-value rook">{formatSigned(typeSums.rook)}</i>
+          <i className="type-sum-value total">{formatSigned(fieldValue)}</i>
           <i className="type-sum-value spy">{formatSigned(typeSums.spy)}</i>
           <i className="type-sum-value king">{formatSigned(typeSums.king)}</i>
         </span>

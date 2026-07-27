@@ -423,6 +423,15 @@ h1 {
 
 .type-sum-value.pawn { top: 2px; left: 2px; }
 .type-sum-value.rook { top: 2px; right: 2px; }
+.type-sum-value.total {
+  top: 50%;
+  left: 50%;
+  min-width: 2em;
+  transform: translate(-50%, -50%);
+  background: rgba(9, 11, 11, 0.72);
+  color: var(--text);
+  font-weight: 700;
+}
 .type-sum-value.spy { bottom: 2px; left: 2px; }
 .type-sum-value.king { right: 2px; bottom: 2px; }
 
