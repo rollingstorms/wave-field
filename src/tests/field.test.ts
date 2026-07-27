@@ -119,8 +119,8 @@ describe("field engine", () => {
   it("home square contribution ignores tuned component values", () => {
     const spy = tuned("spy", [0, 0, 0]);
     const rook = tuned("rook", [-1, -1]);
-    expect(evaluatePieceContribution(spy.pieces[0], spy.pieces[0].position, spy)).toBe(3);
-    expect(evaluatePieceContribution(rook.pieces[0], rook.pieces[0].position, rook)).toBe(2);
+    expect(evaluatePieceContribution(spy.pieces[0], spy.pieces[0].position, spy)).toBe(1.5);
+    expect(evaluatePieceContribution(rook.pieces[0], rook.pieces[0].position, rook)).toBe(1);
   });
 
   it("king contributes zero on its own square only", () => {
