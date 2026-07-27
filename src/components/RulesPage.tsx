@@ -25,23 +25,23 @@ const pieceDetails: Record<PieceType, { components: string; strength: string; ho
   pawn: {
     components: "1",
     strength: "1",
-    home: "1/2",
+    home: "0",
     default: "+",
     movement: "Any distance in one direction",
-    note: "Simple pressure piece. Its home square is fixed at 1/2.",
+    note: "Simple pressure piece. It contributes no energy to its own square.",
   },
   rook: {
     components: "2",
     strength: "2",
-    home: "1",
+    home: "0",
     default: "+ +",
     movement: "Any distance in one direction",
-    note: "Broad field shaper. Its home square is fixed at 1.",
+    note: "Broad field shaper. It contributes no energy to its own square.",
   },
   spy: {
     components: "3",
     strength: "1",
-    home: "3/2",
+    home: "0",
     default: "+ 0 0",
     movement: "Any distance in one direction, ignoring territory",
     note: "The spy can cross hostile territory, but it is unstable there after a turn resolves.",
@@ -52,7 +52,7 @@ const pieceDetails: Record<PieceType, { components: string; strength: string; ho
     home: "0",
     default: "0 + +",
     movement: "Any distance in one direction",
-    note: "The king's home square is fixed at 0 and must end every move protected.",
+    note: "The king contributes no energy to its own square and must end every move protected.",
   },
 };
 

@@ -105,7 +105,7 @@ describe("field engine", () => {
     expect(evaluatePieceContribution(spy.pieces[0], { x: 2, y: 2 }, spy)).toBeCloseTo(evaluatePieceContribution(pawn.pieces[0], { x: 2, y: 2 }, pawn));
   });
 
-  it("piece home squares use preset contribution values", () => {
+  it("piece home squares have no same-piece contribution", () => {
     (["pawn", "rook", "spy", "king"] as PieceType[]).forEach((pieceType) => {
       const state = tuned(pieceType, defaultValues(pieceType));
       const piece = state.pieces[0];
@@ -116,14 +116,14 @@ describe("field engine", () => {
     });
   });
 
-  it("home square contribution ignores tuned component values", () => {
+  it("home square contribution stays zero regardless of tuned component values", () => {
     const spy = tuned("spy", [0, 0, 0]);
     const rook = tuned("rook", [-1, -1]);
-    expect(evaluatePieceContribution(spy.pieces[0], spy.pieces[0].position, spy)).toBe(1.5);
-    expect(evaluatePieceContribution(rook.pieces[0], rook.pieces[0].position, rook)).toBe(1);
+    expect(evaluatePieceContribution(spy.pieces[0], spy.pieces[0].position, spy)).toBe(0);
+    expect(evaluatePieceContribution(rook.pieces[0], rook.pieces[0].position, rook)).toBe(0);
   });
 
-  it("king contributes zero on its own square only", () => {
+  it("own-square contribution is zero while adjacent contribution still works", () => {
     const king = tuned("king", [0, 1, 1]);
     king.pieces[0].type = "king";
     const pawn = tuned("pawn", [1]);
@@ -132,7 +132,8 @@ describe("field engine", () => {
     expect(evaluatePieceContribution(king.pieces[0], { x: 3, y: 3 }, king)).toBe(0);
     expect(typeFields.king[3][3]).toBe(0);
     expect(evaluatePieceContribution(king.pieces[0], { x: 4, y: 3 }, king)).not.toBe(0);
-    expect(evaluatePieceContribution(pawn.pieces[0], { x: 3, y: 3 }, pawn)).not.toBe(0);
+    expect(evaluatePieceContribution(pawn.pieces[0], { x: 3, y: 3 }, pawn)).toBe(0);
+    expect(evaluatePieceContribution(pawn.pieces[0], { x: 4, y: 3 }, pawn)).not.toBe(0);
   });
 
   it("component basis omits ring zero for every piece type", () => {

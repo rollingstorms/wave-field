@@ -11,9 +11,9 @@ export const PIECE_STRENGTH = {
 } as const;
 
 export const HOME_SQUARE_CONTRIBUTION = {
-  pawn: 0.5,
-  rook: 1,
-  spy: 1.5,
+  pawn: 0,
+  rook: 0,
+  spy: 0,
   king: 0,
 } as const;
 
