@@ -1,7 +1,9 @@
+import { Fragment } from "react";
 import { ArrowLeft, CircleDot, Crown, Sparkles, Waves } from "lucide-react";
-import { createInitialPieces } from "../game/initialState";
+import { createInitialPieces, createInitialState } from "../game/initialState";
 import type { Piece as PieceModel, PieceType, Player } from "../game/types";
 import { Piece } from "./Piece";
+import { WaveThumbnail } from "./WaveThumbnail";
 
 interface RulesPageProps {
   onBack: () => void;
@@ -19,7 +21,39 @@ const playerLabel: Record<Player, string> = {
   blue: "Blue",
 };
 
+const pieceDetails: Record<PieceType, { components: string; strength: string; default: string; movement: string; note: string }> = {
+  pawn: {
+    components: "1",
+    strength: "1",
+    default: "+",
+    movement: "Any distance in one direction",
+    note: "Simple pressure piece. It follows the same eight-ray movement as the other non-spies.",
+  },
+  rook: {
+    components: "2",
+    strength: "2",
+    default: "+ +",
+    movement: "Any distance in one direction",
+    note: "Broad field shaper. Both components can be active at the same time.",
+  },
+  spy: {
+    components: "3",
+    strength: "1",
+    default: "+ 0 0",
+    movement: "Any distance in one direction, ignoring territory",
+    note: "The spy can cross hostile territory and is never removed for instability.",
+  },
+  king: {
+    components: "3",
+    strength: "2",
+    default: "0 + +",
+    movement: "Any distance in one direction",
+    note: "The king contributes 0 to its own square and must end every move protected.",
+  },
+};
+
 const setupPieces = createInitialPieces();
+const previewState = createInitialState();
 
 function pieceAt(x: number, y: number) {
   return setupPieces.find((piece) => piece.position.x === x && piece.position.y === y);
@@ -48,18 +82,39 @@ function SetupBoard() {
 }
 
 function MovementBoard() {
+  const redCells = new Set(["0,0", "1,0", "2,0", "0,1", "1,1", "4,1", "5,1", "6,1", "0,2", "2,2", "3,2", "5,2", "6,2", "1,3", "5,3", "6,3", "0,4", "1,4", "4,4", "6,4", "0,5", "1,5", "2,5", "6,5", "0,6", "1,6", "5,6", "6,6"]);
+  const blueCells = new Set(["3,0", "4,0", "5,0", "2,1", "3,1", "2,3", "3,3", "4,3", "2,4", "3,4", "2,6", "3,6", "4,6"]);
+  const playable = new Set(["2,2", "3,2", "4,2", "5,2", "3,3", "4,4"]);
+  const risky = new Set(["2,4"]);
+  const kingBlocked = new Set(["5,4"]);
+  const pieces: Array<PieceModel> = [
+    { id: "rules-blue-king", owner: "blue", type: "king", position: { x: 1, y: 2 }, unstable: true },
+    { id: "rules-blue-rook", owner: "blue", type: "rook", position: { x: 2, y: 5 }, unstable: false },
+    { id: "rules-blue-spy", owner: "blue", type: "spy", position: { x: 4, y: 3 }, unstable: false },
+    { id: "rules-red-pawn", owner: "red", type: "pawn", position: { x: 5, y: 5 }, unstable: false },
+    { id: "rules-red-rook", owner: "red", type: "rook", position: { x: 6, y: 2 }, unstable: false },
+  ];
+
   return (
-    <div className="rules-board movement-demo" aria-label="Example movement ray">
+    <div className="rules-board movement-demo" aria-label="Example movement markers">
       {Array.from({ length: 49 }, (_, index) => {
         const x = index % 7;
         const y = Math.floor(index / 7);
-        const ray = y === 3 && x > 1 && x < 6;
-        const blocked = x === 6 && y === 3;
+        const key = `${x},${y}`;
+        const piece = pieces.find((candidate) => candidate.position.x === x && candidate.position.y === y);
+        const territory = redCells.has(key) ? "red" : blueCells.has(key) ? "blue" : "neutral";
         return (
-          <div className={`rules-board-cell ${ray ? "ray" : ""} ${blocked ? "blocked" : ""}`} key={`${x}-${y}`}>
-            {x === 1 && y === 3 && <MiniPiece owner="blue" type="rook" />}
-            {ray && x !== 1 && <span className="legal-dot" />}
-            {blocked && <MiniPiece owner="red" type="pawn" />}
+          <div className={`rules-board-cell ${territory}`} key={key}>
+            {piece && <Piece piece={piece} selected={piece.id === "rules-blue-rook"} dragging={false} />}
+            {piece?.unstable && <span className="unstable">!</span>}
+            {playable.has(key) && <span className="legal-dot" />}
+            {risky.has(key) && (
+              <>
+                <span className="legal-dot risky-dot" />
+                <span className="risk-marker">!</span>
+              </>
+            )}
+            {kingBlocked.has(key) && <span className="king-block-marker">K</span>}
           </div>
         );
       })}
@@ -138,6 +193,59 @@ export function RulesPage({ onBack }: RulesPageProps) {
           <h2>Check</h2>
           <p>Your king must end every move on friendly or Neutral territory. If the enemy king starts its turn in hostile territory and has no rescue, it is checkmate.</p>
         </article>
+      </section>
+
+      <section className="rules-panel piece-reference">
+        <h2>Piece Reference</h2>
+        <div className="piece-reference-grid">
+          <strong>Piece</strong>
+          <strong>Wave components</strong>
+          <strong>Strength</strong>
+          <strong>Default</strong>
+          <strong>Movement</strong>
+          {(["pawn", "rook", "spy", "king"] as PieceType[]).map((type) => (
+            <Fragment key={type}>
+              <span className="piece-reference-name">
+                <span className="mini-piece-slot"><MiniPiece owner="blue" type={type} /></span>
+                {pieceNames[type]}
+              </span>
+              <span>{pieceDetails[type].components}</span>
+              <span>{pieceDetails[type].strength}</span>
+              <span><code>{pieceDetails[type].default}</code></span>
+              <span>{pieceDetails[type].movement}</span>
+            </Fragment>
+          ))}
+        </div>
+        <div className="piece-notes">
+          {(["pawn", "rook", "spy", "king"] as PieceType[]).map((type) => (
+            <p key={`${type}-note`}><strong>{pieceNames[type]}:</strong> {pieceDetails[type].note}</p>
+          ))}
+        </div>
+      </section>
+
+      <section className="rules-panel wave-patterns">
+        <div>
+          <h2>Wave Patterns</h2>
+          <p>
+            These thumbnails show the default Blue contribution shape for one piece placed
+            in the center. Blue squares are friendly for Blue, red squares are hostile, and
+            the outlined center is the piece's origin.
+          </p>
+        </div>
+        <div className="wave-pattern-grid">
+          {(["pawn", "rook", "spy", "king"] as PieceType[]).map((type) => (
+            <div className="wave-pattern-card" key={type}>
+              <WaveThumbnail state={previewState} player="blue" pieceType={type} />
+              <strong>{pieceNames[type]}</strong>
+              <small>
+                {type === "pawn" && "Checkerboard pressure"}
+                {type === "rook" && "Paired rings plus outer sink"}
+                {type === "spy" && "Single active mask by default"}
+                {type === "king" && "Two active protective modes"}
+              </small>
+            </div>
+          ))}
+        </div>
       </section>
 
       <section className="rules-split">
