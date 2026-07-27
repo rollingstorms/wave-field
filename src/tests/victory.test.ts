@@ -79,7 +79,7 @@ describe("stability and victory", () => {
     state.components.blue.pawn = [-1];
     state.components.blue.king = [0, 0, 0];
     state.components.blue.rook = [1, 0];
-    state.components.blue.spy = [1, 0, 0];
+    state.components.blue.spy = [-1, 0, 0];
     state.components.red.pawn = [0];
 
     const result = applyMove("blue-spy", { x: 5, y: 5 }, state);
@@ -180,16 +180,18 @@ describe("stability and victory", () => {
     const state = createInitialState();
     state.pieces = [
       { id: "blue-king", owner: "blue", type: "king", position: { x: 0, y: 0 }, unstable: false },
-      { id: "blue-spy", owner: "blue", type: "spy", position: { x: 2, y: 0 }, unstable: false },
+      { id: "blue-spy", owner: "blue", type: "spy", position: { x: 1, y: 0 }, unstable: false },
+      { id: "red-pawn", owner: "red", type: "pawn", position: { x: 0, y: 1 }, unstable: false },
       { id: "red-king", owner: "red", type: "king", position: { x: 6, y: 6 }, unstable: false },
     ];
     state.components.blue.king = [0, 0, 0];
-    state.components.blue.spy = [1, 0, 0];
+    state.components.blue.spy = [-1, 0, 0];
+    state.components.red.pawn = [-1];
     state.components.red.king = [0, 0, 0];
-    const result = applyMove("blue-spy", { x: 1, y: 0 }, state);
+    const result = applyMove("blue-spy", { x: 2, y: 0 }, state);
     expect(result.ok).toBe(false);
     expect(result.reason).toContain("unprotected");
-    expect(getPlayableMoves("blue-spy", state)).not.toContainEqual({ x: 1, y: 0 });
+    expect(getPlayableMoves("blue-spy", state)).not.toContainEqual({ x: 2, y: 0 });
   });
 
   it("a move that leaves the opposing king unprotected gives a rescue turn when possible", () => {

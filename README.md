@@ -45,10 +45,10 @@ dyadic fractions whose denominators are powers of two. A sum may be `3/8` or
 
 Each piece type also has friendly and hostile scale parameters. A component
 cell that supports its owner uses the friendly scale; a cell that opposes its
-owner uses the hostile scale. Pawns default to friendly `1` and hostile `2`, so
-their first ring is `+1/2` on friendly cells and `-1` on hostile cells for Red,
-with signs reversed for Blue. Rooks, spies, and kings currently default to
-friendly `1` and hostile `1`.
+owner uses the hostile scale. Current defaults are pawn `3/1`, rook `3/1`, spy
+`2/0`, and king `3/2` for friendly/hostile. Pawns therefore have a first ring
+of `+3/2` on friendly cells and `-1/2` on hostile cells for Red, with signs
+reversed for Blue.
 
 ## Pieces
 

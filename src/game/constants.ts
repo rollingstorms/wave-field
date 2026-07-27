@@ -25,10 +25,10 @@ export const HOME_SQUARE_CONTRIBUTION = {
 } as const;
 
 export const DEFAULT_WAVE_SCALES = {
-  pawn: { friendly: 1, hostile: 2 },
-  rook: { friendly: 1, hostile: 1 },
-  spy: { friendly: 1, hostile: 1 },
-  king: { friendly: 1, hostile: 1 },
+  pawn: { friendly: 3, hostile: 1 },
+  rook: { friendly: 3, hostile: 1 },
+  spy: { friendly: 2, hostile: 0 },
+  king: { friendly: 3, hostile: 2 },
 } as const;
 
 export const COMPONENT_COUNTS = {

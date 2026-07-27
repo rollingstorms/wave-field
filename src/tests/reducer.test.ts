@@ -121,6 +121,7 @@ describe("reducer", () => {
 
     const undone = gameReducer(scaled, { type: "undo" });
     expect(undone.waveScales.rook.hostile).toBe(1);
+    expect(undone.waveScales.rook.friendly).toBe(3);
   });
 
   it("rejects default controls beyond a piece's strength", () => {

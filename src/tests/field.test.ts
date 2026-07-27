@@ -64,11 +64,11 @@ describe("field engine", () => {
     }
   });
 
-  it("pawn defaults to stronger hostile than friendly ring-1 pressure", () => {
+  it("pawn defaults to stronger friendly than hostile ring-1 pressure", () => {
     const state = tuned("pawn", [1]);
     const piece = state.pieces[0];
-    expect(evaluatePieceContribution(piece, { x: 4, y: 3 }, state)).toBeCloseTo(-1);
-    expect(evaluatePieceContribution(piece, { x: 4, y: 4 }, state)).toBeCloseTo(0.5);
+    expect(evaluatePieceContribution(piece, { x: 4, y: 3 }, state)).toBeCloseTo(-0.5);
+    expect(evaluatePieceContribution(piece, { x: 4, y: 4 }, state)).toBeCloseTo(1.5);
   });
 
   it("decay halves each ring for equal signs", () => {
@@ -98,10 +98,9 @@ describe("field engine", () => {
     expect(evaluatePieceContribution(piece, square, state)).toBeCloseTo(expected);
   });
 
-  it("spy +00 has double the pawn energy on the same geometric basis", () => {
+  it("spy +00 keeps energy 2 on the pawn geometric basis", () => {
     const spy = tuned("spy", [1, 0, 0]);
-    const pawn = tuned("pawn", [1]);
-    expect(evaluatePieceContribution(spy.pieces[0], { x: 2, y: 2 }, spy)).toBeCloseTo(2 * evaluatePieceContribution(pawn.pieces[0], { x: 2, y: 2 }, pawn));
+    expect(evaluatePieceContribution(spy.pieces[0], { x: 2, y: 2 }, spy)).toBeCloseTo(2);
   });
 
   it("piece home squares have no same-piece contribution", () => {
