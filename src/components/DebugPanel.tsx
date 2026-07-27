@@ -4,7 +4,7 @@ import { projectFieldValue } from "../field/projection";
 import { getLegalMoves } from "../game/movement";
 import { getUnstablePieces, isKingUnprotected } from "../game/victory";
 import type { GameSnapshot, GameState } from "../game/types";
-import type { Coefficient, PieceType, Player, WaveScales } from "../game/types";
+import type { Coefficient, HomeEnergy, PieceType, Player, WaveScales } from "../game/types";
 import { DefaultComponentEditor } from "./DefaultComponentEditor";
 import { HistoryRoll } from "./HistoryRoll";
 
@@ -14,6 +14,8 @@ interface DebugPanelProps {
   onUpdateDefault: (pieceType: PieceType, componentIndex: number, value: Coefficient) => void;
   onUpdateWaveScale: (pieceType: PieceType, scale: keyof WaveScales[PieceType], value: number) => void;
   onResetWaveScales: () => void;
+  onUpdateHomeEnergy: (pieceType: PieceType, value: number) => void;
+  onResetHomeEnergy: () => void;
   onResetDefaults: () => void;
   onRestart: () => void;
 }
@@ -105,6 +107,39 @@ function WaveScaleEditor({ scales, onUpdate, onReset }: {
   );
 }
 
+function HomeEnergyEditor({ homeEnergy, onUpdate, onReset }: {
+  homeEnergy: HomeEnergy;
+  onUpdate: DebugPanelProps["onUpdateHomeEnergy"];
+  onReset: () => void;
+}) {
+  return (
+    <section className="home-energy-editor" aria-labelledby="home-energy-title">
+      <div className="debug-section-heading">
+        <h2 id="home-energy-title">Home Energy</h2>
+        <button type="button" className="secondary" onClick={onReset}>Reset</button>
+      </div>
+      <div className="home-energy-grid">
+        <strong>Piece</strong>
+        <strong>Home</strong>
+        {pieceTypes.map((pieceType) => (
+          <div className="home-energy-row" key={pieceType}>
+            <span>{pieceType.toUpperCase()}</span>
+            <input
+              type="number"
+              min="-4"
+              max="4"
+              step="0.25"
+              value={homeEnergy[pieceType]}
+              onChange={(event) => onUpdate(pieceType, Number(event.currentTarget.value))}
+              aria-label={`${pieceType} home energy`}
+            />
+          </div>
+        ))}
+      </div>
+    </section>
+  );
+}
+
 function PressurePanel({ state }: { state: GameState }) {
   const current = pressureMetrics(state);
   const score = pressureScore(current);
@@ -144,7 +179,7 @@ function PressurePanel({ state }: { state: GameState }) {
   );
 }
 
-export function DebugPanel({ state, field, onUpdateDefault, onUpdateWaveScale, onResetWaveScales, onResetDefaults, onRestart }: DebugPanelProps) {
+export function DebugPanel({ state, field, onUpdateDefault, onUpdateWaveScale, onResetWaveScales, onUpdateHomeEnergy, onResetHomeEnergy, onResetDefaults, onRestart }: DebugPanelProps) {
   const values = field.flat();
   const globalBias = values.reduce((sum, value) => sum + value, 0);
   const energy = values.reduce((sum, value) => sum + value * value, 0);
@@ -172,6 +207,7 @@ export function DebugPanel({ state, field, onUpdateDefault, onUpdateWaveScale, o
         onRestart={onRestart}
       />
       <WaveScaleEditor scales={state.waveScales} onUpdate={onUpdateWaveScale} onReset={onResetWaveScales} />
+      <HomeEnergyEditor homeEnergy={state.homeEnergy} onUpdate={onUpdateHomeEnergy} onReset={onResetHomeEnergy} />
       <PressurePanel state={state} />
       <HistoryRoll state={state} />
       <div className="field-table" aria-label="Raw field values">

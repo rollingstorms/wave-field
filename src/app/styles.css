@@ -949,31 +949,41 @@ h1 {
 }
 
 .wave-scale-editor,
+.home-energy-editor,
 .pressure-panel {
   padding: 16px;
   border-bottom: 1px solid var(--line);
 }
 
-.wave-scale-grid {
+.wave-scale-grid,
+.home-energy-grid {
   display: grid;
   grid-template-columns: 90px repeat(2, minmax(0, 1fr));
   gap: 1px;
   background: var(--line);
 }
 
-.wave-scale-grid > strong {
+.home-energy-grid {
+  grid-template-columns: 90px minmax(0, 1fr);
+}
+
+.wave-scale-grid > strong,
+.home-energy-grid > strong {
   padding: 9px 10px;
   background: #101212;
   color: var(--muted);
   font-size: 0.75rem;
 }
 
-.wave-scale-row {
+.wave-scale-row,
+.home-energy-row {
   display: contents;
 }
 
 .wave-scale-row > span,
-.wave-scale-row input {
+.wave-scale-row input,
+.home-energy-row > span,
+.home-energy-row input {
   min-width: 0;
   padding: 9px 10px;
   border: 0;
@@ -981,11 +991,13 @@ h1 {
   color: var(--text);
 }
 
-.wave-scale-row > span {
+.wave-scale-row > span,
+.home-energy-row > span {
   font-weight: 700;
 }
 
-.wave-scale-row input {
+.wave-scale-row input,
+.home-energy-row input {
   width: 100%;
   font: inherit;
 }

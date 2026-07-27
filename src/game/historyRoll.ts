@@ -1,5 +1,5 @@
-import { BOARD_SIZE } from "./constants";
-import type { Coefficient, GameSnapshot, GameState, PieceType, Player } from "./types";
+import { BOARD_SIZE, DEFAULT_HOME_ENERGY } from "./constants";
+import type { Coefficient, GameSnapshot, GameState, HomeEnergy, PieceType, Player } from "./types";
 
 const players: Player[] = ["blue", "red"];
 const pieceTypes: PieceType[] = ["pawn", "rook", "spy", "king"];
@@ -25,6 +25,10 @@ function coordinate(x: number, y: number) {
   return `${x + 1},${BOARD_SIZE - y}`;
 }
 
+function homeEnergy(snapshot: GameSnapshot): HomeEnergy {
+  return snapshot.homeEnergy ?? DEFAULT_HOME_ENERGY;
+}
+
 function describeTransition(before: GameSnapshot, after: GameSnapshot, number: number): HistoryRollEntry {
   const details: string[] = [];
   const moved = before.pieces.filter((piece) => {
@@ -45,6 +49,8 @@ function describeTransition(before: GameSnapshot, after: GameSnapshot, number: n
     }
   }
 
+  const beforeHomeEnergy = homeEnergy(before);
+  const afterHomeEnergy = homeEnergy(after);
   for (const pieceType of pieceTypes) {
     const beforeScale = before.waveScales[pieceType];
     const afterScale = after.waveScales[pieceType];
@@ -53,6 +59,9 @@ function describeTransition(before: GameSnapshot, after: GameSnapshot, number: n
     }
     if (beforeScale.hostile !== afterScale.hostile) {
       details.push(`${pieceType} hostile ${beforeScale.hostile.toFixed(2)}→${afterScale.hostile.toFixed(2)}`);
+    }
+    if (beforeHomeEnergy[pieceType] !== afterHomeEnergy[pieceType]) {
+      details.push(`${pieceType} home ${beforeHomeEnergy[pieceType].toFixed(2)}→${afterHomeEnergy[pieceType].toFixed(2)}`);
     }
   }
 

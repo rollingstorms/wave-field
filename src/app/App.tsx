@@ -133,6 +133,8 @@ export function App() {
             onUpdateDefault={(pieceType, componentIndex, value) => dispatch({ type: "update-default-component", pieceType, componentIndex, value })}
             onUpdateWaveScale={(pieceType, scale, value) => dispatch({ type: "update-wave-scale", pieceType, scale, value })}
             onResetWaveScales={() => dispatch({ type: "reset-wave-scales" })}
+            onUpdateHomeEnergy={(pieceType, value) => dispatch({ type: "update-home-energy", pieceType, value })}
+            onResetHomeEnergy={() => dispatch({ type: "reset-home-energy" })}
             onResetDefaults={() => dispatch({ type: "reset-default-components" })}
             onRestart={() => dispatch({ type: "restart", keepDefinitions: true })}
           />

@@ -35,8 +35,9 @@ The resulting value determines the territory:
 Moving a piece changes its wave origin, so one move can reshape territory across
 the entire board.
 
-No piece contributes energy to its own home square. Other pieces can still
-contribute to that square from afar.
+Each piece type has a home-square energy parameter for its own square. The
+defaults are pawn `0`, rook `0`, spy `0.5`, and king `0`. Other pieces can
+still contribute to that square from afar.
 
 Every basis wave halves once per square ring: `1`, `1/2`, `1/4`, `1/8`, and so
 on. Coefficients and strengths are integers, so combined field totals are always
@@ -201,7 +202,8 @@ legal-move indicators, blocked-king move markers, instability warnings, loss
 burst animations, undo and restart, high-contrast territory markers, a compact
 mobile tuning panel, and a developer mode for inspecting the raw field, piece
 contributions, mobility, and editable wave definitions. Developer mode also
-provides editable default component controls and friendly/hostile wave scales.
+provides editable default component controls, friendly/hostile wave scales, and
+home-square energy.
 The selected control profile is applied to both players on restart. Its
 scrollable History Roll reconstructs moves, tuning
 changes, dice and hint profiles, piece losses, and turn transitions from the

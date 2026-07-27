@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { DEFAULT_DEFINITIONS, validateDefinition } from "../field/componentDefinitions";
 import { evaluateField, evaluatePieceContribution, evaluateTypeFields } from "../field/evaluateField";
 import { evaluateBasis, evaluateComponentBasis } from "../field/kernels";
-import { FIELD_EPSILON, HOME_SQUARE_CONTRIBUTION } from "../game/constants";
+import { DEFAULT_HOME_ENERGY, FIELD_EPSILON } from "../game/constants";
 import { createInitialState } from "../game/initialState";
 import type { Coefficient, FormulaPreset, GameState, PieceType } from "../game/types";
 
@@ -103,21 +103,21 @@ describe("field engine", () => {
     expect(evaluatePieceContribution(spy.pieces[0], { x: 2, y: 2 }, spy)).toBeCloseTo(3);
   });
 
-  it("piece home squares have no same-piece contribution", () => {
+  it("piece home squares use the configured home energy", () => {
     (["pawn", "rook", "spy", "king"] as PieceType[]).forEach((pieceType) => {
       const state = tuned(pieceType, defaultValues(pieceType));
       const piece = state.pieces[0];
       const typeFields = evaluateTypeFields(state);
 
-      expect(evaluatePieceContribution(piece, piece.position, state)).toBe(HOME_SQUARE_CONTRIBUTION[pieceType]);
-      expect(typeFields[pieceType][piece.position.y][piece.position.x]).toBe(HOME_SQUARE_CONTRIBUTION[pieceType]);
+      expect(evaluatePieceContribution(piece, piece.position, state)).toBe(DEFAULT_HOME_ENERGY[pieceType]);
+      expect(typeFields[pieceType][piece.position.y][piece.position.x]).toBe(DEFAULT_HOME_ENERGY[pieceType]);
     });
   });
 
-  it("home square contribution stays zero regardless of tuned component values", () => {
+  it("home square contribution ignores tuned component values", () => {
     const spy = tuned("spy", [0, 0, 0]);
     const rook = tuned("rook", [-1, -1]);
-    expect(evaluatePieceContribution(spy.pieces[0], spy.pieces[0].position, spy)).toBe(0);
+    expect(evaluatePieceContribution(spy.pieces[0], spy.pieces[0].position, spy)).toBe(0.5);
     expect(evaluatePieceContribution(rook.pieces[0], rook.pieces[0].position, rook)).toBe(0);
   });
 
@@ -127,8 +127,8 @@ describe("field engine", () => {
     const pawn = tuned("pawn", [1]);
     const typeFields = evaluateTypeFields(king);
 
-    expect(evaluatePieceContribution(king.pieces[0], { x: 3, y: 3 }, king)).toBe(0);
-    expect(typeFields.king[3][3]).toBe(0);
+    expect(evaluatePieceContribution(king.pieces[0], { x: 3, y: 3 }, king)).toBe(DEFAULT_HOME_ENERGY.king);
+    expect(typeFields.king[3][3]).toBe(DEFAULT_HOME_ENERGY.king);
     expect(evaluatePieceContribution(king.pieces[0], { x: 4, y: 3 }, king)).not.toBe(0);
     expect(evaluatePieceContribution(pawn.pieces[0], { x: 3, y: 3 }, pawn)).toBe(0);
     expect(evaluatePieceContribution(pawn.pieces[0], { x: 4, y: 3 }, pawn)).not.toBe(0);

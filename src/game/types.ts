@@ -54,6 +54,8 @@ export interface WaveScale {
 
 export type WaveScales = Record<PieceType, WaveScale>;
 
+export type HomeEnergy = Record<PieceType, number>;
+
 export interface RingBasisDefinition {
   kind: "ring";
   name: string;
@@ -87,6 +89,7 @@ export interface GameSnapshot {
   turnNumber: number;
   definitions: ComponentDefinitions;
   waveScales: WaveScales;
+  homeEnergy: HomeEnergy;
 }
 
 export interface GameState extends GameSnapshot {

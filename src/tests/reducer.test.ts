@@ -124,6 +124,23 @@ describe("reducer", () => {
     expect(undone.waveScales.rook.friendly).toBe(3);
   });
 
+  it("updates home energy with undo history and preserves it on restart", () => {
+    const state = createInitialState();
+    const homed = gameReducer(state, { type: "update-home-energy", pieceType: "spy", value: 0.75 });
+
+    expect(homed.homeEnergy.spy).toBe(0.75);
+    expect(homed.history).toHaveLength(1);
+
+    const restarted = gameReducer(homed, { type: "restart", keepDefinitions: true });
+    expect(restarted.homeEnergy.spy).toBe(0.75);
+
+    const reset = gameReducer(homed, { type: "reset-home-energy" });
+    expect(reset.homeEnergy.spy).toBe(0.5);
+
+    const undone = gameReducer(homed, { type: "undo" });
+    expect(undone.homeEnergy.spy).toBe(0.5);
+  });
+
   it("rejects default controls beyond a piece's strength", () => {
     const state = createInitialState();
     const first = gameReducer(state, { type: "update-default-component", pieceType: "spy", componentIndex: 1, value: -1 });

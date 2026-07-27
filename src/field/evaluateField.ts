@@ -1,4 +1,4 @@
-import { BOARD_SIZE, HOME_SQUARE_CONTRIBUTION, PIECE_STRENGTH } from "../game/constants";
+import { BOARD_SIZE, PIECE_STRENGTH } from "../game/constants";
 import type { ComponentDefinitions, GameState, Piece, PieceType, Position } from "../game/types";
 import { offset } from "./distance";
 import { evaluateComponentBasis } from "./kernels";
@@ -12,7 +12,7 @@ export function evaluatePieceContribution(
   const coefficients = state.components[piece.owner][piece.type];
   const bases = definitions[piece.type];
   const delta = offset(piece.position, square);
-  if (delta.x === 0 && delta.y === 0) return HOME_SQUARE_CONTRIBUTION[piece.type];
+  if (delta.x === 0 && delta.y === 0) return state.homeEnergy[piece.type];
   return PIECE_STRENGTH[piece.type] * coefficients.reduce<number>((total, coefficient, index) => {
     const value = coefficient * evaluateComponentBasis(piece.type, bases[index], delta);
     const scale = value >= 0 ? state.waveScales[piece.type].friendly : state.waveScales[piece.type].hostile;

@@ -25,4 +25,12 @@ describe("debug history roll", () => {
     expect(entries.at(-1)?.summary).toBe("Blue moved pawn");
     expect(entries.at(-1)?.details.some((detail) => detail.includes("Blue pawn 3,6→"))).toBe(true);
   });
+
+  it("describes home energy changes", () => {
+    const state = createInitialState();
+    const changed = gameReducer(state, { type: "update-home-energy", pieceType: "spy", value: 0.75 });
+    const entries = buildHistoryRoll(changed);
+
+    expect(entries.at(-1)?.details).toContain("spy home 0.50→0.75");
+  });
 });

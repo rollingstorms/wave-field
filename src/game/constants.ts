@@ -17,10 +17,10 @@ export const TUNING_STRENGTH = {
   king: 2,
 } as const;
 
-export const HOME_SQUARE_CONTRIBUTION = {
+export const DEFAULT_HOME_ENERGY = {
   pawn: 0,
   rook: 0,
-  spy: 0,
+  spy: 0.5,
   king: 0,
 } as const;
 

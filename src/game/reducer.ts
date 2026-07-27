@@ -1,5 +1,5 @@
 import { cloneDefinitions, DEFAULT_COMPONENTS, validateDefinition, validateDefinitions } from "../field/componentDefinitions";
-import { DEFAULT_WAVE_SCALES } from "./constants";
+import { DEFAULT_HOME_ENERGY, DEFAULT_WAVE_SCALES } from "./constants";
 import { playHeuristicTurn } from "./ai";
 import { createInitialState, fromSnapshot, snapshot } from "./initialState";
 import { applyClosestPlayableHint, applyMove, applyTuning, beginTurn, randomizeTuning, resignInCheck } from "./rules";
@@ -19,6 +19,8 @@ export type GameAction =
   | { type: "update-default-component"; pieceType: PieceType; componentIndex: number; value: Coefficient }
   | { type: "update-wave-scale"; pieceType: PieceType; scale: "friendly" | "hostile"; value: number }
   | { type: "reset-wave-scales" }
+  | { type: "update-home-energy"; pieceType: PieceType; value: number }
+  | { type: "reset-home-energy" }
   | { type: "reset-default-components" }
   | { type: "update-definition"; pieceType: PieceType; componentIndex: number; definition: BasisDefinition }
   | { type: "reset-definitions" }
@@ -57,7 +59,7 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
     }
     case "restart": {
       const definitions = action.keepDefinitions ? state.definitions : cloneDefinitions();
-      return beginTurn(createInitialState(state.defaultComponents, definitions, state.waveScales));
+      return beginTurn(createInitialState(state.defaultComponents, definitions, state.waveScales, state.homeEnergy));
     }
     case "update-wave-scale": {
       if (!Number.isFinite(action.value) || action.value < 0 || action.value > 4) {
@@ -74,6 +76,21 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
     }
     case "reset-wave-scales":
       return { ...state, waveScales: structuredClone(DEFAULT_WAVE_SCALES), history: [...state.history, snapshot(state)], message: "Wave scales reset" };
+    case "update-home-energy": {
+      if (!Number.isFinite(action.value) || action.value < -4 || action.value > 4) {
+        return { ...state, message: "Home energy must be between -4 and 4." };
+      }
+      const homeEnergy = structuredClone(state.homeEnergy);
+      homeEnergy[action.pieceType] = action.value;
+      return {
+        ...state,
+        homeEnergy,
+        history: [...state.history, snapshot(state)],
+        message: `${action.pieceType} home energy set to ${action.value.toFixed(2)}`,
+      };
+    }
+    case "reset-home-energy":
+      return { ...state, homeEnergy: structuredClone(DEFAULT_HOME_ENERGY), history: [...state.history, snapshot(state)], message: "Home energy reset" };
     case "update-default-component": {
       const defaultComponents = structuredClone(state.defaultComponents);
       defaultComponents[action.pieceType][action.componentIndex] = action.value;
