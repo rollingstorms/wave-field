@@ -5,7 +5,7 @@ import { snapshot } from "./initialState";
 import { getLegalMoves } from "./movement";
 import { applyMove, opponent } from "./rules";
 import { activationOrderForProfile } from "./tuning";
-import type { Coefficient, GameState, PieceType, Player, PlayerComponents } from "./types";
+import type { Coefficient, GameSnapshot, GameState, Piece, PieceType, Player, PlayerComponents, Position } from "./types";
 import { getUnstablePieces, isKingUnprotected, markInstability } from "./victory";
 
 const pieceTypes: PieceType[] = ["pawn", "rook", "spy", "king"];
@@ -14,6 +14,9 @@ const materialValue = { pawn: 2, rook: 4, spy: 3, king: 100 } as const;
 const exactCandidateLimit = 6;
 const defaultTimeBudgetMs = 180;
 const fullAnalysisLimit = 3;
+const repetitionLookback = 18;
+const repeatedStatePenalty = 900;
+const immediateReversalPenalty = 500;
 
 export interface AiTurnOptions {
   seed?: number;
@@ -139,11 +142,77 @@ function choiceNoise(choice: { pieceId: string; destination: { x: number; y: num
   return hashUnit(`${seed}:${state.turnNumber}:${player}:${choice.pieceId}:${choice.destination.x}:${choice.destination.y}:${choice.score.toFixed(3)}`);
 }
 
+function samePosition(left: Position, right: Position): boolean {
+  return left.x === right.x && left.y === right.y;
+}
+
+function stateKey(state: GameState | GameSnapshot): string {
+  const pieces = [...state.pieces]
+    .sort((left, right) => left.id.localeCompare(right.id))
+    .map((piece) => `${piece.id}:${piece.owner}:${piece.type}:${piece.position.x},${piece.position.y}`)
+    .join("|");
+  const components = (["blue", "red"] as const)
+    .map((side) => `${side}:${pieceTypes.map((pieceType) => state.components[side][pieceType].join(",")).join("/")}`)
+    .join("|");
+  return `${state.currentPlayer}|${state.status}|${pieces}|${components}`;
+}
+
+function recentStateCounts(state: GameState): Map<string, number> {
+  const counts = new Map<string, number>();
+  for (const entry of state.history.slice(-repetitionLookback)) {
+    const key = stateKey(entry);
+    counts.set(key, (counts.get(key) ?? 0) + 1);
+  }
+  counts.set(stateKey(state), (counts.get(stateKey(state)) ?? 0) + 1);
+  return counts;
+}
+
+function movedPiece(before: GameSnapshot, after: GameSnapshot): { pieceId: string; from: Position; to: Position } | null {
+  for (const piece of before.pieces) {
+    const next = after.pieces.find((candidate) => candidate.id === piece.id);
+    if (next && !samePosition(piece.position, next.position)) {
+      return { pieceId: piece.id, from: piece.position, to: next.position };
+    }
+  }
+  return null;
+}
+
+function lastMoveByPiece(state: GameState, player: Player): Map<string, { from: Position; to: Position }> {
+  const timeline: GameSnapshot[] = [...state.history, snapshot(state)];
+  const moves = new Map<string, { from: Position; to: Position }>();
+  for (let index = timeline.length - 2; index >= 0; index -= 1) {
+    const before = timeline[index];
+    if (before.currentPlayer !== player) continue;
+    const move = movedPiece(before, timeline[index + 1]);
+    if (move && !moves.has(move.pieceId)) moves.set(move.pieceId, { from: move.from, to: move.to });
+  }
+  return moves;
+}
+
+function loopPenalty(
+  preview: GameState,
+  piece: Piece,
+  destination: Position,
+  repetitionCounts: ReadonlyMap<string, number>,
+  recentMoves: ReadonlyMap<string, { from: Position; to: Position }>,
+): number {
+  const repeatCount = repetitionCounts.get(stateKey(preview)) ?? 0;
+  const previousMove = recentMoves.get(piece.id);
+  const reversesLastMove = Boolean(
+    previousMove
+    && samePosition(previousMove.to, piece.position)
+    && samePosition(previousMove.from, destination),
+  );
+  return repeatCount * repeatedStatePenalty + (reversesLastMove ? immediateReversalPenalty : 0);
+}
+
 export function playHeuristicTurn(state: GameState, player: Player = "red", options: AiTurnOptions = {}): GameState {
   if (state.status !== "playing" || state.currentPlayer !== player) return state;
 
   const choices: Array<{ tuned: GameState; pieceId: string; destination: { x: number; y: number }; preview: GameState; score: number }> = [];
   const fieldCache = new WeakMap<GameState, number[][]>();
+  const repetitionCounts = recentStateCounts(state);
+  const recentMoves = lastMoveByPiece(state, player);
   const startedAt = nowMs();
   const deadline = startedAt + Math.max(20, options.timeBudgetMs ?? defaultTimeBudgetMs);
   let profilesChecked = 0;
@@ -186,7 +255,8 @@ export function playHeuristicTurn(state: GameState, player: Player = "red", opti
         movesChecked += 1;
         const result = applyMove(piece.id, destination, tuned, { analyzeCheckmate: false });
         if (!result.ok) continue;
-        const score = scoreState(result.state, player, getField(result.state));
+        const score = scoreState(result.state, player, getField(result.state))
+          - loopPenalty(result.state, piece, destination, repetitionCounts, recentMoves);
         rememberChoice(tuned, piece.id, destination, result.state, score);
         if (nowMs() >= deadline && choices.length > 0) break;
       }

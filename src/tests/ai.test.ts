@@ -1,7 +1,23 @@
 import { describe, expect, it } from "vitest";
 import { playHeuristicTurn } from "../game/ai";
-import { createInitialState } from "../game/initialState";
+import { createInitialState, snapshot } from "../game/initialState";
 import { applyMove } from "../game/rules";
+import type { GameState, PieceType } from "../game/types";
+
+const pieceTypes: PieceType[] = ["pawn", "rook", "spy", "king"];
+
+function zeroComponents(state: GameState) {
+  for (const player of ["blue", "red"] as const) {
+    for (const pieceType of pieceTypes) {
+      state.components[player][pieceType] = state.components[player][pieceType].map(() => 0) as never;
+      state.activationOrders[player][pieceType] = [];
+    }
+  }
+}
+
+function setPiecePosition(state: GameState, pieceId: string, x: number, y: number) {
+  state.pieces = state.pieces.map((piece) => piece.id === pieceId ? { ...piece, position: { x, y } } : piece);
+}
 
 describe("heuristic opponent", () => {
   it("completes a legal red turn", () => {
@@ -36,6 +52,32 @@ describe("heuristic opponent", () => {
 
     expect(result.status).toBe("red-won");
     expect(result.message).toContain("Blue has no legal move");
+  });
+
+  it("avoids immediately moving the same piece back when alternatives exist", () => {
+    const beforeRed = createInitialState();
+    beforeRed.currentPlayer = "red";
+    beforeRed.pieces = [
+      { id: "red-king", owner: "red", type: "king", position: { x: 0, y: 0 }, unstable: false },
+      { id: "red-rook-1", owner: "red", type: "rook", position: { x: 3, y: 3 }, unstable: false },
+      { id: "blue-king", owner: "blue", type: "king", position: { x: 6, y: 6 }, unstable: false },
+    ];
+    zeroComponents(beforeRed);
+
+    const afterRed = structuredClone(beforeRed);
+    afterRed.currentPlayer = "blue";
+    setPiecePosition(afterRed, "red-rook-1", 4, 4);
+
+    const beforeBlue = structuredClone(afterRed);
+    const current = structuredClone(afterRed);
+    current.currentPlayer = "red";
+    current.history = [snapshot(beforeRed), snapshot(afterRed), snapshot(beforeBlue)];
+    current.turnNumber = 2;
+
+    const result = playHeuristicTurn(current, "red", { timeBudgetMs: 1_000 });
+    const rook = result.pieces.find((piece) => piece.id === "red-rook-1");
+
+    expect(rook?.position).not.toEqual({ x: 3, y: 3 });
   });
 
   it("takes a checking move when one is available", () => {
