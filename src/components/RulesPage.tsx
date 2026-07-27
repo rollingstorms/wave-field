@@ -252,7 +252,7 @@ export function RulesPage({ onBack }: RulesPageProps) {
               <strong>{pieceNames[type]}</strong>
               <small>
                 {type === "pawn" && "Checkerboard pressure"}
-                {type === "rook" && "Paired rings plus outer sink"}
+                {type === "rook" && "C1 + + 0, C2 - 0 +"}
                 {type === "spy" && "Single active mask by default"}
                 {type === "king" && "Two active protective modes"}
               </small>

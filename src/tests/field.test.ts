@@ -89,12 +89,15 @@ describe("field engine", () => {
     }
   });
 
-  it("rook +- equals strength times basis difference", () => {
+  it("rook +- applies strength and wave scale to the basis difference", () => {
     const state = tuned("rook", [1, -1]);
     const piece = state.pieces[0];
     const square = { x: 5, y: 3 };
     const delta = { x: 2, y: 0 };
-    const expected = 2 * (evaluateBasis(DEFAULT_DEFINITIONS.rook[0], delta) - evaluateBasis(DEFAULT_DEFINITIONS.rook[1], delta));
+    const c1 = evaluateBasis(DEFAULT_DEFINITIONS.rook[0], delta);
+    const c2 = -evaluateBasis(DEFAULT_DEFINITIONS.rook[1], delta);
+    const scaled = c1 * state.waveScales.rook.friendly + c2 * state.waveScales.rook.friendly;
+    const expected = 2 * scaled;
     expect(evaluatePieceContribution(piece, square, state)).toBeCloseTo(expected);
   });
 
