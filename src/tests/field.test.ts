@@ -99,10 +99,10 @@ describe("field engine", () => {
     expect(evaluatePieceContribution(piece, square, state)).toBeCloseTo(expected);
   });
 
-  it("spy +00 matches the pawn geometric basis before strength differences", () => {
+  it("spy +00 has double the pawn energy on the same geometric basis", () => {
     const spy = tuned("spy", [1, 0, 0]);
     const pawn = tuned("pawn", [1]);
-    expect(evaluatePieceContribution(spy.pieces[0], { x: 2, y: 2 }, spy)).toBeCloseTo(evaluatePieceContribution(pawn.pieces[0], { x: 2, y: 2 }, pawn));
+    expect(evaluatePieceContribution(spy.pieces[0], { x: 2, y: 2 }, spy)).toBeCloseTo(2 * evaluatePieceContribution(pawn.pieces[0], { x: 2, y: 2 }, pawn));
   });
 
   it("piece home squares have no same-piece contribution", () => {

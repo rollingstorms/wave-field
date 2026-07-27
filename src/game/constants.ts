@@ -6,6 +6,13 @@ export const WAVE_ORIGIN_SCALE = 1;
 export const PIECE_STRENGTH = {
   pawn: 1,
   rook: 2,
+  spy: 2,
+  king: 2,
+} as const;
+
+export const TUNING_STRENGTH = {
+  pawn: 1,
+  rook: 2,
   spy: 1,
   king: 2,
 } as const;

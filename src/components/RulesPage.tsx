@@ -21,10 +21,11 @@ const playerLabel: Record<Player, string> = {
   blue: "Blue",
 };
 
-const pieceDetails: Record<PieceType, { components: string; strength: string; home: string; default: string; movement: string; note: string }> = {
+const pieceDetails: Record<PieceType, { components: string; energy: string; active: string; home: string; default: string; movement: string; note: string }> = {
   pawn: {
     components: "1",
-    strength: "1",
+    energy: "1",
+    active: "1",
     home: "0",
     default: "+",
     movement: "Any distance in one direction",
@@ -32,7 +33,8 @@ const pieceDetails: Record<PieceType, { components: string; strength: string; ho
   },
   rook: {
     components: "2",
-    strength: "2",
+    energy: "2",
+    active: "2",
     home: "0",
     default: "+ +",
     movement: "Any distance in one direction",
@@ -40,7 +42,8 @@ const pieceDetails: Record<PieceType, { components: string; strength: string; ho
   },
   spy: {
     components: "3",
-    strength: "1",
+    energy: "2",
+    active: "1",
     home: "0",
     default: "+ 0 0",
     movement: "Any distance in one direction, ignoring territory",
@@ -48,7 +51,8 @@ const pieceDetails: Record<PieceType, { components: string; strength: string; ho
   },
   king: {
     components: "3",
-    strength: "2",
+    energy: "2",
+    active: "2",
     home: "0",
     default: "0 + +",
     movement: "Any distance in one direction",
@@ -182,10 +186,10 @@ export function RulesPage({ onBack }: RulesPageProps) {
                 <span className="mini-piece-slot"><MiniPiece owner="blue" type={type} /></span>
                 <strong>{pieceNames[type]}</strong>
                 <small>
-                  {type === "pawn" && "1 component, strength 1"}
-                  {type === "rook" && "2 components, strength 2"}
-                  {type === "spy" && "3 components, strength 1"}
-                  {type === "king" && "3 components, strength 2"}
+                  {type === "pawn" && "1 component, energy 1, active 1"}
+                  {type === "rook" && "2 components, energy 2, active 2"}
+                  {type === "spy" && "3 components, energy 2, active 1"}
+                  {type === "king" && "3 components, energy 2, active 2"}
                   {`, home ${pieceDetails[type].home}`}
                 </small>
               </div>
@@ -205,7 +209,8 @@ export function RulesPage({ onBack }: RulesPageProps) {
         <div className="piece-reference-grid">
           <strong>Piece</strong>
           <strong>Wave components</strong>
-          <strong>Strength</strong>
+          <strong>Energy</strong>
+          <strong>Active</strong>
           <strong>Home</strong>
           <strong>Default</strong>
           <strong>Movement</strong>
@@ -216,7 +221,8 @@ export function RulesPage({ onBack }: RulesPageProps) {
                 {pieceNames[type]}
               </span>
               <span>{pieceDetails[type].components}</span>
-              <span>{pieceDetails[type].strength}</span>
+              <span>{pieceDetails[type].energy}</span>
+              <span>{pieceDetails[type].active}</span>
               <span>{pieceDetails[type].home}</span>
               <span><code>{pieceDetails[type].default}</code></span>
               <span>{pieceDetails[type].movement}</span>

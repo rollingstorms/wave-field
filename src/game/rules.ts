@@ -1,5 +1,5 @@
 import { evaluateField } from "../field/evaluateField";
-import { BOARD_SIZE, PIECE_STRENGTH } from "./constants";
+import { BOARD_SIZE, TUNING_STRENGTH } from "./constants";
 import type { Coefficient, GameState, MoveResult, PieceType, Player, PlayerComponents, Position } from "./types";
 import { getLegalMoves, samePosition } from "./movement";
 import { canSetComponentValue, isTuningWithinStrength } from "./tuning";
@@ -292,8 +292,8 @@ export function applyTuning(
   if (state.status !== "playing" || player !== state.currentPlayer) return { ok: false, state, reason: "It is not that player's turn." };
   if (state.components[player][pieceType][componentIndex] === value) return { ok: false, state, reason: "Choose a different coefficient." };
   if (!canSetComponentValue(state.components[player], pieceType, componentIndex, value)) {
-    const strength = PIECE_STRENGTH[pieceType];
-    return { ok: false, state, reason: `${pieceType[0].toUpperCase()}${pieceType.slice(1)} strength allows up to ${strength} active component${strength === 1 ? "" : "s"}.` };
+    const strength = TUNING_STRENGTH[pieceType];
+    return { ok: false, state, reason: `${pieceType[0].toUpperCase()}${pieceType.slice(1)} tuning allows up to ${strength} active component${strength === 1 ? "" : "s"}.` };
   }
 
   const nextComponents = structuredClone(state.components);

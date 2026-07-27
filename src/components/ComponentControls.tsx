@@ -1,4 +1,4 @@
-import { COMPONENT_COUNTS, PIECE_STRENGTH } from "../game/constants";
+import { COMPONENT_COUNTS, TUNING_STRENGTH } from "../game/constants";
 import { canSetComponentValue, getTuningLoad } from "../game/tuning";
 import type { Coefficient, GameState, PieceType, Player } from "../game/types";
 import { WaveThumbnail } from "./WaveThumbnail";
@@ -44,8 +44,8 @@ export function ComponentControls({ state, locked = false, onTune, onRandomize }
               <strong>{pieceType.toUpperCase()}</strong>
               <span className="component-count">({COMPONENT_COUNTS[pieceType]} components)</span>
               <span className="strength">
-                <span className="strength-label">Strength </span>
-                {getTuningLoad(state.components[player][pieceType])}/{PIECE_STRENGTH[pieceType]}
+                <span className="strength-label">Active </span>
+                {getTuningLoad(state.components[player][pieceType])}/{TUNING_STRENGTH[pieceType]}
               </span>
             </div>
           </div>

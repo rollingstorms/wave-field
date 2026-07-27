@@ -60,7 +60,7 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
       const defaultComponents = structuredClone(state.defaultComponents);
       defaultComponents[action.pieceType][action.componentIndex] = action.value;
       if (!isTuningWithinStrength(action.pieceType, defaultComponents[action.pieceType])) {
-        return { ...state, message: `${action.pieceType[0].toUpperCase()}${action.pieceType.slice(1)} defaults exceed its strength.` };
+        return { ...state, message: `${action.pieceType[0].toUpperCase()}${action.pieceType.slice(1)} defaults exceed its active limit.` };
       }
       return { ...state, defaultComponents, message: "Default controls updated · restart to apply" };
     }

@@ -1,4 +1,4 @@
-import { PIECE_STRENGTH } from "./constants";
+import { TUNING_STRENGTH } from "./constants";
 import type { Coefficient, PieceType, PlayerComponents } from "./types";
 
 export function getTuningLoad(coefficients: readonly Coefficient[]): number {
@@ -6,7 +6,7 @@ export function getTuningLoad(coefficients: readonly Coefficient[]): number {
 }
 
 export function isTuningWithinStrength(pieceType: PieceType, coefficients: readonly Coefficient[]): boolean {
-  return getTuningLoad(coefficients) <= PIECE_STRENGTH[pieceType];
+  return getTuningLoad(coefficients) <= TUNING_STRENGTH[pieceType];
 }
 
 export function canSetComponentValue(

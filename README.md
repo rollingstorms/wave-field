@@ -48,19 +48,20 @@ dyadic fractions whose denominators are powers of two. A sum may be `3/8` or
 Each player begins with two pawns, two rooks, one spy, and one king. Blue moves
 first.
 
-| Piece | Wave components | Strength | Home | Default (Red / Blue) | Movement |
-|---|---:|---:|---:|---|---|
-| Pawn | 1 | 1 | 0 | `+` / `-` | Any distance in one direction |
-| Rook | 2 | 2 | 0 | `+ +` / `- -` | Any distance in one direction |
-| Spy | 3 | 1 | 0 | `+ 0 0` / `- 0 0` | Any distance in one direction, ignoring territory |
-| King | 3 | 2 | 0 | `0 + +` / `0 - -` | Any distance in one direction |
+| Piece | Wave components | Energy | Active | Home | Default (Red / Blue) | Movement |
+|---|---:|---:|---:|---:|---|---|
+| Pawn | 1 | 1 | 1 | 0 | `+` / `-` | Any distance in one direction |
+| Rook | 2 | 2 | 2 | 0 | `+ +` / `- -` | Any distance in one direction |
+| Spy | 3 | 2 | 1 | 0 | `+ 0 0` / `- 0 0` | Any distance in one direction, ignoring territory |
+| King | 3 | 2 | 2 | 0 | `0 + +` / `0 - -` | Any distance in one direction |
 
 A direction may be horizontal, vertical, or diagonal, giving eight possible
 rays. Despite their familiar names, pieces do not use chess movement.
 
 All three king components are tunable. C1 starts Neutral, while C2 and C3 start
-positive. The king's strength of 2 means no more than two of those components
-may be active at once.
+positive. The king's active limit of 2 means no more than two of those
+components may be active at once. The spy has energy strength 2, but its active
+limit remains 1, so it still uses only one pattern at a time.
 
 ## Turn
 
@@ -90,7 +91,7 @@ Because Blue's owner sign reverses the shared coefficient, the live Blue
 controls display the opposite signs from Red for the same underlying profile.
 
 The number of active `+` and `-` components combined cannot exceed that piece
-type's strength. For example, the king has three tunable components but may
+type's active limit. For example, the king has three tunable components but may
 activate only two at once; the spy has three available components but may
 activate only one.
 

@@ -19,6 +19,8 @@ describe("component strength budget", () => {
   it("limits the combined number of positive and negative components", () => {
     expect(isTuningWithinStrength("king", [0, 1, -1])).toBe(true);
     expect(isTuningWithinStrength("king", [1, 1, -1])).toBe(false);
+    expect(isTuningWithinStrength("spy", [1, 0, 0])).toBe(true);
+    expect(isTuningWithinStrength("spy", [1, 1, 0])).toBe(false);
   });
 
   it("allows flipping an active component while at full strength", () => {

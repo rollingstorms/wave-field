@@ -114,7 +114,7 @@ describe("reducer", () => {
     const first = gameReducer(state, { type: "update-default-component", pieceType: "spy", componentIndex: 1, value: -1 });
 
     expect(first.defaultComponents.spy).toEqual([1, 0, 0]);
-    expect(first.message).toContain("exceed its strength");
+    expect(first.message).toContain("exceed its active limit");
   });
 
   it("rejects wave definitions that break base-2 decay", () => {
