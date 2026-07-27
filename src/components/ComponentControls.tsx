@@ -80,7 +80,19 @@ export function ComponentControls({ state, locked = false, onTune, onRandomize, 
 
   return (
     <aside className="control-panel" aria-label={`${player} component controls`}>
-      <div className="control-actions">
+      {controlRows.map((row) => (
+        <div className={`component-row row-${row.join("-")}`} key={row.join("-")}>
+          {row.map(renderPieceControls)}
+        </div>
+      ))}
+      <div className="legend" aria-label="Board and warning key">
+        <span><i className="swatch red" /> &gt; 0</span>
+        <span><i className="swatch neutral" /> = 0</span>
+        <span><i className="swatch blue" /> &lt; 0</span>
+        <span><i className="legend-legal" /> Legal</span>
+        <span><i className="legend-risk"><b>!</b></i> Loss</span>
+        <span><i className="legend-king">K</i> King</span>
+        <span><i className="legend-unstable">!</i> Unstable</span>
         <button
           type="button"
           className="randomize-controls"
@@ -101,20 +113,6 @@ export function ComponentControls({ state, locked = false, onTune, onRandomize, 
         >
           <RotateCcw size={17} />
         </button>
-      </div>
-      {controlRows.map((row) => (
-        <div className={`component-row row-${row.join("-")}`} key={row.join("-")}>
-          {row.map(renderPieceControls)}
-        </div>
-      ))}
-      <div className="legend" aria-label="Board and warning key">
-        <span><i className="swatch red" /> &gt; 0</span>
-        <span><i className="swatch neutral" /> = 0</span>
-        <span><i className="swatch blue" /> &lt; 0</span>
-        <span><i className="legend-legal" /> Legal</span>
-        <span><i className="legend-risk"><b>!</b></i> Loss</span>
-        <span><i className="legend-king">K</i> King</span>
-        <span><i className="legend-unstable">!</i> Unstable</span>
       </div>
     </aside>
   );

@@ -749,15 +749,6 @@ h1 {
   color: var(--influence);
 }
 
-.control-actions {
-  display: grid;
-  grid-template-columns: repeat(2, 36px);
-  justify-content: end;
-  gap: 6px;
-  padding: 8px 10px 7px;
-  border-bottom: 1px solid var(--line);
-}
-
 .randomize-controls,
 .reset-controls {
   width: 36px;
@@ -915,7 +906,7 @@ h1 {
 
 .legend {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(68px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(58px, 1fr));
   gap: 6px 9px;
   padding: 8px 10px;
   border-top: 1px solid var(--line);
@@ -927,6 +918,10 @@ h1 {
   align-items: center;
   gap: 5px;
   min-width: 0;
+}
+
+.legend button {
+  justify-self: end;
 }
 
 .swatch,
@@ -1906,14 +1901,10 @@ select, .editor-bar button, .secondary, .import-button {
     font-size: 0.48rem;
   }
   .legend {
-    grid-template-columns: repeat(auto-fit, minmax(58px, 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(50px, 1fr));
     gap: 4px;
     padding: 6px 8px;
     font-size: 0.58rem;
-  }
-  .control-actions {
-    grid-template-columns: repeat(2, 34px);
-    padding: 6px 8px;
   }
   .randomize-controls,
   .reset-controls {
