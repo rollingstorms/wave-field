@@ -5,7 +5,7 @@ import type { Coefficient, GameState, Piece, PieceType, Player } from "../game/t
 import { Piece as PieceShape } from "./Piece";
 import { WaveThumbnail } from "./WaveThumbnail";
 
-const controlRows: PieceType[][] = [["pawn", "rook"], ["spy"], ["king"]];
+const controlRows: PieceType[][] = [["pawn"], ["rook"], ["spy"], ["king"]];
 const values: Coefficient[] = [1, -1];
 
 function PieceLegend({ player, pieceType }: { player: Player; pieceType: PieceType }) {
@@ -93,6 +93,8 @@ export function ComponentControls({ state, locked = false, onTune, onRandomize, 
         <span><i className="legend-risk"><b>!</b></i> Loss</span>
         <span><i className="legend-king">K</i> King</span>
         <span><i className="legend-unstable">!</i> Unstable</span>
+      </div>
+      <div className="control-actions" aria-label="Tuning actions">
         <button
           type="button"
           className="randomize-controls"
