@@ -5,7 +5,7 @@ import type { Coefficient, GameState, Piece, PieceType, Player } from "../game/t
 import { Piece as PieceShape } from "./Piece";
 import { WaveThumbnail } from "./WaveThumbnail";
 
-const pieceTypes: PieceType[] = ["pawn", "rook", "spy", "king"];
+const controlRows: PieceType[][] = [["pawn", "rook"], ["spy"], ["king"]];
 const values: Coefficient[] = [1, -1];
 
 function PieceLegend({ player, pieceType }: { player: Player; pieceType: PieceType }) {
@@ -39,12 +39,48 @@ interface ComponentControlsProps {
 export function ComponentControls({ state, locked = false, onTune, onRandomize, onReset }: ComponentControlsProps) {
   const player = state.currentPlayer;
   const controlsAtDefaults = JSON.stringify(state.components[player]) === JSON.stringify(state.defaultComponents);
+  const renderPieceControls = (pieceType: PieceType) => (
+    <section className={`component-group components-${COMPONENT_COUNTS[pieceType]}`} key={pieceType}>
+      <div className="piece-heading">
+        <WaveThumbnail state={state} player={player} pieceType={pieceType} />
+        <PieceLegend player={player} pieceType={pieceType} />
+        <div className="piece-heading-copy">
+          <strong>{pieceType.toUpperCase()}</strong>
+          <span className="component-count">({COMPONENT_COUNTS[pieceType]} components)</span>
+          <span className="strength">
+            <span className="strength-label">Active </span>
+            {getTuningLoad(state.components[player][pieceType])}/{TUNING_STRENGTH[pieceType]}
+          </span>
+        </div>
+      </div>
+      {state.components[player][pieceType].map((coefficient, index) => (
+        <div className="coefficient-row" key={`${pieceType}-${index}`}>
+          <span>C{index + 1}</span>
+          {values.map((value) => (
+            <button
+              key={value}
+              type="button"
+              className={coefficient === value ? `chosen ${player}` : ""}
+              disabled={
+                locked
+                || state.status !== "playing"
+                || coefficient === value
+              }
+              onClick={() => onTune(pieceType, index, value)}
+              aria-pressed={coefficient === value}
+              aria-label={`${player} ${pieceType} component ${index + 1} set to ${coefficientLabel(player, value)}`}
+            >
+              {coefficientLabel(player, value)}
+            </button>
+          ))}
+        </div>
+      ))}
+    </section>
+  );
+
   return (
     <aside className="control-panel" aria-label={`${player} component controls`}>
-      <div className="legend">
-        <span><i className="swatch red" /> &gt; 0</span>
-        <span><i className="swatch neutral" /> = 0</span>
-        <span><i className="swatch blue" /> &lt; 0</span>
+      <div className="control-actions">
         <button
           type="button"
           className="randomize-controls"
@@ -66,44 +102,20 @@ export function ComponentControls({ state, locked = false, onTune, onRandomize, 
           <RotateCcw size={17} />
         </button>
       </div>
-      {pieceTypes.map((pieceType) => (
-        <section className={`component-group components-${COMPONENT_COUNTS[pieceType]}`} key={pieceType}>
-          <div className="piece-heading">
-            <WaveThumbnail state={state} player={player} pieceType={pieceType} />
-            <PieceLegend player={player} pieceType={pieceType} />
-            <div className="piece-heading-copy">
-              <strong>{pieceType.toUpperCase()}</strong>
-              <span className="component-count">({COMPONENT_COUNTS[pieceType]} components)</span>
-              <span className="strength">
-                <span className="strength-label">Active </span>
-                {getTuningLoad(state.components[player][pieceType])}/{TUNING_STRENGTH[pieceType]}
-              </span>
-            </div>
-          </div>
-          {state.components[player][pieceType].map((coefficient, index) => (
-            <div className="coefficient-row" key={`${pieceType}-${index}`}>
-              <span>C{index + 1}</span>
-              {values.map((value) => (
-                <button
-                  key={value}
-                  type="button"
-                  className={coefficient === value ? `chosen ${player}` : ""}
-                  disabled={
-                    locked
-                    || state.status !== "playing"
-                    || coefficient === value
-                  }
-                  onClick={() => onTune(pieceType, index, value)}
-                  aria-pressed={coefficient === value}
-                  aria-label={`${player} ${pieceType} component ${index + 1} set to ${coefficientLabel(player, value)}`}
-                >
-                  {coefficientLabel(player, value)}
-                </button>
-              ))}
-            </div>
-          ))}
-        </section>
+      {controlRows.map((row) => (
+        <div className={`component-row row-${row.join("-")}`} key={row.join("-")}>
+          {row.map(renderPieceControls)}
+        </div>
       ))}
+      <div className="legend" aria-label="Board and warning key">
+        <span><i className="swatch red" /> &gt; 0</span>
+        <span><i className="swatch neutral" /> = 0</span>
+        <span><i className="swatch blue" /> &lt; 0</span>
+        <span><i className="legend-legal" /> Legal</span>
+        <span><i className="legend-risk"><b>!</b></i> Loss</span>
+        <span><i className="legend-king">K</i> King</span>
+        <span><i className="legend-unstable">!</i> Unstable</span>
+      </div>
     </aside>
   );
 }
