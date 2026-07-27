@@ -135,11 +135,13 @@ describe("field engine", () => {
     expect(evaluatePieceContribution(pawn.pieces[0], { x: 3, y: 3 }, pawn)).not.toBe(0);
   });
 
-  it("component basis previews keep raw origin values", () => {
+  it("component basis omits ring zero for every piece type", () => {
     const blockChecker = DEFAULT_DEFINITIONS.king[2];
     expect(evaluateBasis(blockChecker, { x: 0, y: 0 })).not.toBe(0);
-    expect(evaluateComponentBasis("king", blockChecker, { x: 0, y: 0 })).not.toBe(0);
-    expect(evaluateComponentBasis("rook", blockChecker, { x: 0, y: 0 })).not.toBe(0);
+    (["pawn", "rook", "spy", "king"] as PieceType[]).forEach((pieceType) => {
+      expect(evaluateComponentBasis(pieceType, blockChecker, { x: 0, y: 0 })).toBe(0);
+    });
+    expect(evaluateComponentBasis("rook", blockChecker, { x: 1, y: 0 })).not.toBe(0);
   });
 
   it("diamond core is distinct from the checkerboard preset", () => {

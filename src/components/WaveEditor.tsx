@@ -55,6 +55,10 @@ function kernelValues(pieceType: PieceType, definition: BasisDefinition) {
   );
 }
 
+function editableRingValues(definition: BasisDefinition) {
+  return definition.kind === "ring" ? definition.ringValues.slice(1) : [];
+}
+
 export function WaveEditor({ definitions, selected, onSelect, onUpdate, onResetSelected, onResetAll, onImport }: WaveEditorProps) {
   const definition = definitions[selected.pieceType][selected.componentIndex];
   const grid = kernelValues(selected.pieceType, definition);
@@ -116,11 +120,11 @@ export function WaveEditor({ definitions, selected, onSelect, onUpdate, onResetS
             </select>
           ) : (
             <div className="ring-editor">
-              {definition.ringValues.map((value, index) => (
-                <div className="ring-row" key={index}>
-                  <span>R{index}</span>
+              {editableRingValues(definition).map((value, index) => (
+                <div className="ring-row" key={index + 1}>
+                  <span>R{index + 1}</span>
                   {coefficients.map((coefficient) => (
-                    <button key={coefficient} className={coefficient === value ? "active" : ""} onClick={() => updateRingValue(index, coefficient)}>{label(coefficient)}</button>
+                    <button key={coefficient} className={coefficient === value ? "active" : ""} onClick={() => updateRingValue(index + 1, coefficient)}>{label(coefficient)}</button>
                   ))}
                 </div>
               ))}
