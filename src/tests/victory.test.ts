@@ -14,10 +14,24 @@ function kingState(): GameState {
 }
 
 describe("stability and victory", () => {
-  it("spies are never unstable", () => {
+  it("spies become unstable on hostile territory", () => {
     const state = createInitialState();
     state.pieces = [{ id: "red-spy", owner: "red", type: "spy", position: { x: 3, y: 3 }, unstable: false }];
-    expect(getUnstablePieces("red", state, field(-1))).toHaveLength(0);
+    expect(getUnstablePieces("red", state, field(-1)).map((piece) => piece.id)).toEqual(["red-spy"]);
+  });
+
+  it("an unrescued spy still on hostile territory is lost", () => {
+    const state = createInitialState();
+    state.pieces = [
+      { id: "red-spy", owner: "red", type: "spy", position: { x: 1, y: 1 }, unstable: true },
+      { id: "red-king", owner: "red", type: "king", position: { x: 3, y: 6 }, unstable: false },
+    ];
+    const hostile = field(0);
+    hostile[1][1] = -1;
+
+    const resolved = removeUnrescuedPieces("red", state, new Set(["red-spy"]), hostile);
+
+    expect(resolved.pieces.map((piece) => piece.id)).not.toContain("red-spy");
   });
 
   it("stable immobile king does not lose", () => {

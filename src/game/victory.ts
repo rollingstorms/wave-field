@@ -4,7 +4,7 @@ import type { GameState, Piece, Player } from "./types";
 
 export function getUnstablePieces(player: Player, state: GameState, field: number[][]): Piece[] {
   return state.pieces.filter((piece) => {
-    if (piece.owner !== player || piece.type === "spy") return false;
+    if (piece.owner !== player) return false;
     return !isSquareCompatible(player, field[piece.position.y][piece.position.x]);
   });
 }
@@ -14,7 +14,7 @@ export function markInstability(state: GameState, field: number[][]): GameState 
     ...state,
     pieces: state.pieces.map((piece) => ({
       ...piece,
-      unstable: piece.type !== "spy" && !isSquareCompatible(piece.owner, field[piece.position.y][piece.position.x]),
+      unstable: !isSquareCompatible(piece.owner, field[piece.position.y][piece.position.x]),
     })),
   };
 }

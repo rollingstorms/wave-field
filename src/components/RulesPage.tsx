@@ -44,7 +44,7 @@ const pieceDetails: Record<PieceType, { components: string; strength: string; ho
     home: "3/2",
     default: "+ 0 0",
     movement: "Any distance in one direction, ignoring territory",
-    note: "The spy can cross hostile territory, is never removed for instability, and has a fixed home square of 3/2.",
+    note: "The spy can cross hostile territory, but it is unstable there after a turn resolves.",
   },
   king: {
     components: "3",
@@ -276,7 +276,7 @@ export function RulesPage({ onBack }: RulesPageProps) {
         <div>
           <h2>Instability</h2>
           <p>
-            A non-spy piece on hostile territory is unstable. Rescue it on your next turn by
+            A non-king piece on hostile territory is unstable. Rescue it on your next turn by
             moving it to safety or by moving another piece so the field protects it. If it is
             still unstable after your move, it is removed.
           </p>
@@ -293,7 +293,7 @@ export function RulesPage({ onBack }: RulesPageProps) {
         <dl>
           <div><dt>Blue moves first</dt><dd>{playerLabel.blue} opens the game.</dd></div>
           <div><dt>No captures by collision</dt><dd>Friendly and opposing pieces both block movement.</dd></div>
-          <div><dt>Spies are special</dt><dd>They ignore hostile territory and are never removed for instability.</dd></div>
+          <div><dt>Spies are special</dt><dd>They ignore hostile territory while moving, but can still become unstable.</dd></div>
           <div><dt>Move ends turn</dt><dd>Tune freely first, then commit one legal move.</dd></div>
         </dl>
       </section>

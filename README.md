@@ -125,7 +125,7 @@ The board distinguishes movement from turn safety:
 
 ## Instability
 
-A non-spy piece standing on hostile territory is **unstable**. The player may
+A non-king piece standing on hostile territory is **unstable**. The player may
 rescue it by moving that piece to a safe square or by moving a different piece
 whose relocated wave makes the unstable piece's square friendly or Neutral.
 A newly unstable non-king piece remains on the board through its owner's next
@@ -139,7 +139,9 @@ The field is recalculated after each removal because the lost piece's wave
 disappears. This can trigger further removals among pieces whose rescue deadline
 has arrived.
 
-Spies are never unstable and are never removed by hostile territory.
+Spies still ignore hostile territory while moving, but a spy that stands on
+hostile territory after a turn resolves is unstable like any other non-king
+piece.
 
 ## Check and Victory
 
