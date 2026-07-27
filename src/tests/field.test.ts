@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { DEFAULT_DEFINITIONS, validateDefinition } from "../field/componentDefinitions";
 import { evaluateField, evaluatePieceContribution, evaluateTypeFields } from "../field/evaluateField";
 import { evaluateBasis, evaluateComponentBasis } from "../field/kernels";
-import { FIELD_EPSILON } from "../game/constants";
+import { FIELD_EPSILON, HOME_SQUARE_CONTRIBUTION } from "../game/constants";
 import { createInitialState } from "../game/initialState";
 import type { Coefficient, FormulaPreset, GameState, PieceType } from "../game/types";
 
@@ -38,13 +38,28 @@ function tuned(pieceType: PieceType, values: Coefficient[]): GameState {
   return state;
 }
 
+function defaultValues(pieceType: PieceType): Coefficient[] {
+  switch (pieceType) {
+    case "pawn":
+      return [1];
+    case "rook":
+      return [1, 1];
+    case "spy":
+      return [1, 0, 0];
+    case "king":
+      return [0, 1, 1];
+  }
+}
+
 describe("field engine", () => {
-  it("zero pawn coefficient contributes zero everywhere", () => {
+  it("zero pawn coefficient contributes zero away from its home square", () => {
     const state = tuned("pawn", [0]);
     const piece = state.pieces[0];
     for (let y = 0; y < 7; y += 1) {
       for (let x = 0; x < 7; x += 1) {
-        expect(evaluatePieceContribution(piece, { x, y }, state)).toBe(0);
+        if (x !== piece.position.x || y !== piece.position.y) {
+          expect(evaluatePieceContribution(piece, { x, y }, state)).toBe(0);
+        }
       }
     }
   });
@@ -90,6 +105,24 @@ describe("field engine", () => {
     expect(evaluatePieceContribution(spy.pieces[0], { x: 2, y: 2 }, spy)).toBeCloseTo(evaluatePieceContribution(pawn.pieces[0], { x: 2, y: 2 }, pawn));
   });
 
+  it("piece home squares use preset contribution values", () => {
+    (["pawn", "rook", "spy", "king"] as PieceType[]).forEach((pieceType) => {
+      const state = tuned(pieceType, defaultValues(pieceType));
+      const piece = state.pieces[0];
+      const typeFields = evaluateTypeFields(state);
+
+      expect(evaluatePieceContribution(piece, piece.position, state)).toBe(HOME_SQUARE_CONTRIBUTION[pieceType]);
+      expect(typeFields[pieceType][piece.position.y][piece.position.x]).toBe(HOME_SQUARE_CONTRIBUTION[pieceType]);
+    });
+  });
+
+  it("home square contribution ignores tuned component values", () => {
+    const spy = tuned("spy", [0, 0, 0]);
+    const rook = tuned("rook", [-1, -1]);
+    expect(evaluatePieceContribution(spy.pieces[0], spy.pieces[0].position, spy)).toBe(3);
+    expect(evaluatePieceContribution(rook.pieces[0], rook.pieces[0].position, rook)).toBe(2);
+  });
+
   it("king contributes zero on its own square only", () => {
     const king = tuned("king", [0, 1, 1]);
     king.pieces[0].type = "king";
@@ -102,10 +135,10 @@ describe("field engine", () => {
     expect(evaluatePieceContribution(pawn.pieces[0], { x: 3, y: 3 }, pawn)).not.toBe(0);
   });
 
-  it("king component basis has a neutral center in previews", () => {
+  it("component basis previews keep raw origin values", () => {
     const blockChecker = DEFAULT_DEFINITIONS.king[2];
     expect(evaluateBasis(blockChecker, { x: 0, y: 0 })).not.toBe(0);
-    expect(evaluateComponentBasis("king", blockChecker, { x: 0, y: 0 })).toBe(0);
+    expect(evaluateComponentBasis("king", blockChecker, { x: 0, y: 0 })).not.toBe(0);
     expect(evaluateComponentBasis("rook", blockChecker, { x: 0, y: 0 })).not.toBe(0);
   });
 

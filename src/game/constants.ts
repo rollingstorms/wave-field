@@ -10,6 +10,13 @@ export const PIECE_STRENGTH = {
   king: 2,
 } as const;
 
+export const HOME_SQUARE_CONTRIBUTION = {
+  pawn: 1,
+  rook: 2,
+  spy: 3,
+  king: 0,
+} as const;
+
 export const COMPONENT_COUNTS = {
   pawn: 1,
   rook: 2,

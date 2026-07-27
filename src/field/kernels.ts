@@ -84,6 +84,6 @@ export function evaluateBasis(definition: BasisDefinition, delta: Position): num
 }
 
 export function evaluateComponentBasis(pieceType: PieceType, definition: BasisDefinition, delta: Position): number {
-  if (pieceType === "king" && delta.x === 0 && delta.y === 0) return 0;
+  void pieceType;
   return evaluateBasis(definition, delta);
 }

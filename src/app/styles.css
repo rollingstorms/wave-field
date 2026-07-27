@@ -1157,9 +1157,9 @@ select, .editor-bar button, .secondary, .import-button {
 
 .piece-reference-grid {
   display: grid;
-  grid-template-columns: minmax(120px, 1.1fr) minmax(76px, 0.7fr) minmax(76px, 0.7fr) minmax(76px, 0.7fr) minmax(180px, 1.6fr);
+  grid-template-columns: minmax(120px, 1.1fr) minmax(76px, 0.7fr) minmax(64px, 0.55fr) minmax(56px, 0.45fr) minmax(76px, 0.7fr) minmax(180px, 1.6fr);
   gap: 1px;
-  min-width: 720px;
+  min-width: 780px;
   margin-top: 14px;
   background: var(--line);
   overflow: hidden;
@@ -1487,7 +1487,7 @@ select, .editor-bar button, .secondary, .import-button {
     grid-template-columns: 20px minmax(70px, auto) minmax(0, 1fr);
   }
   .piece-reference-grid {
-    min-width: 640px;
+    min-width: 720px;
   }
   .piece-notes,
   .wave-pattern-grid {

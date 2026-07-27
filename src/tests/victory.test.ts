@@ -46,7 +46,7 @@ describe("stability and victory", () => {
       { id: "blue-king", owner: "blue", type: "king", position: { x: 1, y: 1 }, unstable: false },
     ];
     state.components.red.pawn = [0];
-    state.components.blue.king = [0, 1, 0];
+    state.components.blue.king = [0, 1, 1];
     const started = beginTurn(state);
 
     expect(started.pieces.map((piece) => piece.id)).toContain("red-pawn");
@@ -57,14 +57,18 @@ describe("stability and victory", () => {
     const state = createInitialState();
     state.pieces = [
       { id: "blue-king", owner: "blue", type: "king", position: { x: 0, y: 0 }, unstable: false },
+      { id: "blue-guard", owner: "blue", type: "pawn", position: { x: 0, y: 1 }, unstable: false },
+      { id: "blue-rook", owner: "blue", type: "rook", position: { x: 5, y: 6 }, unstable: false },
       { id: "blue-spy", owner: "blue", type: "spy", position: { x: 1, y: 1 }, unstable: false },
       { id: "red-pawn", owner: "red", type: "pawn", position: { x: 6, y: 6 }, unstable: false },
     ];
+    state.components.blue.pawn = [-1];
     state.components.blue.king = [0, 0, 0];
-    state.components.blue.spy = [-1, 0, 0];
+    state.components.blue.rook = [1, 0];
+    state.components.blue.spy = [1, 0, 0];
     state.components.red.pawn = [0];
 
-    const result = applyMove("blue-spy", { x: 0, y: 1 }, state);
+    const result = applyMove("blue-spy", { x: 5, y: 5 }, state);
     const pawn = result.state.pieces.find((piece) => piece.id === "red-pawn");
 
     expect(result.ok).toBe(true);
@@ -125,9 +129,11 @@ describe("stability and victory", () => {
     state.pieces = [
       { id: "blue-pawn", owner: "blue", type: "pawn", position: { x: 3, y: 3 }, unstable: true },
       { id: "blue-spy", owner: "blue", type: "spy", position: { x: 2, y: 3 }, unstable: false },
+      { id: "red-rook", owner: "red", type: "rook", position: { x: 3, y: 4 }, unstable: false },
     ];
     state.components.blue.pawn = [0];
     state.components.blue.spy = [1, 0, 0];
+    state.components.red.rook = [1, 0];
 
     const result = applyMove("blue-spy", { x: 0, y: 3 }, state);
 
@@ -142,10 +148,12 @@ describe("stability and victory", () => {
       { id: "blue-pawn", owner: "blue", type: "pawn", position: { x: 3, y: 3 }, unstable: true },
       { id: "blue-spy", owner: "blue", type: "spy", position: { x: 2, y: 3 }, unstable: false },
       { id: "red-pawn", owner: "red", type: "pawn", position: { x: 4, y: 3 }, unstable: false },
+      { id: "red-rook", owner: "red", type: "rook", position: { x: 3, y: 4 }, unstable: false },
     ];
     state.components.blue.pawn = [0];
     state.components.blue.spy = [-1, 0, 0];
     state.components.red.pawn = [-1];
+    state.components.red.rook = [1, 0];
     expect(getUnstablePieces("blue", state, evaluateField(state)).map((piece) => piece.id)).not.toContain("blue-pawn");
 
     const result = applyMove("blue-spy", { x: 0, y: 3 }, state);

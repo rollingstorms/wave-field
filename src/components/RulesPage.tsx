@@ -21,34 +21,38 @@ const playerLabel: Record<Player, string> = {
   blue: "Blue",
 };
 
-const pieceDetails: Record<PieceType, { components: string; strength: string; default: string; movement: string; note: string }> = {
+const pieceDetails: Record<PieceType, { components: string; strength: string; home: string; default: string; movement: string; note: string }> = {
   pawn: {
     components: "1",
     strength: "1",
+    home: "1",
     default: "+",
     movement: "Any distance in one direction",
-    note: "Simple pressure piece. It follows the same eight-ray movement as the other non-spies.",
+    note: "Simple pressure piece. Its home square is fixed at 1.",
   },
   rook: {
     components: "2",
     strength: "2",
+    home: "2",
     default: "+ +",
     movement: "Any distance in one direction",
-    note: "Broad field shaper. Both components can be active at the same time.",
+    note: "Broad field shaper. Its home square is fixed at 2.",
   },
   spy: {
     components: "3",
     strength: "1",
+    home: "3",
     default: "+ 0 0",
     movement: "Any distance in one direction, ignoring territory",
-    note: "The spy can cross hostile territory and is never removed for instability.",
+    note: "The spy can cross hostile territory, is never removed for instability, and has a fixed home square of 3.",
   },
   king: {
     components: "3",
     strength: "2",
+    home: "0",
     default: "0 + +",
     movement: "Any distance in one direction",
-    note: "The king contributes 0 to its own square and must end every move protected.",
+    note: "The king's home square is fixed at 0 and must end every move protected.",
   },
 };
 
@@ -182,6 +186,7 @@ export function RulesPage({ onBack }: RulesPageProps) {
                   {type === "rook" && "2 components, strength 2"}
                   {type === "spy" && "3 components, strength 1"}
                   {type === "king" && "3 components, strength 2"}
+                  {`, home ${pieceDetails[type].home}`}
                 </small>
               </div>
             ))}
@@ -201,6 +206,7 @@ export function RulesPage({ onBack }: RulesPageProps) {
           <strong>Piece</strong>
           <strong>Wave components</strong>
           <strong>Strength</strong>
+          <strong>Home</strong>
           <strong>Default</strong>
           <strong>Movement</strong>
           {(["pawn", "rook", "spy", "king"] as PieceType[]).map((type) => (
@@ -211,6 +217,7 @@ export function RulesPage({ onBack }: RulesPageProps) {
               </span>
               <span>{pieceDetails[type].components}</span>
               <span>{pieceDetails[type].strength}</span>
+              <span>{pieceDetails[type].home}</span>
               <span><code>{pieceDetails[type].default}</code></span>
               <span>{pieceDetails[type].movement}</span>
             </Fragment>

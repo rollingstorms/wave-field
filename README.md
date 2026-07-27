@@ -35,9 +35,9 @@ The resulting value determines the territory:
 Moving a piece changes its wave origin, so one move can reshape territory across
 the entire board.
 
-The king is the one special wave source: a king contributes `0` to its own
-square, no matter which king component pattern is active. Other kings can still
-contribute to that square from afar.
+Each piece has a fixed home-square contribution that is not changed by tuning
+or wave-pattern edits: pawn `1`, rook `2`, spy `3`, and king `0`. Other pieces
+can still contribute to that square from afar.
 
 Every basis wave halves once per square ring: `1`, `1/2`, `1/4`, `1/8`, and so
 on. Coefficients and strengths are integers, so combined field totals are always
@@ -49,12 +49,12 @@ dyadic fractions whose denominators are powers of two. A sum may be `3/8` or
 Each player begins with two pawns, two rooks, one spy, and one king. Blue moves
 first.
 
-| Piece | Wave components | Strength | Default (Red / Blue) | Movement |
-|---|---:|---:|---|---|
-| Pawn | 1 | 1 | `+` / `-` | Any distance in one direction |
-| Rook | 2 | 2 | `+ +` / `- -` | Any distance in one direction |
-| Spy | 3 | 1 | `+ 0 0` / `- 0 0` | Any distance in one direction, ignoring territory |
-| King | 3 | 2 | `0 + +` / `0 - -` | Any distance in one direction |
+| Piece | Wave components | Strength | Home | Default (Red / Blue) | Movement |
+|---|---:|---:|---:|---|---|
+| Pawn | 1 | 1 | 1 | `+` / `-` | Any distance in one direction |
+| Rook | 2 | 2 | 2 | `+ +` / `- -` | Any distance in one direction |
+| Spy | 3 | 1 | 3 | `+ 0 0` / `- 0 0` | Any distance in one direction, ignoring territory |
+| King | 3 | 2 | 0 | `0 + +` / `0 - -` | Any distance in one direction |
 
 A direction may be horizontal, vertical, or diagonal, giving eight possible
 rays. Despite their familiar names, pieces do not use chess movement.
