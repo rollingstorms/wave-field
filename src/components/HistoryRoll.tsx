@@ -10,7 +10,7 @@ export function HistoryRoll({ state }: HistoryRollProps) {
   return (
     <section className="history-roll" aria-labelledby="history-roll-title">
       <header>
-        <h2 id="history-roll-title">History Roll</h2>
+        <h2 id="history-roll-title">Move Log</h2>
         <span>{entries.length} event{entries.length === 1 ? "" : "s"}</span>
       </header>
       <ol aria-label="Game history, newest first">

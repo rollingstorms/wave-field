@@ -2,6 +2,7 @@ import { useEffect, useMemo, useReducer, useState } from "react";
 import { Board } from "../components/Board";
 import { ComponentControls } from "../components/ComponentControls";
 import { DebugPanel } from "../components/DebugPanel";
+import { HistoryRoll } from "../components/HistoryRoll";
 import { RulesPage } from "../components/RulesPage";
 import { TurnStatus } from "../components/TurnStatus";
 import { WaveEditor } from "../components/WaveEditor";
@@ -113,12 +114,15 @@ export function App() {
           hintSearching={hintSearching}
           onToggleEnergyChannel={(pieceType) => setEnergyChannels((channels) => ({ ...channels, [pieceType]: !channels[pieceType] }))}
         />
-        <ComponentControls
-          state={state}
-          locked={aiTurn}
-          onTune={(pieceType, componentIndex, value) => dispatch({ type: "tune", pieceType, componentIndex, value })}
-          onRandomize={() => dispatch({ type: "randomize-tuning" })}
-        />
+        <div className="config-stack">
+          <ComponentControls
+            state={state}
+            locked={aiTurn}
+            onTune={(pieceType, componentIndex, value) => dispatch({ type: "tune", pieceType, componentIndex, value })}
+            onRandomize={() => dispatch({ type: "randomize-tuning" })}
+          />
+          <HistoryRoll state={state} />
+        </div>
       </div>
       {state.status !== "playing" && <div className="win-banner">{state.status === "red-won" ? "Red wins" : "Blue wins"}</div>}
       {developerMode && (

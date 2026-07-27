@@ -112,6 +112,12 @@ h1 {
   margin-top: 26px;
 }
 
+.config-stack {
+  display: grid;
+  gap: 12px;
+  min-width: 0;
+}
+
 .board-wrap {
   display: grid;
   gap: 10px;
@@ -753,7 +759,8 @@ h1 {
 
 .history-roll {
   padding: 14px 16px 16px;
-  border-bottom: 1px solid var(--line);
+  border: 1px solid var(--line);
+  background: var(--panel);
 }
 
 .history-roll > header {
