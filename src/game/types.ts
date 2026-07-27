@@ -47,6 +47,13 @@ export interface PlayerComponents {
   king: [Coefficient, Coefficient, Coefficient];
 }
 
+export interface WaveScale {
+  friendly: number;
+  hostile: number;
+}
+
+export type WaveScales = Record<PieceType, WaveScale>;
+
 export interface RingBasisDefinition {
   kind: "ring";
   name: string;
@@ -79,6 +86,7 @@ export interface GameSnapshot {
   selectedPieceId: string | null;
   turnNumber: number;
   definitions: ComponentDefinitions;
+  waveScales: WaveScales;
 }
 
 export interface GameState extends GameSnapshot {

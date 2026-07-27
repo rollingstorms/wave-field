@@ -45,6 +45,17 @@ function describeTransition(before: GameSnapshot, after: GameSnapshot, number: n
     }
   }
 
+  for (const pieceType of pieceTypes) {
+    const beforeScale = before.waveScales[pieceType];
+    const afterScale = after.waveScales[pieceType];
+    if (beforeScale.friendly !== afterScale.friendly) {
+      details.push(`${pieceType} friendly ${beforeScale.friendly.toFixed(2)}→${afterScale.friendly.toFixed(2)}`);
+    }
+    if (beforeScale.hostile !== afterScale.hostile) {
+      details.push(`${pieceType} hostile ${beforeScale.hostile.toFixed(2)}→${afterScale.hostile.toFixed(2)}`);
+    }
+  }
+
   for (const piece of moved) {
     const next = after.pieces.find((candidate) => candidate.id === piece.id)!;
     details.push(`${playerName(piece.owner)} ${piece.type} ${coordinate(piece.position.x, piece.position.y)}→${coordinate(next.position.x, next.position.y)}`);

@@ -1,5 +1,6 @@
 import { cloneDefinitions, DEFAULT_COMPONENTS } from "../field/componentDefinitions";
-import type { ComponentDefinitions, GameSnapshot, GameState, Piece, Player, PlayerComponents, PieceType } from "./types";
+import { DEFAULT_WAVE_SCALES } from "./constants";
+import type { ComponentDefinitions, GameSnapshot, GameState, Piece, Player, PlayerComponents, PieceType, WaveScales } from "./types";
 
 function piece(owner: Player, type: PieceType, x: number, y: number, n: number): Piece {
   return { id: `${owner}-${type}-${n}`, owner, type, position: { x, y }, unstable: false };
@@ -25,6 +26,7 @@ export function createInitialPieces(): Piece[] {
 export function createInitialState(
   defaultComponents: PlayerComponents = DEFAULT_COMPONENTS,
   definitions: ComponentDefinitions = cloneDefinitions(),
+  waveScales: WaveScales = structuredClone(DEFAULT_WAVE_SCALES),
 ): GameState {
   return {
     pieces: createInitialPieces(),
@@ -35,6 +37,7 @@ export function createInitialState(
     },
     defaultComponents: structuredClone(defaultComponents),
     definitions: structuredClone(definitions),
+    waveScales: structuredClone(waveScales),
     selectedPieceId: null,
     status: "playing",
     history: [],
@@ -52,6 +55,7 @@ export function snapshot(state: GameState): GameSnapshot {
     selectedPieceId: state.selectedPieceId,
     turnNumber: state.turnNumber,
     definitions: structuredClone(state.definitions),
+    waveScales: structuredClone(state.waveScales),
   };
 }
 
@@ -62,6 +66,7 @@ export function fromSnapshot(
 ): GameState {
   return {
     ...structuredClone(snap),
+    waveScales: structuredClone(snap.waveScales ?? DEFAULT_WAVE_SCALES),
     defaultComponents: structuredClone(defaultComponents),
     history,
     message: `${snap.currentPlayer === "blue" ? "Blue" : "Red"} to move`,

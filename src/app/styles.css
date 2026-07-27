@@ -844,7 +844,8 @@ h1 {
   border-bottom: 1px solid var(--line);
 }
 
-.default-editor-heading {
+.default-editor-heading,
+.debug-section-heading {
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -852,9 +853,15 @@ h1 {
   margin-bottom: 14px;
 }
 
-.default-editor-heading h2 {
+.default-editor-heading h2,
+.debug-section-heading h2 {
   margin: 0 0 3px;
   font-size: 1rem;
+}
+
+.debug-section-heading span {
+  color: var(--muted);
+  font-size: 0.86rem;
 }
 
 .default-editor-heading p {
@@ -940,6 +947,91 @@ h1 {
 .restart-with-defaults {
   margin-top: 12px;
 }
+
+.wave-scale-editor,
+.pressure-panel {
+  padding: 16px;
+  border-bottom: 1px solid var(--line);
+}
+
+.wave-scale-grid {
+  display: grid;
+  grid-template-columns: 90px repeat(2, minmax(0, 1fr));
+  gap: 1px;
+  background: var(--line);
+}
+
+.wave-scale-grid > strong {
+  padding: 9px 10px;
+  background: #101212;
+  color: var(--muted);
+  font-size: 0.75rem;
+}
+
+.wave-scale-row {
+  display: contents;
+}
+
+.wave-scale-row > span,
+.wave-scale-row input {
+  min-width: 0;
+  padding: 9px 10px;
+  border: 0;
+  background: #141717;
+  color: var(--text);
+}
+
+.wave-scale-row > span {
+  font-weight: 700;
+}
+
+.wave-scale-row input {
+  width: 100%;
+  font: inherit;
+}
+
+.pressure-metrics {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1px;
+  background: var(--line);
+}
+
+.pressure-metrics > span {
+  min-width: 0;
+  display: grid;
+  gap: 3px;
+  padding: 10px;
+  background: #141717;
+}
+
+.pressure-metrics b {
+  color: var(--text);
+}
+
+.pressure-metrics small {
+  color: var(--muted);
+}
+
+.pressure-trend {
+  height: 58px;
+  display: flex;
+  align-items: end;
+  gap: 3px;
+  margin-top: 12px;
+  padding: 8px;
+  border: 1px solid var(--line);
+  background: #101212;
+}
+
+.pressure-trend i {
+  flex: 1;
+  min-width: 4px;
+  display: block;
+}
+
+.pressure-trend i.red { background: var(--red); }
+.pressure-trend i.blue { background: var(--blue); }
 
 .field-table, .kernel {
   display: grid;

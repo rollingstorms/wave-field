@@ -64,12 +64,11 @@ describe("field engine", () => {
     }
   });
 
-  it("negative pawn coefficient is the exact inverse of positive", () => {
-    const positive = tuned("pawn", [1]);
-    const negative = tuned("pawn", [-1]);
-    const p = positive.pieces[0];
-    const n = negative.pieces[0];
-    expect(evaluatePieceContribution(p, { x: 4, y: 4 }, positive)).toBe(-evaluatePieceContribution(n, { x: 4, y: 4 }, negative));
+  it("pawn defaults to stronger hostile than friendly ring-1 pressure", () => {
+    const state = tuned("pawn", [1]);
+    const piece = state.pieces[0];
+    expect(evaluatePieceContribution(piece, { x: 4, y: 3 }, state)).toBeCloseTo(-1);
+    expect(evaluatePieceContribution(piece, { x: 4, y: 4 }, state)).toBeCloseTo(0.5);
   });
 
   it("decay halves each ring for equal signs", () => {

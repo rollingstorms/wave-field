@@ -43,6 +43,13 @@ on. Coefficients and strengths are integers, so combined field totals are always
 dyadic fractions whose denominators are powers of two. A sum may be `3/8` or
 `5/16`, but never `1/3` or `1/5`.
 
+Each piece type also has friendly and hostile scale parameters. A component
+cell that supports its owner uses the friendly scale; a cell that opposes its
+owner uses the hostile scale. Pawns default to friendly `1` and hostile `2`, so
+their first ring is `+1/2` on friendly cells and `-1` on hostile cells for Red,
+with signs reversed for Blue. Rooks, spies, and kings currently default to
+friendly `1` and hostile `1`.
+
 ## Pieces
 
 Each player begins with two pawns, two rooks, one spy, and one king. Blue moves
@@ -194,10 +201,12 @@ legal-move indicators, blocked-king move markers, instability warnings, loss
 burst animations, undo and restart, high-contrast territory markers, a compact
 mobile tuning panel, and a developer mode for inspecting the raw field, piece
 contributions, mobility, and editable wave definitions. Developer mode also
-provides editable default component controls; the selected profile is applied to
-both players on restart. Its scrollable History Roll reconstructs moves, tuning
+provides editable default component controls and friendly/hostile wave scales.
+The selected control profile is applied to both players on restart. Its
+scrollable History Roll reconstructs moves, tuning
 changes, dice and hint profiles, piece losses, and turn transitions from the
-active undo timeline.
+active undo timeline. The Pressure panel summarizes legal moves, unstable
+pieces, king safety, and a recent pressure trend.
 
 The optional Red AI uses a bounded heuristic search. It evaluates many tuning
 and movement candidates quickly, then runs exact safety validation on a small

@@ -14,7 +14,9 @@ export function evaluatePieceContribution(
   const delta = offset(piece.position, square);
   if (delta.x === 0 && delta.y === 0) return HOME_SQUARE_CONTRIBUTION[piece.type];
   return PIECE_STRENGTH[piece.type] * coefficients.reduce<number>((total, coefficient, index) => {
-    return total + coefficient * evaluateComponentBasis(piece.type, bases[index], delta);
+    const value = coefficient * evaluateComponentBasis(piece.type, bases[index], delta);
+    const scale = value >= 0 ? state.waveScales[piece.type].friendly : state.waveScales[piece.type].hostile;
+    return total + value * scale;
   }, 0);
 }
 

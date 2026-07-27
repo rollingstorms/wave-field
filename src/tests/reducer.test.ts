@@ -109,6 +109,20 @@ describe("reducer", () => {
     expect(undone.defaultComponents.king).toEqual([0, 1, 0]);
   });
 
+  it("updates wave scales with undo history and preserves them on restart", () => {
+    const state = createInitialState();
+    const scaled = gameReducer(state, { type: "update-wave-scale", pieceType: "rook", scale: "hostile", value: 1.5 });
+
+    expect(scaled.waveScales.rook.hostile).toBe(1.5);
+    expect(scaled.history).toHaveLength(1);
+
+    const restarted = gameReducer(scaled, { type: "restart", keepDefinitions: true });
+    expect(restarted.waveScales.rook.hostile).toBe(1.5);
+
+    const undone = gameReducer(scaled, { type: "undo" });
+    expect(undone.waveScales.rook.hostile).toBe(1);
+  });
+
   it("rejects default controls beyond a piece's strength", () => {
     const state = createInitialState();
     const first = gameReducer(state, { type: "update-default-component", pieceType: "spy", componentIndex: 1, value: -1 });
