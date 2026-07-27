@@ -1,5 +1,7 @@
 import { TUNING_STRENGTH } from "./constants";
-import type { Coefficient, PieceType, PlayerComponents } from "./types";
+import type { ActivationOrders, Coefficient, PieceType, Player, PlayerActivationOrder, PlayerComponents } from "./types";
+
+const pieceTypes: PieceType[] = ["pawn", "rook", "spy", "king"];
 
 export function getTuningLoad(coefficients: readonly Coefficient[]): number {
   return coefficients.filter((coefficient) => coefficient !== 0).length;
@@ -18,4 +20,18 @@ export function canSetComponentValue(
   const next = [...components[pieceType]];
   next[componentIndex] = value;
   return isTuningWithinStrength(pieceType, next);
+}
+
+export function activationOrderForProfile(components: PlayerComponents): PlayerActivationOrder {
+  return Object.fromEntries(pieceTypes.map((pieceType) => [
+    pieceType,
+    components[pieceType].flatMap((coefficient, index) => coefficient === 0 ? [] : [index]),
+  ])) as PlayerActivationOrder;
+}
+
+export function activationOrdersForPlayers(components: Record<Player, PlayerComponents>): ActivationOrders {
+  return {
+    blue: activationOrderForProfile(components.blue),
+    red: activationOrderForProfile(components.red),
+  };
 }

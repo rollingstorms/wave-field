@@ -174,7 +174,7 @@ export function RulesPage({ onBack }: RulesPageProps) {
             <li>Tune any of your piece-type wave controls.</li>
             <li>Move exactly one piece to end the turn.</li>
           </ol>
-          <p>Tuning is shared by type, so both of your rooks use the same rook settings. The dice randomizes a valid profile. Red controls show positive friendly waves; Blue controls show negative friendly waves.</p>
+          <p>Tuning is shared by type, so both of your rooks use the same rook settings. Tap an active sign to turn it off; at the active limit, the least recently pressed component turns off. The dice randomizes a valid profile.</p>
         </article>
 
         <article className="rules-panel rules-piece-panel">

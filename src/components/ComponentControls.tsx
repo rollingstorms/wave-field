@@ -1,11 +1,11 @@
 import { Dices, RotateCcw } from "lucide-react";
 import { COMPONENT_COUNTS, TUNING_STRENGTH } from "../game/constants";
-import { canSetComponentValue, getTuningLoad } from "../game/tuning";
+import { getTuningLoad } from "../game/tuning";
 import type { Coefficient, GameState, PieceType, Player } from "../game/types";
 import { WaveThumbnail } from "./WaveThumbnail";
 
 const pieceTypes: PieceType[] = ["pawn", "rook", "spy", "king"];
-const values: Coefficient[] = [1, 0, -1];
+const values: Coefficient[] = [1, -1];
 export function coefficientLabel(player: Player, value: Coefficient) {
   const fieldSign = player === "blue" ? -value : value;
   return fieldSign === 1 ? "+" : fieldSign === -1 ? "-" : "0";
@@ -73,33 +73,14 @@ export function ComponentControls({ state, locked = false, onTune, onRandomize, 
                   disabled={
                     locked
                     || state.status !== "playing"
-                    || coefficient === value
-                    || !canSetComponentValue(state.components[player], pieceType, index, value)
                   }
                   onClick={() => onTune(pieceType, index, value)}
                   aria-pressed={coefficient === value}
-                  aria-label={`${player} ${pieceType} component ${index + 1} set to ${coefficientLabel(player, value)}`}
+                  aria-label={`${player} ${pieceType} component ${index + 1} ${coefficient === value ? "turn off" : `set to ${coefficientLabel(player, value)}`}`}
                 >
                   {coefficientLabel(player, value)}
                 </button>
               ))}
-              <select
-                className="compact-coefficient"
-                value={coefficient}
-                disabled={locked || state.status !== "playing"}
-                onChange={(event) => onTune(pieceType, index, Number(event.target.value) as Coefficient)}
-                aria-label={`${player} ${pieceType} component ${index + 1}`}
-              >
-                {values.map((value) => (
-                  <option
-                    key={value}
-                    value={value}
-                    disabled={!canSetComponentValue(state.components[player], pieceType, index, value)}
-                  >
-                    {coefficientLabel(player, value)}
-                  </option>
-                ))}
-              </select>
             </div>
           ))}
         </section>

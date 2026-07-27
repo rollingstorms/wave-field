@@ -27,12 +27,12 @@ describe("reducer", () => {
     expect(moved.currentPlayer).toBe("red");
   });
 
-  it("rejects tuning beyond a piece's strength", () => {
+  it("keeps only the last activated spy component", () => {
     const state = createInitialState();
     const first = gameReducer(state, { type: "tune", pieceType: "spy", componentIndex: 1, value: 1 });
 
-    expect(first.components.blue.spy).toEqual([1, 0, 0]);
-    expect(first.message).toContain("up to 1 active component");
+    expect(first.components.blue.spy).toEqual([0, 1, 0]);
+    expect(first.activationOrders.blue.spy).toEqual([1]);
   });
 
   it("allows active pawn and king components to flip sign", () => {
@@ -53,12 +53,30 @@ describe("reducer", () => {
     expect(tuned.message).toContain("move a piece to end the turn");
   });
 
-  it("rejects activating the king's neutral C1 while already at full strength", () => {
+  it("evicts the oldest active king component at full strength", () => {
     const state = createInitialState();
     const tuned = gameReducer(state, { type: "tune", pieceType: "king", componentIndex: 0, value: -1 });
 
-    expect(tuned.components.blue.king).toEqual([0, 1, 1]);
-    expect(tuned.message).toContain("up to 2 active components");
+    expect(tuned.components.blue.king).toEqual([-1, 0, 1]);
+    expect(tuned.activationOrders.blue.king).toEqual([2, 0]);
+  });
+
+  it("pressing an active sign toggles that component off", () => {
+    const state = createInitialState();
+    const tuned = gameReducer(state, { type: "tune", pieceType: "pawn", componentIndex: 0, value: 1 });
+
+    expect(tuned.components.blue.pawn).toEqual([0]);
+    expect(tuned.activationOrders.blue.pawn).toEqual([]);
+  });
+
+  it("a sign flip makes the component most recently active", () => {
+    const state = createInitialState();
+    const flipped = gameReducer(state, { type: "tune", pieceType: "king", componentIndex: 1, value: -1 });
+    const activated = gameReducer(flipped, { type: "tune", pieceType: "king", componentIndex: 0, value: -1 });
+
+    expect(flipped.activationOrders.blue.king).toEqual([2, 1]);
+    expect(activated.components.blue.king).toEqual([-1, -1, 0]);
+    expect(activated.activationOrders.blue.king).toEqual([1, 0]);
   });
 
   it("undo restores the previous in-turn tuning state", () => {
@@ -68,6 +86,7 @@ describe("reducer", () => {
 
     expect(undone.currentPlayer).toBe("blue");
     expect(undone.components.blue.pawn[0]).toBe(1);
+    expect(undone.activationOrders.blue.pawn).toEqual([0]);
   });
 
   it("restart can preserve edited definitions", () => {

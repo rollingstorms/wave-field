@@ -47,6 +47,9 @@ export interface PlayerComponents {
   king: [Coefficient, Coefficient, Coefficient];
 }
 
+export type PlayerActivationOrder = Record<PieceType, number[]>;
+export type ActivationOrders = Record<Player, PlayerActivationOrder>;
+
 export interface WaveScale {
   friendly: number;
   hostile: number;
@@ -84,6 +87,7 @@ export interface GameSnapshot {
   pieces: Piece[];
   currentPlayer: Player;
   components: Record<Player, PlayerComponents>;
+  activationOrders: ActivationOrders;
   status: GameStatus;
   selectedPieceId: string | null;
   turnNumber: number;

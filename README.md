@@ -94,16 +94,16 @@ king safe.
 The controls display each component's signed field contribution:
 
 - `+` for a positive Red wave;
-- `0` to disable it;
 - `-` for a negative Blue wave.
 
 Because Blue's owner sign reverses the shared coefficient, the live Blue
 controls display the opposite signs from Red for the same underlying profile.
 
-The number of active `+` and `-` components combined cannot exceed that piece
-type's active limit. For example, the king has three tunable components but may
-activate only two at once; the spy has three available components but may
-activate only one.
+Tap `+` or `-` to activate a component with that sign. Tap its active sign again
+to turn it off, or tap the other sign to flip it. The number of active
+components cannot exceed that piece type's limit. Activating another component
+at the limit turns off the least recently pressed component: the king keeps the
+last two, while the spy keeps only the last one.
 
 Tuning is shared by piece type. Both of a player's rooks always use that
 player's rook settings, while the opposing player controls a separate set.

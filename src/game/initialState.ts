@@ -1,5 +1,6 @@
 import { cloneDefinitions, DEFAULT_COMPONENTS } from "../field/componentDefinitions";
 import { DEFAULT_HOME_ENERGY, DEFAULT_WAVE_SCALES } from "./constants";
+import { activationOrdersForPlayers } from "./tuning";
 import type { ComponentDefinitions, GameSnapshot, GameState, HomeEnergy, Piece, Player, PlayerComponents, PieceType, WaveScales } from "./types";
 
 function piece(owner: Player, type: PieceType, x: number, y: number, n: number): Piece {
@@ -29,13 +30,15 @@ export function createInitialState(
   waveScales: WaveScales = structuredClone(DEFAULT_WAVE_SCALES),
   homeEnergy: HomeEnergy = structuredClone(DEFAULT_HOME_ENERGY),
 ): GameState {
+  const components = {
+    blue: structuredClone(defaultComponents),
+    red: structuredClone(defaultComponents),
+  };
   return {
     pieces: createInitialPieces(),
     currentPlayer: "blue",
-    components: {
-      blue: structuredClone(defaultComponents),
-      red: structuredClone(defaultComponents),
-    },
+    components,
+    activationOrders: activationOrdersForPlayers(components),
     defaultComponents: structuredClone(defaultComponents),
     definitions: structuredClone(definitions),
     waveScales: structuredClone(waveScales),
@@ -53,6 +56,7 @@ export function snapshot(state: GameState): GameSnapshot {
     pieces: structuredClone(state.pieces),
     currentPlayer: state.currentPlayer,
     components: structuredClone(state.components),
+    activationOrders: structuredClone(state.activationOrders),
     status: state.status,
     selectedPieceId: state.selectedPieceId,
     turnNumber: state.turnNumber,
@@ -69,6 +73,7 @@ export function fromSnapshot(
 ): GameState {
   return {
     ...structuredClone(snap),
+    activationOrders: structuredClone(snap.activationOrders ?? activationOrdersForPlayers(snap.components)),
     waveScales: structuredClone(snap.waveScales ?? DEFAULT_WAVE_SCALES),
     homeEnergy: structuredClone(snap.homeEnergy ?? DEFAULT_HOME_ENERGY),
     defaultComponents: structuredClone(defaultComponents),

@@ -4,7 +4,7 @@ import { COMPONENT_COUNTS } from "./constants";
 import { snapshot } from "./initialState";
 import { getLegalMoves } from "./movement";
 import { applyMove } from "./rules";
-import { isTuningWithinStrength } from "./tuning";
+import { activationOrderForProfile, isTuningWithinStrength } from "./tuning";
 import type { Coefficient, GameState, PieceType, Player, PlayerComponents } from "./types";
 import { getUnstablePieces, isKingUnprotected, markInstability } from "./victory";
 
@@ -95,7 +95,12 @@ export function playHeuristicTurn(state: GameState, player: Player = "red"): Gam
   for (const profile of tuningCandidates(state, player)) {
     const components = structuredClone(state.components);
     components[player] = profile;
-    const tuned = markInstability({ ...state, components, selectedPieceId: null }, evaluateField({ ...state, components }));
+    const activationOrders = structuredClone(state.activationOrders);
+    activationOrders[player] = activationOrderForProfile(profile);
+    const tuned = markInstability(
+      { ...state, components, activationOrders, selectedPieceId: null },
+      evaluateField({ ...state, components, activationOrders }),
+    );
     const field = evaluateField(tuned);
 
     for (const piece of tuned.pieces.filter((candidate) => candidate.owner === player)) {

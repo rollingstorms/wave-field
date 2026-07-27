@@ -724,7 +724,7 @@ h1 {
 
 .coefficient-row {
   display: grid;
-  grid-template-columns: 34px repeat(3, 1fr);
+  grid-template-columns: 34px repeat(2, 1fr);
   gap: 8px;
   align-items: center;
   margin-top: 8px;
@@ -740,10 +740,6 @@ h1 {
 
 .coefficient-row .chosen.red { background: var(--red); }
 .coefficient-row .chosen.blue { background: var(--blue); }
-
-.compact-coefficient {
-  display: none;
-}
 
 .coefficient-row button:disabled:not(.chosen) {
   opacity: 0.38;
@@ -1747,7 +1743,7 @@ select, .editor-bar button, .secondary, .import-button {
   }
   .coefficient-row {
     grid-row: 1;
-    grid-template-columns: 12px repeat(3, minmax(0, 1fr));
+    grid-template-columns: 12px repeat(2, minmax(0, 1fr));
     gap: 2px;
     min-width: 0;
     margin: 0;
@@ -1768,19 +1764,18 @@ select, .editor-bar button, .secondary, .import-button {
 }
 
 @media (max-width: 350px) {
+  .actions {
+    gap: 2px;
+  }
+  .actions button {
+    width: 34px;
+    padding: 0;
+  }
+  .actions button:last-child {
+    width: 50px;
+    padding: 0 4px;
+  }
   .coefficient-row {
-    grid-template-columns: 12px minmax(0, 1fr);
-  }
-  .coefficient-row button {
-    display: none;
-  }
-  .compact-coefficient {
-    display: block;
-    width: 100%;
-    height: 38px;
-    min-width: 0;
-    border: 1px solid var(--line);
-    background: #121515;
-    text-align: center;
+    grid-template-columns: 12px repeat(2, minmax(0, 1fr));
   }
 }

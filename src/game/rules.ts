@@ -2,7 +2,7 @@ import { evaluateField } from "../field/evaluateField";
 import { BOARD_SIZE, TUNING_STRENGTH } from "./constants";
 import type { Coefficient, GameState, MoveResult, PieceType, Player, PlayerComponents, Position } from "./types";
 import { getLegalMoves, samePosition } from "./movement";
-import { canSetComponentValue, isTuningWithinStrength } from "./tuning";
+import { activationOrderForProfile, isTuningWithinStrength } from "./tuning";
 import { getUnstablePieces, isKingUnprotected, markInstability, removeUnrescuedPieces } from "./victory";
 import { snapshot } from "./initialState";
 
@@ -236,6 +236,8 @@ export function applyClosestPlayableHint(state: GameState): MoveResult {
 
   const components = structuredClone(resolved.components);
   components[state.currentPlayer] = structuredClone(hint.components);
+  const activationOrders = structuredClone(resolved.activationOrders);
+  activationOrders[state.currentPlayer] = activationOrderForProfile(hint.components);
   const tuned = markInstability({ ...resolved, components }, evaluateField({ ...resolved, components }));
   const changeText = hint.changedComponents === 0
     ? "Current tuning works"
@@ -244,6 +246,7 @@ export function applyClosestPlayableHint(state: GameState): MoveResult {
     ok: true,
     state: {
       ...tuned,
+      activationOrders,
       selectedPieceId: hint.pieceId,
       history: [...state.history, snapshot(state)],
       message: `Hint · ${changeText} · move ${hint.pieceType} to ${boardCoordinate(hint.destination)}`,
@@ -266,7 +269,9 @@ export function randomizeTuning(state: GameState, random: () => number = Math.ra
   }
   const components = structuredClone(state.components);
   components[player] = randomized;
-  const candidate = { ...state, components };
+  const activationOrders = structuredClone(state.activationOrders);
+  activationOrders[player] = activationOrderForProfile(randomized);
+  const candidate = { ...state, components, activationOrders };
   const marked = markInstability(candidate, evaluateField(candidate));
   const message = isKingUnprotected(player, marked, evaluateField(marked))
     ? `${playerName(player)} randomized tuning · king remains in check`
@@ -290,7 +295,9 @@ export function resetTuning(state: GameState): MoveResult {
   }
   const components = structuredClone(state.components);
   components[player] = structuredClone(state.defaultComponents);
-  const candidate = { ...state, components };
+  const activationOrders = structuredClone(state.activationOrders);
+  activationOrders[player] = activationOrderForProfile(state.defaultComponents);
+  const candidate = { ...state, components, activationOrders };
   const marked = markInstability(candidate, evaluateField(candidate));
   const message = isKingUnprotected(player, marked, evaluateField(marked))
     ? `${playerName(player)} reset tuning · king remains in check`
@@ -314,15 +321,33 @@ export function applyTuning(
   state: GameState,
 ): MoveResult {
   if (state.status !== "playing" || player !== state.currentPlayer) return { ok: false, state, reason: "It is not that player's turn." };
-  if (state.components[player][pieceType][componentIndex] === value) return { ok: false, state, reason: "Choose a different coefficient." };
-  if (!canSetComponentValue(state.components[player], pieceType, componentIndex, value)) {
-    const strength = TUNING_STRENGTH[pieceType];
-    return { ok: false, state, reason: `${pieceType[0].toUpperCase()}${pieceType.slice(1)} tuning allows up to ${strength} active component${strength === 1 ? "" : "s"}.` };
+  const nextComponents = structuredClone(state.components);
+  const activationOrders = structuredClone(state.activationOrders);
+  const coefficients = nextComponents[player][pieceType];
+  const currentValue = coefficients[componentIndex];
+  const activeIndices = coefficients.flatMap((coefficient, index) => coefficient === 0 ? [] : [index]);
+  const existingOrder = activationOrders[player][pieceType]
+    .filter((index) => activeIndices.includes(index));
+  for (const index of activeIndices) {
+    if (!existingOrder.includes(index)) existingOrder.push(index);
   }
 
-  const nextComponents = structuredClone(state.components);
-  nextComponents[player][pieceType][componentIndex] = value;
-  const candidate = { ...state, components: nextComponents };
+  if (value === 0 || currentValue === value) {
+    coefficients[componentIndex] = 0;
+    activationOrders[player][pieceType] = existingOrder.filter((index) => index !== componentIndex);
+  } else {
+    const wasActive = currentValue !== 0;
+    const nextOrder = existingOrder.filter((index) => index !== componentIndex);
+    if (!wasActive && activeIndices.length >= TUNING_STRENGTH[pieceType]) {
+      const evictedIndex = nextOrder.shift();
+      if (evictedIndex !== undefined) coefficients[evictedIndex] = 0;
+    }
+    coefficients[componentIndex] = value;
+    nextOrder.push(componentIndex);
+    activationOrders[player][pieceType] = nextOrder;
+  }
+
+  const candidate = { ...state, components: nextComponents, activationOrders };
   const marked = markInstability(candidate, evaluateField(candidate));
   const message = isKingUnprotected(player, marked, evaluateField(marked))
     ? `${playerName(player)} king is in check · move to rescue the king`
