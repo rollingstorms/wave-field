@@ -27,7 +27,7 @@ export const HOME_SQUARE_CONTRIBUTION = {
 export const DEFAULT_WAVE_SCALES = {
   pawn: { friendly: 3, hostile: 1 },
   rook: { friendly: 3, hostile: 1 },
-  spy: { friendly: 2, hostile: 0 },
+  spy: { friendly: 3, hostile: 0 },
   king: { friendly: 3, hostile: 2 },
 } as const;
 
