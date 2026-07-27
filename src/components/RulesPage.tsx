@@ -200,7 +200,7 @@ export function RulesPage({ onBack }: RulesPageProps) {
         <article className="rules-panel">
           <Crown size={22} />
           <h2>Check</h2>
-          <p>Your king must end every move on friendly or Neutral territory. In check, Hint applies the nearest rescuing tuning profile. If no rescue exists, it is checkmate.</p>
+          <p>Your king must end every move on friendly or Neutral territory. In check, Hint applies the nearest rescuing tuning profile. If no rescue is found, the checked player still gets the turn.</p>
         </article>
       </section>
 

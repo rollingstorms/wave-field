@@ -156,7 +156,7 @@ export function beginTurn(state: GameState, options: RuleOptions = {}): GameStat
         : `move ${rescue.pieceType} to ${boardCoordinate(rescue.destination)}`;
       return { ...resolved, message: `${playerName(state.currentPlayer)} king is in check · ${rescueHint}` };
     }
-    return { ...resolved, status: winStatus(opponent(state.currentPlayer)), message: `${playerName(state.currentPlayer)} king is checkmated` };
+    return { ...resolved, message: `${playerName(state.currentPlayer)} king is in check · no legal rescue found` };
   }
   const unstable = getUnstablePieces(state.currentPlayer, resolved, field).filter((piece) => piece.type !== "king");
   if (unstable.length > 0) {

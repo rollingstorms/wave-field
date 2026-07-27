@@ -12,9 +12,9 @@ This repository is a live, playable application of the current rules:
 ## Objective
 
 Win by **checkmating the opposing king**. A king is in check when its square is
-hostile territory. After a move gives check, the checked player gets a rescue
-turn if the rules can find a way to protect the king. If no rescue exists, the
-game ends immediately as checkmate.
+hostile territory. After a move gives check, the checked player gets a visible
+rescue turn. If the rules cannot find a rescue, the status line says so instead
+of ending the game immediately.
 
 ## The Field
 
@@ -153,7 +153,8 @@ When a completed move places the opposing king on hostile territory, the
 opponent begins their turn in check. The game looks for a rescue across every
 valid combined tuning profile, followed by one legal move. If a rescue exists,
 the status line gives a concrete hint such as "tune, then move spy to 4,5". If
-no rescue exists, the checked king is checkmated and the moving player wins.
+no rescue is found, the status line says so and leaves the checked player in
+control.
 
 While in check, a player may resign from the unprotected-king warning instead
 of continuing to search for an alternate tuning and legal escape. The adjacent
@@ -161,8 +162,8 @@ Hint control searches every valid combined tuning profile, applies the profile
 with the fewest changed component slots, and selects a piece with a legal
 rescuing move.
 
-Kings are never captured or removed. A lost king is represented as checkmate,
-not as a disappearing piece.
+Kings are never captured or removed. A checked player remains in control until
+they find a rescue, resign, or undo.
 
 ## Starting Position
 
@@ -199,8 +200,8 @@ changes, dice and hint profiles, piece losses, and turn transitions from the
 active undo timeline.
 
 The optional Red AI uses a bounded heuristic search. It evaluates many tuning
-and movement candidates quickly, then runs exact checkmate analysis only on a
-small shortlist so mobile browsers remain responsive.
+and movement candidates quickly, then runs exact safety validation on a small
+shortlist so mobile browsers remain responsive.
 
 The implementation is deterministic: the same position and component settings
 always produce the same field and legal moves.
