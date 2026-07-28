@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { Flag, Lightbulb } from "lucide-react";
 import type {
   CSSProperties,
@@ -148,7 +148,7 @@ export function Board({ state, field, typeFields, continuousField, showTypeSums,
     }));
   }, [interactionPiece, playableMoveKeys, reachableMoves, state]);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     const previousPieces = previousPiecesRef.current;
     const previousById = new Map(previousPieces.map((piece) => [piece.id, piece]));
     const currentIds = new Set(state.pieces.map((piece) => piece.id));
@@ -381,6 +381,7 @@ export function Board({ state, field, typeFields, continuousField, showTypeSums,
                 "--from-y": animation.from.y,
                 "--to-x": animation.to.x,
                 "--to-y": animation.to.y,
+                transform: `translate(${animation.from.x * 100}%, ${animation.from.y * 100}%)`,
               } as CSSProperties}
               aria-hidden="true"
             >
