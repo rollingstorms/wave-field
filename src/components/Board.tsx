@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Flag, Lightbulb } from "lucide-react";
 import type {
+  CSSProperties,
   MouseEvent as ReactMouseEvent,
   PointerEvent as ReactPointerEvent,
   ReactNode,
@@ -17,6 +18,7 @@ import { getLegalMoves, getPieceAt, samePosition } from "../game/movement";
 import { applyMove, getPlayableMoves } from "../game/rules";
 import type { GameState, Position } from "../game/types";
 import { markInstability } from "../game/victory";
+import { Piece } from "./Piece";
 import { Square } from "./Square";
 
 interface BoardProps {
@@ -52,6 +54,13 @@ interface LossPop {
   position: Position;
 }
 
+interface MovementAnimation {
+  id: string;
+  piece: NonNullable<GameState["pieces"][number]>;
+  from: Position;
+  to: Position;
+}
+
 export function Board({ state, field, typeFields, continuousField, showTypeSums, energyView, energyChannels, locked = false, onSelect, onMove, onResign, onHint, hintSearching = false, onToggleEnergyChannel, actions }: BoardProps) {
   const boardRef = useRef<HTMLDivElement>(null);
   const dragRef = useRef<ActiveDrag | null>(null);
@@ -61,6 +70,8 @@ export function Board({ state, field, typeFields, continuousField, showTypeSums,
   const [draggingPieceId, setDraggingPieceId] = useState<string | null>(null);
   const [dragPreview, setDragPreview] = useState<Position | null>(null);
   const [lossPops, setLossPops] = useState<LossPop[]>([]);
+  const [movementAnimations, setMovementAnimations] = useState<MovementAnimation[]>([]);
+  const [movingPieceIds, setMovingPieceIds] = useState<Set<string>>(() => new Set());
   const [energySelection, setEnergySelection] = useState<Position | null>(null);
   const selectedPiece = state.pieces.find((piece) => piece.id === state.selectedPieceId);
   const interactionPiece = energyView ? undefined : state.pieces.find((piece) => piece.id === draggingPieceId) ?? selectedPiece;
@@ -68,6 +79,11 @@ export function Board({ state, field, typeFields, continuousField, showTypeSums,
   const legalMoves = !locked && interactionPiece ? getPlayableMoves(interactionPiece.id, state, field) : [];
   const previewState = useMemo<GameState>(() => {
     if (!draggingPieceId || !dragPreview) return state;
+    const piece = state.pieces.find((candidate) => candidate.id === draggingPieceId);
+    if (piece && !samePosition(piece.position, dragPreview)) {
+      const result = applyMove(draggingPieceId, dragPreview, state);
+      if (result.ok) return result.state;
+    }
     const moved = {
       ...state,
       pieces: state.pieces.map((piece) =>
@@ -133,21 +149,46 @@ export function Board({ state, field, typeFields, continuousField, showTypeSums,
   }, [interactionPiece, playableMoveKeys, reachableMoves, state]);
 
   useEffect(() => {
+    const previousPieces = previousPiecesRef.current;
+    const previousById = new Map(previousPieces.map((piece) => [piece.id, piece]));
     const currentIds = new Set(state.pieces.map((piece) => piece.id));
-    const lost = previousPiecesRef.current.filter((piece) => !currentIds.has(piece.id));
+    const lost = previousPieces.filter((piece) => !currentIds.has(piece.id));
+    const moved = state.pieces.flatMap((piece) => {
+      const previous = previousById.get(piece.id);
+      return previous && !samePosition(previous.position, piece.position)
+        ? [{ id: `${piece.id}:${globalThis.performance.now()}`, piece, from: previous.position, to: piece.position }]
+        : [];
+    });
     previousPiecesRef.current = state.pieces;
-    if (lost.length === 0) return;
 
-    const created = lost.map((piece) => ({
-      id: `${piece.id}:${globalThis.performance.now()}`,
-      position: piece.position,
-    }));
-    setLossPops((pops) => [...pops, ...created]);
-    const timer = globalThis.setTimeout(() => {
-      setLossPops((pops) => pops.filter((pop) => !created.some((candidate) => candidate.id === pop.id)));
-      lossPopTimersRef.current = lossPopTimersRef.current.filter((candidate) => candidate !== timer);
-    }, 560);
-    lossPopTimersRef.current.push(timer);
+    if (moved.length > 0) {
+      const movedIds = new Set(moved.map((animation) => animation.piece.id));
+      setMovementAnimations((animations) => [...animations, ...moved]);
+      setMovingPieceIds((ids) => new Set([...ids, ...movedIds]));
+      const timer = globalThis.setTimeout(() => {
+        setMovementAnimations((animations) => animations.filter((animation) => !moved.some((candidate) => candidate.id === animation.id)));
+        setMovingPieceIds((ids) => {
+          const next = new Set(ids);
+          for (const id of movedIds) next.delete(id);
+          return next;
+        });
+        lossPopTimersRef.current = lossPopTimersRef.current.filter((candidate) => candidate !== timer);
+      }, 260);
+      lossPopTimersRef.current.push(timer);
+    }
+
+    if (lost.length > 0) {
+      const created = lost.map((piece) => ({
+        id: `${piece.id}:${globalThis.performance.now()}`,
+        position: piece.position,
+      }));
+      setLossPops((pops) => [...pops, ...created]);
+      const timer = globalThis.setTimeout(() => {
+        setLossPops((pops) => pops.filter((pop) => !created.some((candidate) => candidate.id === pop.id)));
+        lossPopTimersRef.current = lossPopTimersRef.current.filter((candidate) => candidate !== timer);
+      }, 560);
+      lossPopTimersRef.current.push(timer);
+    }
   }, [state.pieces]);
 
   useEffect(() => {
@@ -331,6 +372,21 @@ export function Board({ state, field, typeFields, continuousField, showTypeSums,
           onTouchCancel={(event) => finishTouchDrag(event, false)}
           onClickCapture={handleClickCapture}
         >
+          {movementAnimations.map((animation) => (
+            <span
+              className="piece-move-ghost"
+              key={animation.id}
+              style={{
+                "--from-x": animation.from.x,
+                "--from-y": animation.from.y,
+                "--to-x": animation.to.x,
+                "--to-y": animation.to.y,
+              } as CSSProperties}
+              aria-hidden="true"
+            >
+              <Piece piece={animation.piece} selected={false} dragging={false} />
+            </span>
+          ))}
           {Array.from({ length: BOARD_SIZE }, (_, y) =>
             Array.from({ length: BOARD_SIZE }, (_, x) => {
               const position = { x, y };
@@ -377,6 +433,7 @@ export function Board({ state, field, typeFields, continuousField, showTypeSums,
                   continuousSummary={continuousField && !energyView
                     ? ` Relative field magnitude ${fieldMagnitudePercent} percent.`
                     : ""}
+                  hidePiece={Boolean(piece && movingPieceIds.has(piece.id))}
                   onClick={() => handleSquare(position)}
                 />
               );

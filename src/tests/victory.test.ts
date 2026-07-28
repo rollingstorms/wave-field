@@ -223,7 +223,7 @@ describe("stability and victory", () => {
     expect(applied.state.message).toContain(`move ${hint?.pieceType}`);
   });
 
-  it("a checked king with no found rescue still gets a visible check turn", () => {
+  it("a checked king with no found rescue loses immediately", () => {
     const state = createInitialState();
     state.currentPlayer = "red";
     state.definitions.pawn[0] = { kind: "preset", name: "Flat", preset: "constant-basin", decayBase: 2, originScale: 1 };
@@ -243,7 +243,7 @@ describe("stability and victory", () => {
 
     const started = beginTurn(state);
 
-    expect(started.status).toBe("playing");
+    expect(started.status).toBe("blue-won");
     expect(started.currentPlayer).toBe("red");
     expect(started.message).toContain("Red king is in check");
     expect(started.message).toContain("no legal rescue found");

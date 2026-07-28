@@ -22,6 +22,7 @@ interface SquareProps {
   energySelected?: boolean;
   continuousColor?: string;
   continuousSummary?: string;
+  hidePiece?: boolean;
   onClick: () => void;
 }
 
@@ -31,7 +32,7 @@ function formatSigned(value: number) {
   return `${value > 0 ? "+" : ""}${magnitude.replace(".0", "")}`;
 }
 
-export function Square({ position, territory, fieldValue, piece, legal, risky, kingBlocked, selected, dragging, dragPreview, influenceTerritory, influenceOpacity, typeSums, lossPop, energyColor, energySummary = "", energySelected = false, continuousColor, continuousSummary = "", onClick }: SquareProps) {
+export function Square({ position, territory, fieldValue, piece, legal, risky, kingBlocked, selected, dragging, dragPreview, influenceTerritory, influenceOpacity, typeSums, lossPop, energyColor, energySummary = "", energySelected = false, continuousColor, continuousSummary = "", hidePiece = false, onClick }: SquareProps) {
   const renderedColor = energyColor ?? continuousColor;
   const coordinate = `${String.fromCharCode(65 + position.x)}${BOARD_SIZE - position.y}`;
   const influenceSummary = influenceTerritory
@@ -62,7 +63,7 @@ export function Square({ position, territory, fieldValue, piece, legal, risky, k
       {legal && <span className={risky ? "legal-dot risky-dot" : "legal-dot"} />}
       {risky && <span className="risk-marker" aria-hidden="true">!</span>}
       {kingBlocked && <span className="king-block-marker" aria-hidden="true">K</span>}
-      {piece && <Piece piece={piece} selected={selected} dragging={dragging} />}
+      {piece && <Piece piece={piece} selected={selected} dragging={dragging} hidden={hidePiece} />}
       {piece?.unstable && <span className="unstable" aria-label="unstable">!</span>}
       {lossPop && (
         <span className="loss-pop" aria-hidden="true">

@@ -4,10 +4,11 @@ interface PieceProps {
   piece: PieceModel;
   selected: boolean;
   dragging: boolean;
+  hidden?: boolean;
 }
 
-export function Piece({ piece, selected, dragging }: PieceProps) {
-  const className = `piece ${piece.owner} ${piece.type} ${selected ? "selected" : ""} ${dragging ? "dragging" : ""}`;
+export function Piece({ piece, selected, dragging, hidden = false }: PieceProps) {
+  const className = `piece ${piece.owner} ${piece.type} ${selected ? "selected" : ""} ${dragging ? "dragging" : ""} ${hidden ? "moving-hidden" : ""}`;
   return (
     <svg className={className} viewBox="0 0 64 64" aria-label={`${piece.owner} ${piece.type}`}>
       {piece.type === "pawn" && <path d="M20 52V25a12 12 0 0 1 24 0v27Z" />}
