@@ -23,7 +23,7 @@ describe("debug history roll", () => {
     const entries = buildHistoryRoll(moved);
 
     expect(entries.at(-1)?.summary).toBe("Blue moved pawn");
-    expect(entries.at(-1)?.details.some((detail) => detail.includes("Blue pawn 3,6→"))).toBe(true);
+    expect(entries.at(-1)?.details.some((detail) => detail.includes("Blue pawn C6→"))).toBe(true);
   });
 
   it("describes home energy changes", () => {

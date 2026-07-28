@@ -22,7 +22,7 @@ function signLabel(player: Player, coefficient: Coefficient) {
 }
 
 function coordinate(x: number, y: number) {
-  return `${x + 1},${BOARD_SIZE - y}`;
+  return `${String.fromCharCode(65 + x)}${BOARD_SIZE - y}`;
 }
 
 function homeEnergy(snapshot: GameSnapshot): HomeEnergy {

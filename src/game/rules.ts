@@ -19,7 +19,7 @@ function playerName(player: Player): string {
 }
 
 function boardCoordinate(position: Position): string {
-  return `${position.x + 1},${BOARD_SIZE - position.y}`;
+  return `${String.fromCharCode(65 + position.x)}${BOARD_SIZE - position.y}`;
 }
 
 const pieceTypes: PieceType[] = ["pawn", "rook", "spy", "king"];
