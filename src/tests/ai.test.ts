@@ -80,6 +80,30 @@ describe("heuristic opponent", () => {
     expect(rook?.position).not.toEqual({ x: 3, y: 3 });
   });
 
+  it("uses seeded stochasticity to diversify repeated board positions reproducibly", () => {
+    const state = createInitialState();
+    state.currentPlayer = "red";
+    state.pieces = [
+      { id: "red-king", owner: "red", type: "king", position: { x: 0, y: 0 }, unstable: false },
+      { id: "red-rook", owner: "red", type: "rook", position: { x: 3, y: 3 }, unstable: false },
+      { id: "blue-king", owner: "blue", type: "king", position: { x: 6, y: 6 }, unstable: false },
+    ];
+    zeroComponents(state);
+    state.history = [snapshot(state), snapshot(state), snapshot(state)];
+
+    const signature = (result: GameState) => result.pieces
+      .map((piece) => `${piece.id}:${piece.position.x},${piece.position.y}`)
+      .join("|");
+    const first = playHeuristicTurn(structuredClone(state), "red", { seed: 17, variety: 0.9, timeBudgetMs: 1_000 });
+    const repeated = playHeuristicTurn(structuredClone(state), "red", { seed: 17, variety: 0.9, timeBudgetMs: 1_000 });
+    const outcomes = new Set([17, 29, 41, 53].map((seed) =>
+      signature(playHeuristicTurn(structuredClone(state), "red", { seed, variety: 0.9, timeBudgetMs: 1_000 })),
+    ));
+
+    expect(signature(repeated)).toBe(signature(first));
+    expect(outcomes.size).toBeGreaterThan(1);
+  }, 15_000);
+
   it("takes a checking move when one is available", () => {
     const state = createInitialState();
     state.currentPlayer = "red";
