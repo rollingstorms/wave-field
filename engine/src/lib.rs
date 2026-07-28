@@ -1,3 +1,4 @@
+mod ai;
 mod board;
 mod field;
 mod model;
@@ -9,6 +10,7 @@ mod wasm;
 #[cfg(test)]
 mod tests;
 
+pub use ai::*;
 pub use board::*;
 pub use field::*;
 pub use model::*;

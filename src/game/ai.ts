@@ -4,6 +4,7 @@ import { COMPONENT_COUNTS, TUNING_STRENGTH } from "./constants";
 import { snapshot } from "./initialState";
 import { getLegalMoves } from "./movement";
 import { applyMove, opponent } from "./rules";
+import { rustPlayHeuristicTurn } from "./rustEngine";
 import { activationOrderForProfile } from "./tuning";
 import type { Coefficient, GameSnapshot, GameState, Piece, PieceType, Player, PlayerComponents, Position } from "./types";
 import { getUnstablePieces, isKingUnprotected, markInstability } from "./victory";
@@ -16,7 +17,6 @@ const defaultTimeBudgetMs = 180;
 const fullAnalysisLimit = 3;
 const repetitionLookback = 18;
 const repeatedStatePenalty = 900;
-const repeatedBoardPenalty = 320;
 const immediateReversalPenalty = 500;
 
 export interface AiTurnOptions {
@@ -139,6 +139,10 @@ function hashUnit(value: string): number {
   return (hash >>> 0) / 4294967295;
 }
 
+function choiceNoise(choice: { pieceId: string; destination: { x: number; y: number }; score: number }, state: GameState, player: Player, seed: number) {
+  return hashUnit(`${seed}:${state.turnNumber}:${player}:${choice.pieceId}:${choice.destination.x}:${choice.destination.y}:${choice.score.toFixed(3)}`);
+}
+
 function samePosition(left: Position, right: Position): boolean {
   return left.x === right.x && left.y === right.y;
 }
@@ -154,22 +158,13 @@ function stateKey(state: GameState | GameSnapshot): string {
   return `${state.currentPlayer}|${state.status}|${pieces}|${components}`;
 }
 
-function boardPositionKey(state: GameState | GameSnapshot): string {
-  const pieces = [...state.pieces]
-    .sort((left, right) => left.id.localeCompare(right.id))
-    .map((piece) => `${piece.id}:${piece.position.x},${piece.position.y}`)
-    .join("|");
-  return `${state.currentPlayer}|${state.status}|${pieces}`;
-}
-
-function recentCounts(state: GameState, keyFor: (entry: GameState | GameSnapshot) => string): Map<string, number> {
+function recentStateCounts(state: GameState): Map<string, number> {
   const counts = new Map<string, number>();
   for (const entry of state.history.slice(-repetitionLookback)) {
-    const key = keyFor(entry);
+    const key = stateKey(entry);
     counts.set(key, (counts.get(key) ?? 0) + 1);
   }
-  const currentKey = keyFor(state);
-  counts.set(currentKey, (counts.get(currentKey) ?? 0) + 1);
+  counts.set(stateKey(state), (counts.get(stateKey(state)) ?? 0) + 1);
   return counts;
 }
 
@@ -200,30 +195,32 @@ function loopPenalty(
   piece: Piece,
   destination: Position,
   repetitionCounts: ReadonlyMap<string, number>,
-  boardPositionCounts: ReadonlyMap<string, number>,
   recentMoves: ReadonlyMap<string, { from: Position; to: Position }>,
 ): number {
   const repeatCount = repetitionCounts.get(stateKey(preview)) ?? 0;
-  const boardRepeatCount = boardPositionCounts.get(boardPositionKey(preview)) ?? 0;
   const previousMove = recentMoves.get(piece.id);
   const reversesLastMove = Boolean(
     previousMove
     && samePosition(previousMove.to, piece.position)
     && samePosition(previousMove.from, destination),
   );
-  return repeatCount * repeatedStatePenalty
-    + boardRepeatCount * repeatedBoardPenalty
-    + (reversesLastMove ? immediateReversalPenalty : 0);
+  return repeatCount * repeatedStatePenalty + (reversesLastMove ? immediateReversalPenalty : 0);
 }
 
 export function playHeuristicTurn(state: GameState, player: Player = "red", options: AiTurnOptions = {}): GameState {
   if (state.status !== "playing" || state.currentPlayer !== player) return state;
+  const rustState = rustPlayHeuristicTurn(
+    state,
+    player,
+    options.seed ?? 0,
+    Math.max(0, Math.min(options.variety ?? 0, 1)),
+    Math.max(20, options.timeBudgetMs ?? defaultTimeBudgetMs),
+  );
+  if (rustState) return rustState;
 
   const choices: Array<{ tuned: GameState; pieceId: string; destination: { x: number; y: number }; preview: GameState; score: number }> = [];
   const fieldCache = new WeakMap<GameState, number[][]>();
-  const repetitionCounts = recentCounts(state, stateKey);
-  const boardPositionCounts = recentCounts(state, boardPositionKey);
-  const currentBoardVisits = boardPositionCounts.get(boardPositionKey(state)) ?? 1;
+  const repetitionCounts = recentStateCounts(state);
   const recentMoves = lastMoveByPiece(state, player);
   const startedAt = nowMs();
   const deadline = startedAt + Math.max(20, options.timeBudgetMs ?? defaultTimeBudgetMs);
@@ -268,7 +265,7 @@ export function playHeuristicTurn(state: GameState, player: Player = "red", opti
         const result = applyMove(piece.id, destination, tuned, { analyzeCheckmate: false });
         if (!result.ok) continue;
         const score = scoreState(result.state, player, getField(result.state))
-          - loopPenalty(result.state, piece, destination, repetitionCounts, boardPositionCounts, recentMoves);
+          - loopPenalty(result.state, piece, destination, repetitionCounts, recentMoves);
         rememberChoice(tuned, piece.id, destination, result.state, score);
         if (nowMs() >= deadline && choices.length > 0) break;
       }
@@ -285,7 +282,6 @@ export function playHeuristicTurn(state: GameState, player: Player = "red", opti
       choices: choices.length,
       elapsedMs: Math.round(nowMs() - startedAt),
       budgetMs: Math.round(deadline - startedAt),
-      currentBoardVisits,
     });
   }
 
@@ -314,28 +310,11 @@ export function playHeuristicTurn(state: GameState, player: Player = "red", opti
   const variety = Math.max(0, Math.min(options.variety ?? 0, 1));
   if (variety > 0) {
     const leader = choices[0].score;
-    const loopBoost = Math.min(Math.max(0, currentBoardVisits - 1) * 0.18, 0.4);
-    const exploration = Math.min(0.95, variety + loopBoost);
-    const candidateWindow = choices
-      .filter((choice) => leader - choice.score <= 120 + exploration * 320)
-      .sort((left, right) => right.score - left.score);
-    const shouldExplore = hashUnit(`${seed}:${state.turnNumber}:${player}:${stateKey(state)}:explore`) < exploration;
-    if (shouldExplore && candidateWindow.length > 1) {
-      const temperature = 70 + exploration * 360;
-      const weights = candidateWindow.map((choice) => Math.exp((choice.score - leader) / temperature));
-      const totalWeight = weights.reduce((total, weight) => total + weight, 0);
-      let draw = hashUnit(`${seed}:${state.turnNumber}:${player}:${stateKey(state)}:draw`) * totalWeight;
-      let selectedIndex = 0;
-      for (let index = 0; index < weights.length; index += 1) {
-        draw -= weights[index];
-        if (draw <= 0) {
-          selectedIndex = index;
-          break;
-        }
-      }
-      const [selected] = candidateWindow.splice(selectedIndex, 1);
-      candidateWindow.unshift(selected);
-    }
+    const candidateWindow = choices.filter((choice) => leader - choice.score <= 120 + variety * 280);
+    candidateWindow.sort((left, right) =>
+      (right.score + choiceNoise(right, state, player, seed) * variety * 180)
+      - (left.score + choiceNoise(left, state, player, seed) * variety * 180),
+    );
     choices.splice(0, candidateWindow.length, ...candidateWindow);
   }
 

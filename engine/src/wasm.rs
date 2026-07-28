@@ -122,3 +122,23 @@ pub fn randomize_tuning_json(rolls_json: &str, state_json: &str) -> String {
     let rolls = serde_json::from_str(rolls_json).expect("four random rolls");
     json(&randomize_tuning(parse_state(state_json), rolls))
 }
+
+#[wasm_bindgen]
+pub fn play_heuristic_turn_json(
+    player: &str,
+    state_json: &str,
+    seed: u32,
+    variety: f64,
+    time_budget_ms: u32,
+) -> String {
+    let player = serde_json::from_str(&format!("\"{player}\"")).expect("valid player");
+    json(&play_heuristic_turn(
+        parse_state(state_json),
+        player,
+        AiTurnOptions {
+            seed: Some(seed),
+            variety: Some(variety),
+            time_budget_ms: Some(u64::from(time_budget_ms)),
+        },
+    ))
+}

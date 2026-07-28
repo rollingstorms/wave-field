@@ -12,6 +12,7 @@ interface RustBindings {
   legal_moves_json: (pieceId: string, state: string) => string;
   mark_instability_json: (state: string) => string;
   playable_moves_json: (pieceId: string, state: string) => string;
+  play_heuristic_turn_json: (player: Player, state: string, seed: number, variety: number, timeBudgetMs: number) => string;
   randomize_tuning_json: (rolls: string, state: string) => string;
   reset_tuning_json: (state: string) => string;
   resign_in_check_json: (state: string) => string;
@@ -20,8 +21,20 @@ interface RustBindings {
 
 let bindings: RustBindings | null = null;
 
+function requestedRuleEngine(): "rust" | "ts" {
+  if (!import.meta.env.DEV) return "ts";
+  const requested = new URLSearchParams(globalThis.location?.search ?? "").get("engine");
+  if (requested === "ts" || requested === "typescript") return "ts";
+  return "rust";
+}
+
 export async function initializeRustEngine(): Promise<void> {
   if (!import.meta.env.DEV || bindings) return;
+  if (requestedRuleEngine() === "ts") {
+    document.documentElement.dataset.ruleEngine = "typescript";
+    console.info("Wave Field: TypeScript rule engine active");
+    return;
+  }
   const modulePath = "/engine/pkg/wave_field_engine.js";
   const loaded = await import(/* @vite-ignore */ modulePath) as RustBindings;
   await loaded.default();
@@ -118,5 +131,17 @@ export function rustKingUnprotected(player: Player, state: GameState): boolean |
 export function rustMarkInstability(state: GameState): GameState | null {
   return bindings
     ? JSON.parse(bindings.mark_instability_json(stateJson(state))) as GameState
+    : null;
+}
+
+export function rustPlayHeuristicTurn(
+  state: GameState,
+  player: Player,
+  seed: number,
+  variety: number,
+  timeBudgetMs: number,
+): GameState | null {
+  return bindings
+    ? JSON.parse(bindings.play_heuristic_turn_json(player, stateJson(state), seed, variety, timeBudgetMs)) as GameState
     : null;
 }

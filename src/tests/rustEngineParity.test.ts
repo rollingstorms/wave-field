@@ -1,7 +1,8 @@
 import { spawnSync } from "node:child_process";
 import { describe, expect, it } from "vitest";
 import { evaluateField } from "../field/evaluateField";
-import { createInitialState } from "../game/initialState";
+import { playHeuristicTurn } from "../game/ai";
+import { createInitialState, snapshot } from "../game/initialState";
 import { getLegalMoves } from "../game/movement";
 import {
   applyClosestPlayableHint,
@@ -119,4 +120,28 @@ describe("Rust engine parity", () => {
     expect(rust("applyClosestPlayableHint", state)).toEqual(applyClosestPlayableHint(state));
     expect(rust("resignInCheck", state)).toEqual(resignInCheck(state));
   });
+
+  it("matches heuristic AI turns", () => {
+    const opening = createInitialState();
+    expect(rust("playHeuristicTurn", opening, { player: "blue", seed: 17, variety: 0, timeBudgetMs: 1_000 }))
+      .toEqual(playHeuristicTurn(opening, "blue", { seed: 17, variety: 0, timeBudgetMs: 1_000 }));
+
+    const repeated = createInitialState();
+    repeated.currentPlayer = "red";
+    repeated.pieces = [
+      { id: "red-king", owner: "red", type: "king", position: { x: 0, y: 0 }, unstable: false },
+      { id: "red-rook", owner: "red", type: "rook", position: { x: 3, y: 3 }, unstable: false },
+      { id: "blue-king", owner: "blue", type: "king", position: { x: 6, y: 6 }, unstable: false },
+    ];
+    for (const player of ["blue", "red"] as const) {
+      for (const pieceType of ["pawn", "rook", "spy", "king"] as const) {
+        repeated.components[player][pieceType] = repeated.components[player][pieceType].map(() => 0) as never;
+        repeated.activationOrders[player][pieceType] = [];
+      }
+    }
+    repeated.history = [snapshot(repeated), snapshot(repeated), snapshot(repeated)];
+
+    expect(rust("playHeuristicTurn", repeated, { player: "red", seed: 17, variety: 0.9, timeBudgetMs: 1_000 }))
+      .toEqual(playHeuristicTurn(repeated, "red", { seed: 17, variety: 0.9, timeBudgetMs: 1_000 }));
+  }, 15_000);
 });
