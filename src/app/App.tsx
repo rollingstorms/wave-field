@@ -5,7 +5,7 @@ import { ComponentControls } from "../components/ComponentControls";
 import { DebugPanel } from "../components/DebugPanel";
 import { HistoryRoll } from "../components/HistoryRoll";
 import { RulesPage } from "../components/RulesPage";
-import { TurnStatus } from "../components/TurnStatus";
+import { GameActions, TurnStatus } from "../components/TurnStatus";
 import { WaveEditor } from "../components/WaveEditor";
 import { cloneDefinitions, DEFAULT_DEFINITIONS } from "../field/componentDefinitions";
 import { ALL_ENERGY_CHANNELS } from "../field/cmykEnergy";
@@ -102,36 +102,7 @@ export function App() {
     <main className="app">
       <TurnStatus
         state={state}
-        developerMode={developerMode}
-        continuousField={continuousField}
-        showTypeSums={showTypeSums}
-        energyView={energyView}
-        aiEnabled={aiMode !== "off"}
         aiThinking={aiThinking}
-        onUndo={undo}
-        onRestart={restartGame}
-        onToggleDeveloper={() => setDeveloperMode((value) => !value)}
-        onToggleContinuousField={() => {
-          setEnergyView(false);
-          setContinuousField((value) => !value);
-        }}
-        onToggleTypeSums={() => {
-          setEnergyView(false);
-          setShowTypeSums((value) => !value);
-        }}
-        onToggleEnergyView={() => {
-          setShowTypeSums(false);
-          setContinuousField(false);
-          setEnergyView((value) => !value);
-        }}
-        onToggleAi={() => {
-          setAiMode((value) => {
-            if (!arenaEnabled) return value === "off" ? "red" : "off";
-            return value === "off" ? "red" : value === "red" ? "duel" : "off";
-          });
-          setDuelRunning(false);
-        }}
-        onShowRules={() => setShowRules(true)}
       />
       <div className="play-area">
         <Board
@@ -149,6 +120,39 @@ export function App() {
           onHint={requestHint}
           hintSearching={hintSearching}
           onToggleEnergyChannel={(pieceType) => setEnergyChannels((channels) => ({ ...channels, [pieceType]: !channels[pieceType] }))}
+          actions={(
+            <GameActions
+              developerMode={developerMode}
+              continuousField={continuousField}
+              showTypeSums={showTypeSums}
+              energyView={energyView}
+              aiEnabled={aiMode !== "off"}
+              onUndo={undo}
+              onRestart={restartGame}
+              onToggleDeveloper={() => setDeveloperMode((value) => !value)}
+              onToggleContinuousField={() => {
+                setEnergyView(false);
+                setContinuousField((value) => !value);
+              }}
+              onToggleTypeSums={() => {
+                setEnergyView(false);
+                setShowTypeSums((value) => !value);
+              }}
+              onToggleEnergyView={() => {
+                setShowTypeSums(false);
+                setContinuousField(false);
+                setEnergyView((value) => !value);
+              }}
+              onToggleAi={() => {
+                setAiMode((value) => {
+                  if (!arenaEnabled) return value === "off" ? "red" : "off";
+                  return value === "off" ? "red" : value === "red" ? "duel" : "off";
+                });
+                setDuelRunning(false);
+              }}
+              onShowRules={() => setShowRules(true)}
+            />
+          )}
         />
         <div className="config-stack">
           {arenaEnabled && (

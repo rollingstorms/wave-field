@@ -3,6 +3,7 @@ import { Flag, Lightbulb } from "lucide-react";
 import type {
   MouseEvent as ReactMouseEvent,
   PointerEvent as ReactPointerEvent,
+  ReactNode,
   TouchEvent as ReactTouchEvent,
 } from "react";
 import { BOARD_SIZE } from "../game/constants";
@@ -33,7 +34,10 @@ interface BoardProps {
   onHint: () => void;
   hintSearching?: boolean;
   onToggleEnergyChannel: (pieceType: keyof EnergyChannelState) => void;
+  actions?: ReactNode;
 }
+
+const FILE_LABELS = Array.from({ length: BOARD_SIZE }, (_, index) => String.fromCharCode(65 + index));
 
 interface ActiveDrag {
   pieceId: string;
@@ -48,7 +52,7 @@ interface LossPop {
   position: Position;
 }
 
-export function Board({ state, field, typeFields, continuousField, showTypeSums, energyView, energyChannels, locked = false, onSelect, onMove, onResign, onHint, hintSearching = false, onToggleEnergyChannel }: BoardProps) {
+export function Board({ state, field, typeFields, continuousField, showTypeSums, energyView, energyChannels, locked = false, onSelect, onMove, onResign, onHint, hintSearching = false, onToggleEnergyChannel, actions }: BoardProps) {
   const boardRef = useRef<HTMLDivElement>(null);
   const dragRef = useRef<ActiveDrag | null>(null);
   const previousPiecesRef = useRef(state.pieces);
@@ -311,7 +315,7 @@ export function Board({ state, field, typeFields, continuousField, showTypeSums,
           <span>K ↘</span>
         </div>
       )}
-      <div className="files top">{Array.from({ length: BOARD_SIZE }, (_, x) => <span key={x}>{x + 1}</span>)}</div>
+      <div className="files top">{FILE_LABELS.map((file) => <span key={file}>{file}</span>)}</div>
       <div className="board-row-wrap">
         <div className="ranks left">{Array.from({ length: BOARD_SIZE }, (_, i) => <span key={i}>{BOARD_SIZE - i}</span>)}</div>
         <div
@@ -381,10 +385,11 @@ export function Board({ state, field, typeFields, continuousField, showTypeSums,
         </div>
         <div className="ranks right">{Array.from({ length: BOARD_SIZE }, (_, i) => <span key={i}>{BOARD_SIZE - i}</span>)}</div>
       </div>
-      <div className="files bottom">{Array.from({ length: BOARD_SIZE }, (_, x) => <span key={x}>{x + 1}</span>)}</div>
+      <div className="files bottom">{FILE_LABELS.map((file) => <span key={file}>{file}</span>)}</div>
+      {actions && <div className="board-actions">{actions}</div>}
       {energyView && energySelection && selectedEnergy && (
         <div className="energy-readout" aria-live="polite">
-          <strong>SQUARE {energySelection.x + 1},{BOARD_SIZE - energySelection.y}</strong>
+          <strong>SQUARE {FILE_LABELS[energySelection.x]}{BOARD_SIZE - energySelection.y}</strong>
           <span>Intensity {Math.round(selectedEnergy.intensity * 100)}%</span>
           <div>
             {ENERGY_CHANNELS.map(({ pieceType, letter, channel }) => (

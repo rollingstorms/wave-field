@@ -1,4 +1,4 @@
-import { FIELD_EPSILON } from "../game/constants";
+import { BOARD_SIZE, FIELD_EPSILON } from "../game/constants";
 import type { Piece as PieceModel, PieceType, Position, Territory } from "../game/types";
 import { Piece } from "./Piece";
 
@@ -33,6 +33,7 @@ function formatSigned(value: number) {
 
 export function Square({ position, territory, fieldValue, piece, legal, risky, kingBlocked, selected, dragging, dragPreview, influenceTerritory, influenceOpacity, typeSums, lossPop, energyColor, energySummary = "", energySelected = false, continuousColor, continuousSummary = "", onClick }: SquareProps) {
   const renderedColor = energyColor ?? continuousColor;
+  const coordinate = `${String.fromCharCode(65 + position.x)}${BOARD_SIZE - position.y}`;
   const influenceSummary = influenceTerritory
     ? ` Selected piece influence ${influenceTerritory}.`
     : "";
@@ -46,7 +47,7 @@ export function Square({ position, territory, fieldValue, piece, legal, risky, k
       onClick={onClick}
       data-board-x={position.x}
       data-board-y={position.y}
-      aria-label={`Square ${position.x + 1},${position.y + 1}. ${territory} territory. Field ${fieldValue.toFixed(3)}.${energySummary}${continuousSummary}${risky ? " Moving here loses a piece." : ""}${kingBlocked ? " Reachable, but blocked because it would leave your king unprotected." : ""}${influenceSummary}${typeSummary}`}
+      aria-label={`Square ${coordinate}. ${territory} territory. Field ${fieldValue.toFixed(3)}.${energySummary}${continuousSummary}${risky ? " Moving here loses a piece." : ""}${kingBlocked ? " Reachable, but blocked because it would leave your king unprotected." : ""}${influenceSummary}${typeSummary}`}
     >
       {influenceOpacity > 0 && influenceTerritory !== "neutral" && (
         <span

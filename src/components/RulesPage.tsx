@@ -44,7 +44,7 @@ const pieceDetails: Record<PieceType, { components: string; energy: string; acti
     components: "3",
     energy: "2",
     active: "1",
-    home: "0",
+    home: "0.5",
     default: "+ 0 0",
     movement: "Any distance in one direction, ignoring territory",
     note: "The spy can cross hostile territory, but it is unstable there after a turn resolves.",
@@ -146,11 +146,11 @@ export function RulesPage({ onBack }: RulesPageProps) {
 
       <section className="rules-hero">
         <div className="rules-copy">
-          <h2>Win by trapping the opposing king.</h2>
+          <h2>Move pieces to tune the field and trap the opposing king.</h2>
           <p>
-            Every piece emits a controllable wave pattern. Add the active patterns together
-            and each square becomes Red, Neutral, or Blue territory. Moving one piece can
-            reshape the whole board.
+            Every piece emits an invisible wave of energy across the board. Red and Blue
+            use opposite sign orientations, and each square is the sum of every active
+            wave reaching it. A single wave can contribute both signs in different places.
           </p>
         </div>
         <SetupBoard />
@@ -160,7 +160,7 @@ export function RulesPage({ onBack }: RulesPageProps) {
         <article className="rules-panel">
           <Waves size={22} />
           <h2>Territory</h2>
-          <p>Each wave pattern can contain both positive and negative energy. The total on a square decides who controls it. The gradient view shades each square by its normalized field magnitude.</p>
+          <p>Each component pattern can contain both positive and negative cells. Add all piece waves together; the final sign decides who controls the square. Moving a piece relocates its wave origin, so one move can reshape distant territory.</p>
           <div className="territory-rule">
             <span className="swatch red" /> <strong>Red</strong> <small>total above 0</small>
             <span className="swatch neutral" /> <strong>Neutral</strong> <small>total equals 0</small>
@@ -172,10 +172,10 @@ export function RulesPage({ onBack }: RulesPageProps) {
           <CircleDot size={22} />
           <h2>Your Turn</h2>
           <ol>
-            <li>Tune any of your piece-type wave controls.</li>
-            <li>Move exactly one piece to end the turn.</li>
+            <li>Tune any of your piece-type wave controls, or leave them as they are.</li>
+            <li>Move one piece to commit the field and end the turn.</li>
           </ol>
-          <p>Tuning is shared by type, so both of your rooks use the same rook settings. Each type always keeps its full active count; choosing another component at the limit replaces the least recently pressed one. The dice randomizes a valid profile.</p>
+          <p>Tuning is shared by type, so both of your rooks use the same rook settings. The + and - controls activate a component in that orientation or flip an active component. At the active limit, choosing another component replaces the least recently pressed one. The dice randomizes a valid profile.</p>
         </article>
 
         <article className="rules-panel rules-piece-panel">
@@ -187,10 +187,10 @@ export function RulesPage({ onBack }: RulesPageProps) {
                 <span className="mini-piece-slot"><MiniPiece owner="blue" type={type} /></span>
                 <strong>{pieceNames[type]}</strong>
                 <small>
-                  {type === "pawn" && "1 component, energy 1, active 1"}
-                  {type === "rook" && "2 components, energy 2, active 2"}
-                  {type === "spy" && "3 components, energy 2, active 1"}
-                  {type === "king" && "3 components, energy 2, active 2"}
+                  {type === "pawn" && "Checkerboard pattern, active 1"}
+                  {type === "rook" && "Two overlapping patterns, active 2"}
+                  {type === "spy" && "Three masks, active 1"}
+                  {type === "king" && "Three patterns, active 2"}
                   {`, home ${pieceDetails[type].home}`}
                 </small>
               </div>
@@ -201,7 +201,7 @@ export function RulesPage({ onBack }: RulesPageProps) {
         <article className="rules-panel">
           <Crown size={22} />
           <h2>Trapped Kings</h2>
-          <p>Your king must end every move on friendly or Neutral territory. A king on hostile territory is unstable and trapped. Hint applies the nearest rescuing tuning profile. If no rescue is found, the trapped player still gets the turn.</p>
+          <p>Your king must end every move on friendly or Neutral territory. A king on hostile territory is unstable and trapped. Rescue can come from tuning, moving the king, or moving another piece whose wave changes the king's square. Hint applies the nearest rescuing profile.</p>
         </article>
       </section>
 
@@ -242,8 +242,9 @@ export function RulesPage({ onBack }: RulesPageProps) {
           <h2>Wave Patterns</h2>
           <p>
             These thumbnails show the default Blue contribution shape for one piece placed
-            in the center. Each pattern may mix positive and negative energy; the outlined
-            center is the piece's origin.
+            in the center. Each pattern extends from the piece's origin and may mix positive
+            and negative energy; tuning changes which patterns are active and which polarity
+            they use.
           </p>
         </div>
         <div className="wave-pattern-grid">
@@ -255,7 +256,7 @@ export function RulesPage({ onBack }: RulesPageProps) {
                 {type === "pawn" && "Checkerboard pressure"}
                 {type === "rook" && "C1 + + 0, C2 - 0 +"}
                 {type === "spy" && "Single active mask by default"}
-                {type === "king" && "Two active protective modes"}
+                {type === "king" && "Two active patterns"}
               </small>
             </div>
           ))}
