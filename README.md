@@ -245,11 +245,28 @@ always produce the same field and legal moves.
 
 ```bash
 npm install
+npm run engine:build
 npm run dev
 ```
 
-Use `npm test` to run the rules test suite and `npm run build` to create the
-production build.
+The development app and AI arena use the Rust rule engine through WebAssembly.
+Install its one-time toolchain prerequisites with:
+
+```bash
+rustup target add wasm32-unknown-unknown
+cargo install wasm-bindgen-cli --version 0.2.126 --locked
+```
+
+`npm run dev` and `npm run arena` rebuild the WebAssembly module before starting
+Vite. The Rust crate lives in `engine/`; its native JSON-lines binary is also a
+convenient boundary for scripts and future Python bindings. During migration,
+the production build continues to use the TypeScript engine.
+
+Use `npm test` to build Rust, run the existing TypeScript rules suite, and run
+cross-language parity checks for field evaluation, movement, turn resolution,
+tuning, instability, and check behavior. Use `cargo test --manifest-path
+engine/Cargo.toml` for Rust-only tests and `npm run build` for the production
+build.
 
 ## License
 

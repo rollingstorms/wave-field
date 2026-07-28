@@ -5,6 +5,17 @@ import { getLegalMoves, samePosition } from "./movement";
 import { activationOrderForProfile, isTuningAtStrength } from "./tuning";
 import { getUnstablePieces, isKingUnprotected, markInstability, removeUnrescuedPieces } from "./victory";
 import { snapshot } from "./initialState";
+import {
+  rustApplyClosestPlayableHint,
+  rustApplyMove,
+  rustApplyTuning,
+  rustBeginTurn,
+  rustClosestPlayableConfiguration,
+  rustPlayableMoves,
+  rustRandomizeTuning,
+  rustResetTuning,
+  rustResignInCheck,
+} from "./rustEngine";
 
 export function opponent(player: Player): Player {
   return player === "red" ? "blue" : "red";
@@ -111,6 +122,8 @@ function allComponentOptions(state: GameState, player: Player): PlayerComponents
 }
 
 export function findClosestPlayableConfiguration(player: Player, state: GameState): PlayableConfigurationHint | null {
+  const rustHint = rustClosestPlayableConfiguration<PlayableConfigurationHint>(player, state);
+  if (rustHint) return rustHint;
   const current = state.components[player];
   for (const components of allComponentOptions(state, player)) {
     const tuned = {
@@ -142,6 +155,8 @@ export function findClosestPlayableConfiguration(player: Player, state: GameStat
 
 export function beginTurn(state: GameState, options: RuleOptions = {}): GameState {
   const analyzeCheckmate = options.analyzeCheckmate ?? true;
+  const rustState = rustBeginTurn(state, analyzeCheckmate);
+  if (rustState) return rustState;
   if (state.status !== "playing") return state;
   const resolved = markInstability(state, evaluateField(state));
   const field = evaluateField(resolved);
@@ -192,6 +207,8 @@ function completeAction(previous: GameState, candidate: GameState, options: Rule
 }
 
 export function applyMove(pieceId: string, destination: Position, state: GameState, options: RuleOptions = {}): MoveResult {
+  const rustResult = rustApplyMove(pieceId, destination, state, options.analyzeCheckmate ?? true);
+  if (rustResult) return rustResult;
   if (state.status !== "playing") return { ok: false, state, reason: "The game is over." };
   const field = evaluateField(state);
   const piece = state.pieces.find((candidate) => candidate.id === pieceId);
@@ -209,10 +226,14 @@ export function applyMove(pieceId: string, destination: Position, state: GameSta
 }
 
 export function getPlayableMoves(pieceId: string, state: GameState, field: number[][] = evaluateField(state)): Position[] {
+  const rustMoves = rustPlayableMoves(pieceId, state);
+  if (rustMoves) return rustMoves;
   return getLegalMoves(pieceId, state, field).filter((destination) => applyMove(pieceId, destination, state).ok);
 }
 
 export function resignInCheck(state: GameState): MoveResult {
+  const rustResult = rustResignInCheck(state);
+  if (rustResult) return rustResult;
   if (state.status !== "playing") return { ok: false, state, reason: "The game is over." };
   const resolved = markInstability(state, evaluateField(state));
   if (!isKingUnprotected(state.currentPlayer, resolved, evaluateField(resolved))) {
@@ -231,6 +252,8 @@ export function resignInCheck(state: GameState): MoveResult {
 }
 
 export function applyClosestPlayableHint(state: GameState): MoveResult {
+  const rustResult = rustApplyClosestPlayableHint(state);
+  if (rustResult) return rustResult;
   if (state.status !== "playing") return { ok: false, state, reason: "The game is over." };
   const resolved = markInstability(state, evaluateField(state));
   if (!isKingUnprotected(state.currentPlayer, resolved, evaluateField(resolved))) {
@@ -260,12 +283,15 @@ export function applyClosestPlayableHint(state: GameState): MoveResult {
 }
 
 export function randomizeTuning(state: GameState, random: () => number = Math.random): MoveResult {
+  const rolls = pieceTypes.map(() => random());
+  const rustResult = rustRandomizeTuning(state, rolls);
+  if (rustResult) return rustResult;
   if (state.status !== "playing") return { ok: false, state, reason: "The game is over." };
   const player = state.currentPlayer;
   const randomized = structuredClone(state.components[player]);
   for (const pieceType of pieceTypes) {
     const options = componentOptions(pieceType, randomized[pieceType].length);
-    randomized[pieceType] = options[Math.floor(random() * options.length)] as never;
+    randomized[pieceType] = options[Math.floor(rolls[pieceTypes.indexOf(pieceType)] * options.length)] as never;
   }
   if (componentDistance(randomized, state.components[player]) === 0) {
     const alternatives = componentOptions("pawn", randomized.pawn.length)
@@ -293,6 +319,8 @@ export function randomizeTuning(state: GameState, random: () => number = Math.ra
 }
 
 export function resetTuning(state: GameState): MoveResult {
+  const rustResult = rustResetTuning(state);
+  if (rustResult) return rustResult;
   if (state.status !== "playing") return { ok: false, state, reason: "The game is over." };
   const player = state.currentPlayer;
   if (componentDistance(state.components[player], state.defaultComponents) === 0) {
@@ -325,6 +353,8 @@ export function applyTuning(
   value: Coefficient,
   state: GameState,
 ): MoveResult {
+  const rustResult = rustApplyTuning(player, pieceType, componentIndex, value, state);
+  if (rustResult) return rustResult;
   if (state.status !== "playing" || player !== state.currentPlayer) return { ok: false, state, reason: "It is not that player's turn." };
   if (value === 0) return { ok: false, state, reason: "Controls must stay at full strength." };
   const nextComponents = structuredClone(state.components);
