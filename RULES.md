@@ -9,6 +9,23 @@ unstable and must be rescued. The game does not remove kings from the board:
 the trapped player remains in control until they rescue the king, resign, or
 undo.
 
+## How You Play
+
+Every piece emits an invisible wave of energy across the board. Red and Blue
+use opposite sign orientations, and each square is the sum of all waves from
+all pieces. A single pattern can contribute both positive and negative energy
+on different squares.
+
+On your turn you may tune your wave controls, then move one piece. You can play
+without tuning, but tuning is often how you rescue endangered pieces, protect
+your king, and reshape the board before committing a move. Click a piece to see
+legal destinations, or drag it to move.
+
+The `+` and `-` controls activate a component with that field orientation, or
+reverse the polarity of an active component. Pawns have one checkerboard-like
+pattern. Rooks combine two overlapping patterns. Spies choose one of three
+patterns. Kings keep two of three patterns active.
+
 ## Field
 
 Every piece emits a controllable wave pattern. A pattern is not simply "good"
