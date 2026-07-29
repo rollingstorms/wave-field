@@ -666,12 +666,6 @@ h1 {
   stroke-linecap: square;
 }
 
-.piece.selected path {
-  stroke: var(--text);
-  stroke-width: 3.2;
-  vector-effect: non-scaling-stroke;
-}
-
 .piece.dragging {
   transform: scale(1.08);
   filter: drop-shadow(0 4px 3px rgba(9, 11, 11, 0.42));
