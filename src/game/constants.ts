@@ -25,10 +25,10 @@ export const DEFAULT_HOME_ENERGY = {
 } as const;
 
 export const DEFAULT_WAVE_SCALES = {
-  pawn: { friendly: 3, hostile: 1 },
+  pawn: { friendly: 4, hostile: 1 },
   rook: { friendly: 3, hostile: 1 },
   spy: { friendly: 3, hostile: 0 },
-  king: { friendly: 3, hostile: 2 },
+  king: { friendly: 4, hostile: 2 },
 } as const;
 
 export const COMPONENT_COUNTS = {

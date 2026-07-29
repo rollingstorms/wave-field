@@ -68,7 +68,7 @@ describe("field engine", () => {
     const state = tuned("pawn", [1]);
     const piece = state.pieces[0];
     expect(evaluatePieceContribution(piece, { x: 4, y: 3 }, state)).toBeCloseTo(-0.5);
-    expect(evaluatePieceContribution(piece, { x: 4, y: 4 }, state)).toBeCloseTo(1.5);
+    expect(evaluatePieceContribution(piece, { x: 4, y: 4 }, state)).toBeCloseTo(2);
   });
 
   it("decay halves each ring for equal signs", () => {
@@ -96,7 +96,8 @@ describe("field engine", () => {
     const delta = { x: 2, y: 0 };
     const c1 = evaluateBasis(DEFAULT_DEFINITIONS.rook[0], delta);
     const c2 = -evaluateBasis(DEFAULT_DEFINITIONS.rook[1], delta);
-    const scaled = c1 * state.waveScales.rook.friendly + c2 * state.waveScales.rook.friendly;
+    const scale = (value: number) => value >= 0 ? state.waveScales.rook.friendly : state.waveScales.rook.hostile;
+    const scaled = c1 * scale(c1) + c2 * scale(c2);
     const expected = 2 * scaled;
     expect(evaluatePieceContribution(piece, square, state)).toBeCloseTo(expected);
   });

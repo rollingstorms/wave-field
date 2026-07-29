@@ -66,9 +66,9 @@ dyadic fractions whose denominators are powers of two. A sum may be `3/8` or
 
 Each piece type also has friendly and hostile scale parameters. A component
 cell that supports its owner uses the friendly scale; a cell that opposes its
-owner uses the hostile scale. Current defaults are Round Hat `3/1`, Tower `3/1`, Triangle Hat
-`3/0`, and Big Hat `3/2` for friendly/hostile. Round Hats therefore have a first ring
-of `+3/2` on friendly cells and `-1/2` on hostile cells for Red, with signs
+owner uses the hostile scale. Current defaults are Round Hat `4/1`, Tower `3/1`, Triangle Hat
+`3/0`, and Big Hat `4/2` for friendly/hostile. Round Hats therefore have a first ring
+of `+2` on friendly cells and `-1/2` on hostile cells for Red, with signs
 reversed for Blue.
 
 ## Pieces

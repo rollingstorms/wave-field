@@ -231,10 +231,9 @@
         "name": "Push pairs",
         "geometry": "chebyshev",
         "ringValues": [
-          0,
           1,
           1,
-          0
+          -1
         ],
         "repeat": true,
         "decayBase": 2,
@@ -245,10 +244,9 @@
         "name": "Pull gap push",
         "geometry": "chebyshev",
         "ringValues": [
+          1,
           0,
-          -1,
-          0,
-          1
+          -1
         ],
         "repeat": true,
         "decayBase": 2,
@@ -313,7 +311,7 @@
   },
   "waveScales": {
     "pawn": {
-      "friendly": 3,
+      "friendly": 4,
       "hostile": 1
     },
     "rook": {
@@ -325,7 +323,7 @@
       "hostile": 0
     },
     "king": {
-      "friendly": 3,
+      "friendly": 4,
       "hostile": 2
     }
   },
