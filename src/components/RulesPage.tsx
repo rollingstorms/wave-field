@@ -1,6 +1,7 @@
 import { Fragment } from "react";
 import { ArrowLeft, CircleDot, Crown, Sparkles, Waves } from "lucide-react";
 import { createInitialPieces, createInitialState } from "../game/initialState";
+import { PIECE_DISPLAY_NAMES, PIECE_INITIALS, PIECE_TYPES, pieceName, pieceNamePlural } from "../game/pieceLabels";
 import type { Piece as PieceModel, PieceType, Player } from "../game/types";
 import { Piece } from "./Piece";
 import { WaveThumbnail } from "./WaveThumbnail";
@@ -8,13 +9,6 @@ import { WaveThumbnail } from "./WaveThumbnail";
 interface RulesPageProps {
   onBack: () => void;
 }
-
-const pieceNames: Record<PieceType, string> = {
-  pawn: "Pawn",
-  rook: "Rook",
-  spy: "Spy",
-  king: "King",
-};
 
 const playerLabel: Record<Player, string> = {
   red: "Red",
@@ -47,7 +41,7 @@ const pieceDetails: Record<PieceType, { components: string; energy: string; acti
     home: "0.5",
     default: "+ 0 0",
     movement: "Any distance in one direction, ignoring territory",
-    note: "The spy can cross hostile territory, but it is unstable there after a turn resolves.",
+    note: "The Triangle Hat can cross hostile territory, but it is unstable there after a turn resolves.",
   },
   king: {
     components: "3",
@@ -56,7 +50,7 @@ const pieceDetails: Record<PieceType, { components: string; energy: string; acti
     home: "0",
     default: "0 + +",
     movement: "Any distance in one direction",
-    note: "The king contributes no energy to its own square. An unstable king is trapped and must be rescued.",
+    note: "The Big Hat contributes no energy to its own square. An unstable Big Hat is trapped and must be rescued.",
   },
 };
 
@@ -122,7 +116,7 @@ function MovementBoard() {
                 <span className="risk-marker">!</span>
               </>
             )}
-            {kingBlocked.has(key) && <span className="king-block-marker">K</span>}
+            {kingBlocked.has(key) && <span className="king-block-marker">{PIECE_INITIALS.king}</span>}
           </div>
         );
       })}
@@ -146,7 +140,7 @@ export function RulesPage({ onBack }: RulesPageProps) {
 
       <section className="rules-hero">
         <div className="rules-copy">
-          <h2>Move pieces to tune the field and trap the opposing king.</h2>
+          <h2>Trap the opposing Big Hat.</h2>
           <p>
             Every piece emits an invisible wave of energy across the board. Red and Blue
             use opposite sign orientations, and each square is the sum of every active
@@ -175,17 +169,17 @@ export function RulesPage({ onBack }: RulesPageProps) {
             <li>Tune any of your piece-type wave controls, or leave them as they are.</li>
             <li>Move one piece to commit the field and end the turn.</li>
           </ol>
-          <p>Tuning is shared by type, so both of your rooks use the same rook settings. The + and - controls activate a component in that orientation or flip an active component. At the active limit, choosing another component replaces the least recently pressed one. The dice randomizes a valid profile.</p>
+          <p>Tuning is shared by type, so both of your Towers use the same Tower settings. The + and - controls activate a component in that orientation or flip an active component. At the active limit, choosing another component replaces the least recently pressed one. The dice randomizes a valid profile.</p>
         </article>
 
         <article className="rules-panel rules-piece-panel">
           <Sparkles size={22} />
           <h2>Pieces</h2>
           <div className="piece-rules">
-            {(["pawn", "rook", "spy", "king"] as PieceType[]).map((type) => (
+            {PIECE_TYPES.map((type) => (
               <div className="piece-rule" key={type}>
                 <span className="mini-piece-slot"><MiniPiece owner="blue" type={type} /></span>
-                <strong>{pieceNames[type]}</strong>
+                <strong>{pieceName(type)}</strong>
                 <small>
                   {type === "pawn" && "Checkerboard pattern, active 1"}
                   {type === "rook" && "Two overlapping patterns, active 2"}
@@ -200,8 +194,8 @@ export function RulesPage({ onBack }: RulesPageProps) {
 
         <article className="rules-panel">
           <Crown size={22} />
-          <h2>Trapped Kings</h2>
-          <p>Your king must end every move on friendly or Neutral territory. A king on hostile territory is unstable and trapped. Rescue can come from tuning, moving the king, or moving another piece whose wave changes the king's square. Hint applies the nearest rescuing profile.</p>
+          <h2>Trapped Big Hats</h2>
+          <p>Your Big Hat must end every move on friendly or Neutral territory. A Big Hat on hostile territory is unstable and trapped. Rescue can come from tuning, moving the Big Hat, or moving another piece whose wave changes the Big Hat's square. Hint applies the nearest rescuing profile.</p>
         </article>
       </section>
 
@@ -215,11 +209,11 @@ export function RulesPage({ onBack }: RulesPageProps) {
           <strong>Home</strong>
           <strong>Default</strong>
           <strong>Movement</strong>
-          {(["pawn", "rook", "spy", "king"] as PieceType[]).map((type) => (
+          {PIECE_TYPES.map((type) => (
             <Fragment key={type}>
               <span className="piece-reference-name">
                 <span className="mini-piece-slot"><MiniPiece owner="blue" type={type} /></span>
-                {pieceNames[type]}
+                {pieceName(type)}
               </span>
               <span>{pieceDetails[type].components}</span>
               <span>{pieceDetails[type].energy}</span>
@@ -231,8 +225,8 @@ export function RulesPage({ onBack }: RulesPageProps) {
           ))}
         </div>
         <div className="piece-notes">
-          {(["pawn", "rook", "spy", "king"] as PieceType[]).map((type) => (
-            <p key={`${type}-note`}><strong>{pieceNames[type]}:</strong> {pieceDetails[type].note}</p>
+          {PIECE_TYPES.map((type) => (
+            <p key={`${type}-note`}><strong>{pieceName(type)}:</strong> {pieceDetails[type].note}</p>
           ))}
         </div>
       </section>
@@ -248,10 +242,10 @@ export function RulesPage({ onBack }: RulesPageProps) {
           </p>
         </div>
         <div className="wave-pattern-grid">
-          {(["pawn", "rook", "spy", "king"] as PieceType[]).map((type) => (
+          {PIECE_TYPES.map((type) => (
             <div className="wave-pattern-card" key={type}>
               <WaveThumbnail state={previewState} player="blue" pieceType={type} />
-              <strong>{pieceNames[type]}</strong>
+              <strong>{pieceName(type)}</strong>
               <small>
                 {type === "pawn" && "Checkerboard pressure"}
                 {type === "rook" && "C1 + + 0, C2 - 0 +"}
@@ -267,13 +261,13 @@ export function RulesPage({ onBack }: RulesPageProps) {
         <div>
           <h2>Movement</h2>
           <p>
-            Choose any horizontal, vertical, or diagonal ray and move any distance. Pawns,
-            rooks, and kings can cross only friendly or Neutral empty squares. Spies ignore
+            Choose any horizontal, vertical, or diagonal ray and move any distance. {pieceNamePlural("pawn")},
+            {` ${pieceNamePlural("rook")}, and ${pieceNamePlural("king")} can cross only friendly or Neutral empty squares. ${pieceNamePlural("spy")} ignore`}
             territory, but all pieces are blocked by occupied squares.
           </p>
           <ul>
             <li>White rings mark playable destinations.</li>
-            <li>A yellow K marks a move blocked by king safety.</li>
+            <li>A yellow {PIECE_INITIALS.king} marks a move blocked by Big Hat safety.</li>
             <li>A yellow diamond with ! warns that one of your pieces may be lost.</li>
           </ul>
         </div>
@@ -284,15 +278,15 @@ export function RulesPage({ onBack }: RulesPageProps) {
         <div>
           <h2>Instability</h2>
           <p>
-            A non-king piece on hostile territory is unstable. Rescue it on your next turn by
+            A non-Big Hat piece on hostile territory is unstable. Rescue it on your next turn by
             moving it to safety or by moving another piece so the field protects it. If it is
-            still unstable after your move, it is removed. An unstable king is different:
+            still unstable after your move, it is removed. An unstable Big Hat is different:
             it is trapped and must be rescued, resigned, or undone.
           </p>
         </div>
         <div className="marker-demo" aria-label="Move marker examples">
           <span><i className="legal-dot" /> Legal move</span>
-          <span><i className="king-block-marker">K</i> King unsafe</span>
+          <span><i className="king-block-marker">{PIECE_INITIALS.king}</i> Big Hat unsafe</span>
           <span><i className="legal-dot risky-dot" /><b>!</b> Loss warning</span>
         </div>
       </section>
@@ -302,7 +296,7 @@ export function RulesPage({ onBack }: RulesPageProps) {
         <dl>
           <div><dt>Blue moves first</dt><dd>{playerLabel.blue} opens the game.</dd></div>
           <div><dt>No captures by collision</dt><dd>Friendly and opposing pieces both block movement.</dd></div>
-          <div><dt>Spies are special</dt><dd>They ignore hostile territory while moving, but can still become unstable.</dd></div>
+          <div><dt>{PIECE_DISPLAY_NAMES.spy}s are special</dt><dd>They ignore hostile territory while moving, but can still become unstable.</dd></div>
           <div><dt>Move ends turn</dt><dd>Tune freely first, then commit one legal move.</dd></div>
         </dl>
       </section>

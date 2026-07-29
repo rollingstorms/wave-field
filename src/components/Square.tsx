@@ -1,4 +1,5 @@
 import { BOARD_SIZE, FIELD_EPSILON } from "../game/constants";
+import { PIECE_DISPLAY_NAMES, PIECE_INITIALS } from "../game/pieceLabels";
 import type { Piece as PieceModel, PieceType, Position, Territory } from "../game/types";
 import { Piece } from "./Piece";
 
@@ -39,7 +40,7 @@ export function Square({ position, territory, fieldValue, piece, legal, risky, k
     ? ` Selected piece influence ${influenceTerritory}.`
     : "";
   const typeSummary = typeSums
-    ? ` Total ${formatSigned(fieldValue)}. Pawn ${formatSigned(typeSums.pawn)}, rook ${formatSigned(typeSums.rook)}, spy ${formatSigned(typeSums.spy)}, king ${formatSigned(typeSums.king)}.`
+    ? ` Total ${formatSigned(fieldValue)}. ${PIECE_DISPLAY_NAMES.pawn} ${formatSigned(typeSums.pawn)}, ${PIECE_DISPLAY_NAMES.rook} ${formatSigned(typeSums.rook)}, ${PIECE_DISPLAY_NAMES.spy} ${formatSigned(typeSums.spy)}, ${PIECE_DISPLAY_NAMES.king} ${formatSigned(typeSums.king)}.`
     : "";
   return (
     <button
@@ -48,7 +49,7 @@ export function Square({ position, territory, fieldValue, piece, legal, risky, k
       onClick={onClick}
       data-board-x={position.x}
       data-board-y={position.y}
-      aria-label={`Square ${coordinate}. ${territory} territory. Field ${fieldValue.toFixed(3)}.${energySummary}${continuousSummary}${risky ? " Moving here loses a piece." : ""}${kingBlocked ? " Reachable, but blocked because it would leave your king unprotected." : ""}${influenceSummary}${typeSummary}`}
+      aria-label={`Square ${coordinate}. ${territory} territory. Field ${fieldValue.toFixed(3)}.${energySummary}${continuousSummary}${risky ? " Moving here loses a piece." : ""}${kingBlocked ? " Reachable, but blocked because it would leave your Big Hat unprotected." : ""}${influenceSummary}${typeSummary}`}
     >
       {influenceOpacity > 0 && influenceTerritory !== "neutral" && (
         <span
@@ -62,7 +63,7 @@ export function Square({ position, territory, fieldValue, piece, legal, risky, k
       )}
       {legal && <span className={risky ? "legal-dot risky-dot" : "legal-dot"} />}
       {risky && <span className="risk-marker" aria-hidden="true">!</span>}
-      {kingBlocked && <span className="king-block-marker" aria-hidden="true">K</span>}
+      {kingBlocked && <span className="king-block-marker" aria-hidden="true">{PIECE_INITIALS.king}</span>}
       {piece && <Piece piece={piece} selected={selected} dragging={dragging} hidden={hidePiece} />}
       {piece?.unstable && <span className="unstable" aria-label="unstable">!</span>}
       {lossPop && (

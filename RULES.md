@@ -2,11 +2,11 @@
 
 ## Objective
 
-The objective is to trap the opposing king.
+The objective is to trap the opposing Big Hat.
 
-A king is trapped when it sits on hostile territory. In that state the king is
-unstable and must be rescued. The game does not remove kings from the board:
-the trapped player remains in control until they rescue the king, resign, or
+A Big Hat is trapped when it sits on hostile territory. In that state the Big Hat is
+unstable and must be rescued. The game does not remove Big Hats from the board:
+the trapped player remains in control until they rescue the Big Hat, resign, or
 undo.
 
 ## How You Play
@@ -18,13 +18,13 @@ on different squares.
 
 On your turn you may tune your wave controls, then move one piece. You can play
 without tuning, but tuning is often how you rescue endangered pieces, protect
-your king, and reshape the board before committing a move. Click a piece to see
+your Big Hat, and reshape the board before committing a move. Click a piece to see
 legal destinations, or drag it to move.
 
 The `+` and `-` controls activate a component with that field orientation, or
-reverse the polarity of an active component. Pawns have one checkerboard-like
-pattern. Rooks combine two overlapping patterns. Spies choose one of three
-patterns. Kings keep two of three patterns active.
+reverse the polarity of an active component. Round Hats have one checkerboard-like
+pattern. Towers combine two overlapping patterns. Triangle Hats choose one of three
+patterns. Big Hats keep two of three patterns active.
 
 ## Field
 
@@ -48,18 +48,18 @@ territory far away from the moved piece.
 
 ## Setup
 
-Each player begins with two pawns, two rooks, one spy, and one king. Blue moves
+Each player begins with two Round Hats, two Towers, one Triangle Hat, and one Big Hat. Blue moves
 first.
 
 ```text
         Blue
-    . . R K R . .
-    . . P S P . .
+    . . P B P . .
+    . . S T S . .
     . . . . . . .
     . . . . . . .
     . . . . . . .
-    . . P S P . .
-    . . R K R . .
+    . . S T S . .
+    . . P B P . .
          Red
 ```
 
@@ -68,37 +68,37 @@ first.
 On a turn, a player may tune their wave controls any number of times, then move
 one piece. Moving ends the turn. Tuning by itself does not.
 
-A tuning change may temporarily make the player's own king unstable. The
-turn-ending move must leave that king on friendly or Neutral territory.
+A tuning change may temporarily make the player's own Big Hat unstable. The
+turn-ending move must leave that Big Hat on friendly or Neutral territory.
 
 ## Movement
 
 Pieces move any distance in one straight horizontal, vertical, or diagonal ray.
 Pieces do not use chess movement despite their names.
 
-Pawns, rooks, and kings may cross only friendly or Neutral empty squares. Spies
+Round Hats, Towers, and Big Hats may cross only friendly or Neutral empty squares. Triangle Hats
 ignore territory while moving. All pieces are blocked by occupied squares, and
 there are no captures by collision.
 
 ## Unstable Pieces
 
-A non-king piece on hostile territory is unstable. On that player's next turn,
+A non-Big Hat piece on hostile territory is unstable. On that player's next turn,
 it can be rescued by moving it to safety or by moving another piece so the field
 around it becomes friendly or Neutral. If it is still unstable after the move
 resolves, it is removed.
 
-Spies can move through hostile territory, but they can still become unstable if
+Triangle Hats can move through hostile territory, but they can still become unstable if
 they end up standing on hostile territory.
 
-## Trapped Kings
+## Trapped Big Hats
 
-A king on hostile territory is an unstable trapped king. When a move traps the
-opposing king, the opponent gets a rescue turn.
+A Big Hat on hostile territory is an unstable trapped Big Hat. When a move traps the
+opposing Big Hat, the opponent gets a rescue turn.
 
-The rescue can come from tuning, from moving the king, or from moving another
-piece whose relocated wave makes the king's square friendly or Neutral. The
+The rescue can come from tuning, from moving the Big Hat, or from moving another
+piece whose relocated wave makes the Big Hat's square friendly or Neutral. The
 Hint control searches for a nearby rescue profile and move. If no rescue is
 found, the trapped player still controls the turn and may keep searching,
 resign, or undo.
 
-Kings are never captured or removed.
+Big Hats are never captured or removed.

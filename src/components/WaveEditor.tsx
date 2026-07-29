@@ -1,8 +1,9 @@
 import { BOARD_SIZE } from "../game/constants";
 import { evaluateComponentBasis } from "../field/kernels";
+import { PIECE_TYPES, pieceName } from "../game/pieceLabels";
 import type { BasisDefinition, Coefficient, ComponentDefinitions, FormulaPreset, PieceType } from "../game/types";
 
-const pieceTypes: PieceType[] = ["pawn", "rook", "spy", "king"];
+const pieceTypes: PieceType[] = PIECE_TYPES;
 const presets: FormulaPreset[] = [
   "checkerboard",
   "diagonal-stripes",
@@ -86,7 +87,7 @@ export function WaveEditor({ definitions, selected, onSelect, onUpdate, onResetS
         >
           {pieceTypes.flatMap((pieceType) =>
             Array.from({ length: componentCount(pieceType) }, (_, index) => (
-              <option key={`${pieceType}-${index}`} value={`${pieceType}:${index}`}>{pieceType.toUpperCase()} C{index + 1}</option>
+              <option key={`${pieceType}-${index}`} value={`${pieceType}:${index}`}>{pieceName(pieceType).toUpperCase()} C{index + 1}</option>
             )),
           )}
         </select>

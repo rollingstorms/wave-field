@@ -207,7 +207,7 @@ pub fn begin_turn(state: GameState, analyze_checkmate: bool) -> GameState {
     let resolved_field = evaluate_field(&resolved);
     if is_king_unprotected(resolved.current_player, &resolved, &resolved_field) {
         if !analyze_checkmate {
-            resolved.message = format!("{} king is in check", resolved.current_player.name());
+            resolved.message = format!("{} Big Hat is in check", resolved.current_player.name());
             return resolved;
         }
         if let Some(rescue) =
@@ -227,7 +227,7 @@ pub fn begin_turn(state: GameState, analyze_checkmate: bool) -> GameState {
                 )
             };
             resolved.message = format!(
-                "{} king is in check · {hint}",
+                "{} Big Hat is in check · {hint}",
                 resolved.current_player.name()
             );
             return resolved;
@@ -235,7 +235,7 @@ pub fn begin_turn(state: GameState, analyze_checkmate: bool) -> GameState {
         resolved.status = win_status(resolved.current_player.opponent());
         resolved.selected_piece_id = None;
         resolved.message = format!(
-            "{} king is in check · no legal rescue found",
+            "{} Big Hat is in check · no legal rescue found",
             resolved.current_player.name()
         );
         return resolved;
@@ -256,10 +256,10 @@ pub fn begin_turn(state: GameState, analyze_checkmate: bool) -> GameState {
 
 fn piece_type_name(piece_type: PieceType) -> &'static str {
     match piece_type {
-        PieceType::Pawn => "pawn",
-        PieceType::Rook => "rook",
-        PieceType::Spy => "spy",
-        PieceType::King => "king",
+        PieceType::Pawn => "round hat",
+        PieceType::Rook => "tower",
+        PieceType::Spy => "triangle hat",
+        PieceType::King => "big hat",
     }
 }
 
@@ -288,7 +288,7 @@ pub fn apply_move(
     let mut resolved = resolve_own_turn_consequences(previous.current_player, &previous, candidate);
     let resolved_field = evaluate_field(&resolved);
     if is_king_unprotected(previous.current_player, &resolved, &resolved_field) {
-        return rejected(previous, "That move would leave your king unprotected.");
+        return rejected(previous, "That move would leave your Big Hat unprotected.");
     }
     let remaining = resolved
         .pieces
@@ -376,7 +376,7 @@ pub fn resign_in_check(state: GameState) -> MoveResult {
     let mut resolved = mark_instability(state.clone(), &field);
     let resolved_field = evaluate_field(&resolved);
     if !is_king_unprotected(resolved.current_player, &resolved, &resolved_field) {
-        return rejected(state, "You can resign only while your king is in check.");
+        return rejected(state, "You can resign only while your Big Hat is in check.");
     }
     resolved.status = win_status(resolved.current_player.opponent());
     resolved.selected_piece_id = None;
@@ -399,7 +399,7 @@ pub fn apply_closest_playable_hint(state: GameState) -> MoveResult {
     if !is_king_unprotected(resolved.current_player, &resolved, &resolved_field) {
         return rejected(
             state,
-            "Hints are available only while your king is in check.",
+            "Hints are available only while your Big Hat is in check.",
         );
     }
     let Some(hint) = find_closest_playable_configuration(resolved.current_player, &resolved) else {
@@ -455,7 +455,7 @@ pub fn reset_tuning(state: GameState) -> MoveResult {
     let mut marked = mark_instability(candidate, &field);
     let marked_field = evaluate_field(&marked);
     marked.message = if is_king_unprotected(player, &marked, &marked_field) {
-        format!("{} reset tuning · king remains in check", player.name())
+        format!("{} reset tuning · Big Hat remains in check", player.name())
     } else {
         format!(
             "{} reset tuning · move a piece to end the turn",
@@ -498,7 +498,7 @@ pub fn randomize_tuning(state: GameState, rolls: [f64; 4]) -> MoveResult {
     let marked_field = evaluate_field(&marked);
     marked.message = if is_king_unprotected(player, &marked, &marked_field) {
         format!(
-            "{} randomized tuning · king remains in check",
+            "{} randomized tuning · Big Hat remains in check",
             player.name()
         )
     } else {
@@ -581,7 +581,7 @@ pub fn apply_tuning(
     let marked_field = evaluate_field(&marked);
     marked.message = if is_king_unprotected(player, &marked, &marked_field) {
         format!(
-            "{} king is in check · move to rescue the king",
+            "{} Big Hat is in check · move to rescue the Big Hat",
             player.name()
         )
     } else {

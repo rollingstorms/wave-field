@@ -104,6 +104,39 @@ export function App() {
         state={state}
         aiThinking={aiThinking}
       />
+      <div className="top-actions">
+        <GameActions
+          developerMode={developerMode}
+          continuousField={continuousField}
+          showTypeSums={showTypeSums}
+          energyView={energyView}
+          aiEnabled={aiMode !== "off"}
+          onUndo={undo}
+          onRestart={restartGame}
+          onToggleDeveloper={() => setDeveloperMode((value) => !value)}
+          onToggleContinuousField={() => {
+            setEnergyView(false);
+            setContinuousField((value) => !value);
+          }}
+          onToggleTypeSums={() => {
+            setEnergyView(false);
+            setShowTypeSums((value) => !value);
+          }}
+          onToggleEnergyView={() => {
+            setShowTypeSums(false);
+            setContinuousField(false);
+            setEnergyView((value) => !value);
+          }}
+          onToggleAi={() => {
+            setAiMode((value) => {
+              if (!arenaEnabled) return value === "off" ? "red" : "off";
+              return value === "off" ? "red" : value === "red" ? "duel" : "off";
+            });
+            setDuelRunning(false);
+          }}
+          onShowRules={() => setShowRules(true)}
+        />
+      </div>
       <div className="play-area">
         <Board
           state={state}
@@ -120,39 +153,6 @@ export function App() {
           onHint={requestHint}
           hintSearching={hintSearching}
           onToggleEnergyChannel={(pieceType) => setEnergyChannels((channels) => ({ ...channels, [pieceType]: !channels[pieceType] }))}
-          actions={(
-            <GameActions
-              developerMode={developerMode}
-              continuousField={continuousField}
-              showTypeSums={showTypeSums}
-              energyView={energyView}
-              aiEnabled={aiMode !== "off"}
-              onUndo={undo}
-              onRestart={restartGame}
-              onToggleDeveloper={() => setDeveloperMode((value) => !value)}
-              onToggleContinuousField={() => {
-                setEnergyView(false);
-                setContinuousField((value) => !value);
-              }}
-              onToggleTypeSums={() => {
-                setEnergyView(false);
-                setShowTypeSums((value) => !value);
-              }}
-              onToggleEnergyView={() => {
-                setShowTypeSums(false);
-                setContinuousField(false);
-                setEnergyView((value) => !value);
-              }}
-              onToggleAi={() => {
-                setAiMode((value) => {
-                  if (!arenaEnabled) return value === "off" ? "red" : "off";
-                  return value === "off" ? "red" : value === "red" ? "duel" : "off";
-                });
-                setDuelRunning(false);
-              }}
-              onShowRules={() => setShowRules(true)}
-            />
-          )}
         />
         <div className="config-stack">
           {arenaEnabled && (

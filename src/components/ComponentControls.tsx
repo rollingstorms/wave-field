@@ -1,5 +1,6 @@
 import { Dices, RotateCcw } from "lucide-react";
 import { COMPONENT_COUNTS, TUNING_STRENGTH } from "../game/constants";
+import { PIECE_INITIALS, pieceName } from "../game/pieceLabels";
 import { getTuningLoad } from "../game/tuning";
 import type { Coefficient, GameState, Piece, PieceType, Player } from "../game/types";
 import { Piece as PieceShape } from "./Piece";
@@ -45,7 +46,7 @@ export function ComponentControls({ state, locked = false, onTune, onRandomize, 
         <WaveThumbnail state={state} player={player} pieceType={pieceType} />
         <PieceLegend player={player} pieceType={pieceType} />
         <div className="piece-heading-copy">
-          <strong>{pieceType.toUpperCase()}</strong>
+          <strong>{pieceName(pieceType).toUpperCase()}</strong>
           <span className="component-count">({COMPONENT_COUNTS[pieceType]} components)</span>
           <span className="strength">
             <span className="strength-label">Active </span>
@@ -68,7 +69,7 @@ export function ComponentControls({ state, locked = false, onTune, onRandomize, 
               }
               onClick={() => onTune(pieceType, index, value)}
               aria-pressed={coefficient === value}
-              aria-label={`${player} ${pieceType} component ${index + 1} set to ${coefficientLabel(player, value)}`}
+              aria-label={`${player} ${pieceName(pieceType)} component ${index + 1} set to ${coefficientLabel(player, value)}`}
             >
               {coefficientLabel(player, value)}
             </button>
@@ -113,7 +114,7 @@ export function ComponentControls({ state, locked = false, onTune, onRandomize, 
         <span><i className="swatch blue" /> &lt; 0</span>
         <span><i className="legend-legal" /> Legal</span>
         <span><i className="legend-risk"><b>!</b></i> Loss</span>
-        <span><i className="legend-king">K</i> King</span>
+        <span><i className="legend-king">{PIECE_INITIALS.king}</i> Big Hat</span>
         <span><i className="legend-unstable">!</i> Unstable</span>
       </div>
     </aside>

@@ -2,6 +2,7 @@ import { BOARD_SIZE } from "../game/constants";
 import { contributionGrid, evaluateSignedPieceContribution } from "../field/evaluateField";
 import { projectFieldValue } from "../field/projection";
 import { getLegalMoves } from "../game/movement";
+import { PIECE_TYPES, pieceName } from "../game/pieceLabels";
 import { getUnstablePieces, isKingUnprotected } from "../game/victory";
 import type { GameSnapshot, GameState } from "../game/types";
 import type { Coefficient, HomeEnergy, PieceType, Player, WaveScales } from "../game/types";
@@ -20,7 +21,7 @@ interface DebugPanelProps {
   onRestart: () => void;
 }
 
-const pieceTypes: PieceType[] = ["pawn", "rook", "spy", "king"];
+const pieceTypes: PieceType[] = PIECE_TYPES;
 const players: Player[] = ["blue", "red"];
 
 interface PressureMetric {
@@ -81,7 +82,7 @@ function WaveScaleEditor({ scales, onUpdate, onReset }: {
         <strong>Hostile</strong>
         {pieceTypes.map((pieceType) => (
           <div className="wave-scale-row" key={pieceType}>
-            <span>{pieceType.toUpperCase()}</span>
+            <span>{pieceName(pieceType).toUpperCase()}</span>
             <input
               type="number"
               min="0"
@@ -89,7 +90,7 @@ function WaveScaleEditor({ scales, onUpdate, onReset }: {
               step="0.25"
               value={scales[pieceType].friendly}
               onChange={(event) => onUpdate(pieceType, "friendly", Number(event.currentTarget.value))}
-              aria-label={`${pieceType} friendly scale`}
+              aria-label={`${pieceName(pieceType)} friendly scale`}
             />
             <input
               type="number"
@@ -98,7 +99,7 @@ function WaveScaleEditor({ scales, onUpdate, onReset }: {
               step="0.25"
               value={scales[pieceType].hostile}
               onChange={(event) => onUpdate(pieceType, "hostile", Number(event.currentTarget.value))}
-              aria-label={`${pieceType} hostile scale`}
+              aria-label={`${pieceName(pieceType)} hostile scale`}
             />
           </div>
         ))}
@@ -123,7 +124,7 @@ function HomeEnergyEditor({ homeEnergy, onUpdate, onReset }: {
         <strong>Home</strong>
         {pieceTypes.map((pieceType) => (
           <div className="home-energy-row" key={pieceType}>
-            <span>{pieceType.toUpperCase()}</span>
+            <span>{pieceName(pieceType).toUpperCase()}</span>
             <input
               type="number"
               min="-4"
@@ -131,7 +132,7 @@ function HomeEnergyEditor({ homeEnergy, onUpdate, onReset }: {
               step="0.25"
               value={homeEnergy[pieceType]}
               onChange={(event) => onUpdate(pieceType, Number(event.currentTarget.value))}
-              aria-label={`${pieceType} home energy`}
+              aria-label={`${pieceName(pieceType)} home energy`}
             />
           </div>
         ))}
@@ -161,7 +162,7 @@ function PressurePanel({ state }: { state: GameState }) {
             <b>{playerName(metric.player)}</b>
             <small>moves {metric.legalMoves}</small>
             <small>unstable {metric.unstable}</small>
-            <small>{metric.kingInCheck ? "king in check" : "king safe"}</small>
+            <small>{metric.kingInCheck ? "big hat in check" : "big hat safe"}</small>
           </span>
         ))}
       </div>

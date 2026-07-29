@@ -1,12 +1,13 @@
 import type { TypeFields } from "./evaluateField";
 import { BOARD_SIZE, FIELD_EPSILON } from "../game/constants";
+import { PIECE_INITIALS } from "../game/pieceLabels";
 import type { PieceType } from "../game/types";
 
 export const ENERGY_CHANNELS: Array<{ pieceType: PieceType; letter: string; channel: string }> = [
-  { pieceType: "pawn", letter: "P", channel: "cyan" },
-  { pieceType: "rook", letter: "R", channel: "magenta" },
-  { pieceType: "spy", letter: "S", channel: "yellow" },
-  { pieceType: "king", letter: "K", channel: "black" },
+  { pieceType: "pawn", letter: PIECE_INITIALS.pawn, channel: "cyan" },
+  { pieceType: "rook", letter: PIECE_INITIALS.rook, channel: "magenta" },
+  { pieceType: "spy", letter: PIECE_INITIALS.spy, channel: "yellow" },
+  { pieceType: "king", letter: PIECE_INITIALS.king, channel: "black" },
 ];
 
 export type EnergyChannelState = Record<PieceType, boolean>;

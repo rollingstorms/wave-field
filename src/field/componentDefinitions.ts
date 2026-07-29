@@ -16,7 +16,7 @@ export const DEFAULT_DEFINITIONS: ComponentDefinitions = {
     { kind: "ring", name: "Pull gap push", geometry: "chebyshev", ringValues: [0, -1, 0, 1], repeat: true, decayBase: 2, originScale: 1 },
   ],
   spy: [
-    { kind: "preset", name: "Pawn mask", preset: "checkerboard", decayBase: 2, originScale: 1 },
+    { kind: "preset", name: "Round Hat mask", preset: "checkerboard", decayBase: 2, originScale: 1 },
     { kind: "preset", name: "Diamond core", preset: "diamond-core", decayBase: 2, originScale: 1 },
     { kind: "preset", name: "Axis favor", preset: "axis-favor", decayBase: 2, originScale: 1 },
   ],

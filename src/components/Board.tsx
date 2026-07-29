@@ -4,7 +4,6 @@ import type {
   CSSProperties,
   MouseEvent as ReactMouseEvent,
   PointerEvent as ReactPointerEvent,
-  ReactNode,
   TouchEvent as ReactTouchEvent,
 } from "react";
 import { BOARD_SIZE } from "../game/constants";
@@ -16,6 +15,7 @@ import type { TypeFields } from "../field/evaluateField";
 import { projectFieldValue } from "../field/projection";
 import { getLegalMoves, getPieceAt, samePosition } from "../game/movement";
 import { applyMove, getPlayableMoves } from "../game/rules";
+import { PIECE_DISPLAY_NAMES, PIECE_INITIALS } from "../game/pieceLabels";
 import type { GameState, Position } from "../game/types";
 import { markInstability } from "../game/victory";
 import { Piece } from "./Piece";
@@ -36,7 +36,6 @@ interface BoardProps {
   onHint: () => void;
   hintSearching?: boolean;
   onToggleEnergyChannel: (pieceType: keyof EnergyChannelState) => void;
-  actions?: ReactNode;
 }
 
 const FILE_LABELS = Array.from({ length: BOARD_SIZE }, (_, index) => String.fromCharCode(65 + index));
@@ -61,7 +60,7 @@ interface MovementAnimation {
   to: Position;
 }
 
-export function Board({ state, field, typeFields, continuousField, showTypeSums, energyView, energyChannels, locked = false, onSelect, onMove, onResign, onHint, hintSearching = false, onToggleEnergyChannel, actions }: BoardProps) {
+export function Board({ state, field, typeFields, continuousField, showTypeSums, energyView, energyChannels, locked = false, onSelect, onMove, onResign, onHint, hintSearching = false, onToggleEnergyChannel }: BoardProps) {
   const boardRef = useRef<HTMLDivElement>(null);
   const dragRef = useRef<ActiveDrag | null>(null);
   const previousPiecesRef = useRef(state.pieces);
@@ -144,7 +143,7 @@ export function Board({ state, field, typeFields, continuousField, showTypeSums,
       const key = `${move.x}:${move.y}`;
       if (playableMoveKeys.has(key)) return [];
       const result = applyMove(interactionPiece.id, move, state);
-      return result.reason?.includes("king unprotected") ? [key] : [];
+      return result.reason?.toLowerCase().includes("big hat unprotected") || result.reason?.toLowerCase().includes("king unprotected") ? [key] : [];
     }));
   }, [interactionPiece, playableMoveKeys, reachableMoves, state]);
 
@@ -336,8 +335,8 @@ export function Board({ state, field, typeFields, continuousField, showTypeSums,
                 type="button"
                 key={pieceType}
                 className={`${channel} ${energyChannels[pieceType] ? "active" : ""}`}
-                title={`${pieceType} ${channel} channel`}
-                aria-label={`${pieceType} energy channel`}
+                title={`${PIECE_DISPLAY_NAMES[pieceType]} ${channel} channel`}
+                aria-label={`${PIECE_DISPLAY_NAMES[pieceType]} energy channel`}
                 aria-pressed={energyChannels[pieceType]}
                 onClick={() => onToggleEnergyChannel(pieceType)}
               >
@@ -350,10 +349,10 @@ export function Board({ state, field, typeFields, continuousField, showTypeSums,
       {showTypeSums && (
         <div className="type-sum-key" aria-label="Type sum corner key">
           <strong>TYPE SUMS</strong>
-          <span>P ↖</span>
-          <span>R ↗</span>
-          <span>S ↙</span>
-          <span>K ↘</span>
+          <span>{PIECE_INITIALS.pawn} ↖</span>
+          <span>{PIECE_INITIALS.rook} ↗</span>
+          <span>{PIECE_INITIALS.spy} ↙</span>
+          <span>{PIECE_INITIALS.king} ↘</span>
         </div>
       )}
       <div className="files top">{FILE_LABELS.map((file) => <span key={file}>{file}</span>)}</div>
@@ -444,7 +443,6 @@ export function Board({ state, field, typeFields, continuousField, showTypeSums,
         <div className="ranks right">{Array.from({ length: BOARD_SIZE }, (_, i) => <span key={i}>{BOARD_SIZE - i}</span>)}</div>
       </div>
       <div className="files bottom">{FILE_LABELS.map((file) => <span key={file}>{file}</span>)}</div>
-      {actions && <div className="board-actions">{actions}</div>}
       {energyView && energySelection && selectedEnergy && (
         <div className="energy-readout" aria-live="polite">
           <strong>SQUARE {FILE_LABELS[energySelection.x]}{BOARD_SIZE - energySelection.y}</strong>
@@ -463,10 +461,10 @@ export function Board({ state, field, typeFields, continuousField, showTypeSums,
       {!energyView && selectedPiece?.unstable && (
         <div className="piece-alert-hint">
           <div role="status" aria-live="polite">
-            <strong>{selectedPiece.type === "king" ? "UNPROTECTED KING" : "UNSTABLE PIECE"}</strong>
+            <strong>{selectedPiece.type === "king" ? "UNPROTECTED BIG HAT" : "UNSTABLE PIECE"}</strong>
             <p>
               {selectedPiece.type === "king"
-                ? "Try alternate component tuning to create a legal escape, then move any piece that leaves the king on friendly or neutral territory."
+                ? "Try alternate component tuning to create a legal escape, then move any piece that leaves the Big Hat on friendly or neutral territory."
                 : "Move this piece or tune the field until its square is friendly or neutral. Otherwise it disappears when the turn ends."}
             </p>
           </div>

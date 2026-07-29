@@ -120,6 +120,6 @@ describe("heuristic opponent", () => {
 
     expect(result.status).toBe("playing");
     expect(result.currentPlayer).toBe("blue");
-    expect(result.message).toContain("Blue king is in check");
+    expect(result.message).toContain("Blue Big Hat is in check");
   }, 15_000);
 });

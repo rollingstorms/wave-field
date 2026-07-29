@@ -2,6 +2,7 @@ import { cloneDefinitions, DEFAULT_COMPONENTS, validateDefinition, validateDefin
 import { DEFAULT_HOME_ENERGY, DEFAULT_WAVE_SCALES, TUNING_STRENGTH } from "./constants";
 import { playHeuristicTurn } from "./ai";
 import { createInitialState, fromSnapshot, snapshot } from "./initialState";
+import { pieceNameLower } from "./pieceLabels";
 import { applyClosestPlayableHint, applyMove, applyTuning, beginTurn, randomizeTuning, resetTuning, resignInCheck } from "./rules";
 import type { BasisDefinition, Coefficient, GameState, PieceType, Player, Position } from "./types";
 
@@ -95,7 +96,7 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
         ...state,
         waveScales,
         history: [...state.history, snapshot(state)],
-        message: `${action.pieceType} ${action.scale} scale set to ${action.value.toFixed(2)}`,
+        message: `${pieceNameLower(action.pieceType)} ${action.scale} scale set to ${action.value.toFixed(2)}`,
       };
     }
     case "reset-wave-scales":
@@ -110,7 +111,7 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
         ...state,
         homeEnergy,
         history: [...state.history, snapshot(state)],
-        message: `${action.pieceType} home energy set to ${action.value.toFixed(2)}`,
+        message: `${pieceNameLower(action.pieceType)} home energy set to ${action.value.toFixed(2)}`,
       };
     }
     case "reset-home-energy":

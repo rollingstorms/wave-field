@@ -1,8 +1,9 @@
 import { RotateCcw } from "lucide-react";
 import { COMPONENT_COUNTS, TUNING_STRENGTH } from "../game/constants";
+import { PIECE_TYPES, pieceName } from "../game/pieceLabels";
 import type { Coefficient, PieceType, PlayerComponents } from "../game/types";
 
-const pieceTypes: PieceType[] = ["pawn", "rook", "spy", "king"];
+const pieceTypes: PieceType[] = PIECE_TYPES;
 const values: Coefficient[] = [1, -1];
 const coefficientLabel = (value: Coefficient) => value === 1 ? "+" : value === -1 ? "-" : "0";
 
@@ -33,7 +34,7 @@ export function DefaultComponentEditor({ defaults, onUpdate, onReset, onRestart 
         {pieceTypes.map((pieceType) => (
           <div className="default-piece-row" key={pieceType}>
             <span className="default-piece-name">
-              <strong>{pieceType.toUpperCase()}</strong>
+              <strong>{pieceName(pieceType).toUpperCase()}</strong>
               <small>Active {TUNING_STRENGTH[pieceType]}</small>
             </span>
             <div className={`default-component-list components-${COMPONENT_COUNTS[pieceType]}`}>
@@ -48,7 +49,7 @@ export function DefaultComponentEditor({ defaults, onUpdate, onReset, onRestart 
                         className={coefficient === value ? "active" : ""}
                         disabled={coefficient === value || !canSet(pieceType, componentIndex, value)}
                         aria-pressed={coefficient === value}
-                        aria-label={`Default ${pieceType} component ${componentIndex + 1} set to ${coefficientLabel(value)}`}
+                        aria-label={`Default ${pieceName(pieceType)} component ${componentIndex + 1} set to ${coefficientLabel(value)}`}
                         onClick={() => onUpdate(pieceType, componentIndex, value)}
                       >
                         {coefficientLabel(value)}

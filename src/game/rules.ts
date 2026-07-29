@@ -2,6 +2,7 @@ import { evaluateField } from "../field/evaluateField";
 import { BOARD_SIZE, TUNING_STRENGTH } from "./constants";
 import type { Coefficient, GameState, MoveResult, PieceType, Player, PlayerComponents, Position } from "./types";
 import { getLegalMoves, samePosition } from "./movement";
+import { PIECE_TYPES, pieceNameLower } from "./pieceLabels";
 import { activationOrderForProfile, isTuningAtStrength } from "./tuning";
 import { getUnstablePieces, isKingUnprotected, markInstability, removeUnrescuedPieces } from "./victory";
 import { snapshot } from "./initialState";
@@ -33,7 +34,7 @@ function boardCoordinate(position: Position): string {
   return `${String.fromCharCode(65 + position.x)}${BOARD_SIZE - position.y}`;
 }
 
-const pieceTypes: PieceType[] = ["pawn", "rook", "spy", "king"];
+const pieceTypes: PieceType[] = PIECE_TYPES;
 const coefficientValues: Coefficient[] = [1, 0, -1];
 
 export interface PlayableConfigurationHint {
@@ -88,7 +89,7 @@ function lostOwnPieces(player: Player, before: GameState, after: GameState): str
   const remainingIds = new Set(after.pieces.map((piece) => piece.id));
   return before.pieces
     .filter((piece) => piece.owner === player && piece.type !== "king" && !remainingIds.has(piece.id))
-    .map((piece) => piece.type);
+    .map((piece) => pieceNameLower(piece.type));
 }
 
 function componentDistance(left: PlayerComponents, right: PlayerComponents): number {
@@ -162,25 +163,25 @@ export function beginTurn(state: GameState, options: RuleOptions = {}): GameStat
   const field = evaluateField(resolved);
   if (isKingUnprotected(state.currentPlayer, resolved, field)) {
     if (!analyzeCheckmate) {
-      return { ...resolved, message: `${playerName(state.currentPlayer)} king is in check` };
+      return { ...resolved, message: `${playerName(state.currentPlayer)} Big Hat is in check` };
     }
     const rescue = findClosestPlayableConfiguration(state.currentPlayer, resolved);
     if (rescue) {
       const rescueHint = rescue.changedComponents > 0
-        ? `tune, then move ${rescue.pieceType} to ${boardCoordinate(rescue.destination)}`
-        : `move ${rescue.pieceType} to ${boardCoordinate(rescue.destination)}`;
-      return { ...resolved, message: `${playerName(state.currentPlayer)} king is in check · ${rescueHint}` };
+        ? `tune, then move ${pieceNameLower(rescue.pieceType)} to ${boardCoordinate(rescue.destination)}`
+        : `move ${pieceNameLower(rescue.pieceType)} to ${boardCoordinate(rescue.destination)}`;
+      return { ...resolved, message: `${playerName(state.currentPlayer)} Big Hat is in check · ${rescueHint}` };
     }
     return {
       ...resolved,
       status: winStatus(opponent(state.currentPlayer)),
       selectedPieceId: null,
-      message: `${playerName(state.currentPlayer)} king is in check · no legal rescue found`,
+      message: `${playerName(state.currentPlayer)} Big Hat is in check · no legal rescue found`,
     };
   }
   const unstable = getUnstablePieces(state.currentPlayer, resolved, field).filter((piece) => piece.type !== "king");
   if (unstable.length > 0) {
-    return { ...resolved, message: `${playerName(state.currentPlayer)} must rescue an unstable ${unstable[0].type}` };
+    return { ...resolved, message: `${playerName(state.currentPlayer)} must rescue an unstable ${pieceNameLower(unstable[0].type)}` };
   }
   return { ...resolved, message: `${playerName(state.currentPlayer)} to move` };
 }
@@ -189,7 +190,7 @@ function completeAction(previous: GameState, candidate: GameState, options: Rule
   const selfResolved = resolveOwnTurnConsequences(previous.currentPlayer, previous, candidate);
   const selfField = evaluateField(selfResolved);
   if (isKingUnprotected(previous.currentPlayer, selfResolved, selfField)) {
-    return { ok: false, state: previous, reason: "That move would leave your king unprotected." };
+    return { ok: false, state: previous, reason: "That move would leave your Big Hat unprotected." };
   }
   const enemy = opponent(previous.currentPlayer);
   const next = beginTurn({
@@ -237,7 +238,7 @@ export function resignInCheck(state: GameState): MoveResult {
   if (state.status !== "playing") return { ok: false, state, reason: "The game is over." };
   const resolved = markInstability(state, evaluateField(state));
   if (!isKingUnprotected(state.currentPlayer, resolved, evaluateField(resolved))) {
-    return { ok: false, state, reason: "You can resign only while your king is in check." };
+    return { ok: false, state, reason: "You can resign only while your Big Hat is in check." };
   }
   return {
     ok: true,
@@ -257,7 +258,7 @@ export function applyClosestPlayableHint(state: GameState): MoveResult {
   if (state.status !== "playing") return { ok: false, state, reason: "The game is over." };
   const resolved = markInstability(state, evaluateField(state));
   if (!isKingUnprotected(state.currentPlayer, resolved, evaluateField(resolved))) {
-    return { ok: false, state, reason: "Hints are available only while your king is in check." };
+    return { ok: false, state, reason: "Hints are available only while your Big Hat is in check." };
   }
   const hint = findClosestPlayableConfiguration(state.currentPlayer, resolved);
   if (!hint) return { ok: false, state, reason: "No legal escape exists." };
@@ -277,7 +278,7 @@ export function applyClosestPlayableHint(state: GameState): MoveResult {
       activationOrders,
       selectedPieceId: hint.pieceId,
       history: [...state.history, snapshot(state)],
-      message: `Hint · ${changeText} · move ${hint.pieceType} to ${boardCoordinate(hint.destination)}`,
+      message: `Hint · ${changeText} · move ${pieceNameLower(hint.pieceType)} to ${boardCoordinate(hint.destination)}`,
     },
   };
 }
@@ -305,7 +306,7 @@ export function randomizeTuning(state: GameState, random: () => number = Math.ra
   const candidate = { ...state, components, activationOrders };
   const marked = markInstability(candidate, evaluateField(candidate));
   const message = isKingUnprotected(player, marked, evaluateField(marked))
-    ? `${playerName(player)} randomized tuning · king remains in check`
+    ? `${playerName(player)} randomized tuning · Big Hat remains in check`
     : `${playerName(player)} randomized tuning · move a piece to end the turn`;
   return {
     ok: true,
@@ -333,7 +334,7 @@ export function resetTuning(state: GameState): MoveResult {
   const candidate = { ...state, components, activationOrders };
   const marked = markInstability(candidate, evaluateField(candidate));
   const message = isKingUnprotected(player, marked, evaluateField(marked))
-    ? `${playerName(player)} reset tuning · king remains in check`
+    ? `${playerName(player)} reset tuning · Big Hat remains in check`
     : `${playerName(player)} reset tuning · move a piece to end the turn`;
   return {
     ok: true,
@@ -382,7 +383,7 @@ export function applyTuning(
   const candidate = { ...state, components: nextComponents, activationOrders };
   const marked = markInstability(candidate, evaluateField(candidate));
   const message = isKingUnprotected(player, marked, evaluateField(marked))
-    ? `${playerName(player)} king is in check · move to rescue the king`
+    ? `${playerName(player)} Big Hat is in check · move to rescue the Big Hat`
     : `${playerName(player)} tuning · move a piece to end the turn`;
 
   return {

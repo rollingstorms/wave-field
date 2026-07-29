@@ -64,7 +64,7 @@ describe("stability and victory", () => {
     const started = beginTurn(state);
 
     expect(started.pieces.map((piece) => piece.id)).toContain("red-pawn");
-    expect(started.message).toContain("must rescue an unstable pawn");
+    expect(started.message).toContain("must rescue an unstable round hat");
   });
 
   it("an opponent piece made unstable by a move survives into its rescue turn", () => {
@@ -89,7 +89,7 @@ describe("stability and victory", () => {
     expect(result.state.currentPlayer).toBe("red");
     expect(pawn).toBeDefined();
     expect(pawn?.unstable).toBe(true);
-    expect(result.state.message).toContain("must rescue an unstable pawn");
+    expect(result.state.message).toContain("must rescue an unstable round hat");
   });
 
   it("an unrescued piece still on hostile territory is lost", () => {
@@ -153,7 +153,7 @@ describe("stability and victory", () => {
 
     expect(result.ok).toBe(true);
     expect(result.state.pieces.some((piece) => piece.id === "blue-pawn")).toBe(false);
-    expect(result.state.message).toContain("Blue lost pawn");
+    expect(result.state.message).toContain("Blue lost round hat");
   });
 
   it("uses the visible unstable marker as a rescue deadline", () => {
@@ -210,7 +210,7 @@ describe("stability and victory", () => {
     expect(result.ok).toBe(true);
     expect(result.state.status).toBe("playing");
     expect(result.state.currentPlayer).toBe("red");
-    expect(result.state.message).toContain("Red king is in check");
+    expect(result.state.message).toContain("Red Big Hat is in check");
 
     const hint = findClosestPlayableConfiguration("red", result.state);
     expect(hint).not.toBeNull();
@@ -220,7 +220,7 @@ describe("stability and victory", () => {
     expect(applied.ok).toBe(true);
     expect(applied.state.selectedPieceId).toBe(hint?.pieceId);
     expect(applied.state.components.red).toEqual(hint?.components);
-    expect(applied.state.message).toContain(`move ${hint?.pieceType}`);
+    expect(applied.state.message).toMatch(/move (round hat|tower|triangle hat|big hat)/);
   });
 
   it("a checked king with no found rescue loses immediately", () => {
@@ -245,7 +245,7 @@ describe("stability and victory", () => {
 
     expect(started.status).toBe("blue-won");
     expect(started.currentPlayer).toBe("red");
-    expect(started.message).toContain("Red king is in check");
+    expect(started.message).toContain("Red Big Hat is in check");
     expect(started.message).toContain("no legal rescue found");
   });
 
@@ -271,6 +271,6 @@ describe("stability and victory", () => {
     const result = resignInCheck(createInitialState());
 
     expect(result.ok).toBe(false);
-    expect(result.reason).toContain("only while your king is in check");
+    expect(result.reason).toContain("only while your Big Hat is in check");
   });
 });

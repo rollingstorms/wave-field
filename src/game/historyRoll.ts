@@ -1,8 +1,9 @@
 import { BOARD_SIZE, DEFAULT_HOME_ENERGY } from "./constants";
+import { PIECE_TYPES, pieceNameLower } from "./pieceLabels";
 import type { Coefficient, GameSnapshot, GameState, HomeEnergy, PieceType, Player } from "./types";
 
 const players: Player[] = ["blue", "red"];
-const pieceTypes: PieceType[] = ["pawn", "rook", "spy", "king"];
+const pieceTypes: PieceType[] = PIECE_TYPES;
 
 export interface HistoryRollEntry {
   number: number;
@@ -44,7 +45,7 @@ function describeTransition(before: GameSnapshot, after: GameSnapshot, number: n
         const next = after.components[player][pieceType][index];
         if (coefficient === next) return;
         tuningChanges += 1;
-        details.push(`${playerName(player)} ${pieceType} C${index + 1} ${signLabel(player, coefficient)}→${signLabel(player, next)}`);
+        details.push(`${playerName(player)} ${pieceNameLower(pieceType)} C${index + 1} ${signLabel(player, coefficient)}→${signLabel(player, next)}`);
       });
     }
   }
@@ -55,27 +56,27 @@ function describeTransition(before: GameSnapshot, after: GameSnapshot, number: n
     const beforeScale = before.waveScales[pieceType];
     const afterScale = after.waveScales[pieceType];
     if (beforeScale.friendly !== afterScale.friendly) {
-      details.push(`${pieceType} friendly ${beforeScale.friendly.toFixed(2)}→${afterScale.friendly.toFixed(2)}`);
+      details.push(`${pieceNameLower(pieceType)} friendly ${beforeScale.friendly.toFixed(2)}→${afterScale.friendly.toFixed(2)}`);
     }
     if (beforeScale.hostile !== afterScale.hostile) {
-      details.push(`${pieceType} hostile ${beforeScale.hostile.toFixed(2)}→${afterScale.hostile.toFixed(2)}`);
+      details.push(`${pieceNameLower(pieceType)} hostile ${beforeScale.hostile.toFixed(2)}→${afterScale.hostile.toFixed(2)}`);
     }
     if (beforeHomeEnergy[pieceType] !== afterHomeEnergy[pieceType]) {
-      details.push(`${pieceType} home ${beforeHomeEnergy[pieceType].toFixed(2)}→${afterHomeEnergy[pieceType].toFixed(2)}`);
+      details.push(`${pieceNameLower(pieceType)} home ${beforeHomeEnergy[pieceType].toFixed(2)}→${afterHomeEnergy[pieceType].toFixed(2)}`);
     }
   }
 
   for (const piece of moved) {
     const next = after.pieces.find((candidate) => candidate.id === piece.id)!;
-    details.push(`${playerName(piece.owner)} ${piece.type} ${coordinate(piece.position.x, piece.position.y)}→${coordinate(next.position.x, next.position.y)}`);
+    details.push(`${playerName(piece.owner)} ${pieceNameLower(piece.type)} ${coordinate(piece.position.x, piece.position.y)}→${coordinate(next.position.x, next.position.y)}`);
   }
   for (const piece of removed) {
-    details.push(`${playerName(piece.owner)} ${piece.type} lost at ${coordinate(piece.position.x, piece.position.y)}`);
+    details.push(`${playerName(piece.owner)} ${pieceNameLower(piece.type)} lost at ${coordinate(piece.position.x, piece.position.y)}`);
   }
   if (before.status !== after.status) details.push(`Status ${before.status}→${after.status}`);
 
   let summary = "State checkpoint";
-  if (moved.length > 0) summary = `${playerName(moved[0].owner)} moved ${moved[0].type}`;
+  if (moved.length > 0) summary = `${playerName(moved[0].owner)} moved ${pieceNameLower(moved[0].type)}`;
   else if (tuningChanges > 0) summary = `${playerName(before.currentPlayer)} tuned ${tuningChanges} control${tuningChanges === 1 ? "" : "s"}`;
   else if (removed.length > 0) summary = `${removed.length} piece${removed.length === 1 ? "" : "s"} lost`;
   else if (before.currentPlayer !== after.currentPlayer) summary = `${playerName(after.currentPlayer)} turn began`;
