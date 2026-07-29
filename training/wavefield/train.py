@@ -10,7 +10,7 @@ import torch.nn.functional as F
 
 from .engine import RustEngine
 from .model import PolicyValueNet, masked_policy_logits
-from .selfplay import CapValueMode, PolicyMode, Sample, selfplay_records
+from .selfplay import CapValueMode, PolicyMode, Sample, rust_random_training_samples, selfplay_records
 
 
 def parse_args() -> argparse.Namespace:
@@ -26,6 +26,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--temperature", type=float, default=1.0)
     parser.add_argument("--policy", choices=("random", "model"), default="random")
     parser.add_argument("--cap-value", choices=("zero", "material"), default="material")
+    parser.add_argument("--python-selfplay", action="store_true", help="Use the slower Python random self-play path.")
     parser.add_argument("--device", default="auto", help="auto, cpu, mps, or cuda.")
     parser.add_argument("--checkpoint", type=Path, default=Path("training/checkpoints/policy_value.pt"))
     parser.add_argument("--resume", action="store_true")
@@ -114,28 +115,42 @@ def main() -> None:
     cap_value: CapValueMode = args.cap_value
 
     for iteration in range(1, args.iterations + 1):
-        records = selfplay_records(
-            engine,
-            games=args.games,
-            max_plies=args.max_plies,
-            seed=args.seed + start_iteration + iteration,
-            policy=policy,
-            model=model if policy == "model" else None,
-            temperature=args.temperature,
-            device=device,
-            cap_value=cap_value,
-            collect_metrics=False,
-        )
-        samples = [sample for record in records for sample in record.samples]
+        if policy == "random" and not args.python_selfplay:
+            samples, batch_summary = rust_random_training_samples(
+                engine,
+                games=args.games,
+                max_plies=args.max_plies,
+                seed=args.seed + start_iteration + iteration,
+                cap_value=cap_value,
+            )
+            generated_games = int(batch_summary["games"])
+            decisive = int(batch_summary["decisive"])
+            generator_label = "rust-random"
+        else:
+            records = selfplay_records(
+                engine,
+                games=args.games,
+                max_plies=args.max_plies,
+                seed=args.seed + start_iteration + iteration,
+                policy=policy,
+                model=model if policy == "model" else None,
+                temperature=args.temperature,
+                device=device,
+                cap_value=cap_value,
+                collect_metrics=False,
+            )
+            samples = [sample for record in records for sample in record.samples]
+            generated_games = len(records)
+            decisive = sum(1 for record in records if record.stats.decisive)
+            generator_label = f"python-{policy}"
         if not samples:
             raise RuntimeError("No training samples generated")
 
         tensors = samples_to_tensors(samples, device)
         total_samples += len(samples)
-        decisive = sum(1 for record in records if record.stats.decisive)
         print(
-            f"iteration={start_iteration + iteration} generated_games={len(records)} "
-            f"samples={len(samples)} decisive={decisive} device={device}"
+            f"iteration={start_iteration + iteration} generator={generator_label} "
+            f"generated_games={generated_games} samples={len(samples)} decisive={decisive} device={device}"
         )
 
         for epoch in range(1, args.epochs + 1):

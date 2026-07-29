@@ -56,6 +56,17 @@ class TrainingSmokeTest(unittest.TestCase):
         self.assertEqual(summary["games"], 1)
         self.assertIn("avg_pressure", summary)
 
+    def test_rust_training_batch_generates_encoded_samples(self) -> None:
+        batch = self.engine.generate_random_training_batch(load_initial_state(), games=1, max_plies=2, seed=31)
+        self.assertEqual(batch["summary"]["games"], 1)
+        self.assertGreater(batch["summary"]["samples"], 0)
+        sample = batch["samples"][0]
+        self.assertEqual(len(sample["board"]), BOARD_CHANNELS * 7 * 7)
+        self.assertEqual(len(sample["side"]), SIDE_SIZE)
+        self.assertGreater(len(sample["legalActionIndexes"]), 0)
+        self.assertGreaterEqual(sample["actionIndex"], 0)
+        self.assertLess(sample["actionIndex"], ACTION_SIZE)
+
 
 if __name__ == "__main__":
     unittest.main()

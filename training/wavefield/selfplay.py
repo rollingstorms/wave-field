@@ -7,7 +7,7 @@ from typing import Any, Dict, List, Literal, Optional, Tuple
 import numpy as np
 import torch
 
-from .encoding import action_index, decode_action, encode_state, legal_action_mask
+from .encoding import ACTION_SIZE, BOARD_CHANNELS, BOARD_SIZE, action_index, decode_action, encode_state
 from .engine import Action, RustEngine, load_initial_state
 from .model import PolicyValueNet, masked_policy_logits
 
@@ -314,6 +314,41 @@ def random_selfplay_samples(
     for game in range(games):
         samples.extend(random_selfplay_game(engine, max_plies=max_plies, seed=seed + game))
     return samples
+
+
+def rust_random_training_samples(
+    engine: RustEngine,
+    games: int,
+    max_plies: int = 160,
+    seed: int = 0,
+    cap_value: CapValueMode = "material",
+) -> tuple[List[Sample], Dict[str, Any]]:
+    batch = engine.generate_random_training_batch(
+        load_initial_state(),
+        games=games,
+        max_plies=max_plies,
+        seed=seed,
+        material_for_capped=cap_value == "material",
+    )
+    samples = []
+    for raw in batch["samples"]:
+        legal_mask = np.zeros((ACTION_SIZE,), dtype=np.float32)
+        legal_mask[np.asarray(raw["legalActionIndexes"], dtype=np.int64)] = 1.0
+        samples.append(
+            Sample(
+                board=np.asarray(raw["board"], dtype=np.float32).reshape(
+                    BOARD_CHANNELS,
+                    BOARD_SIZE,
+                    BOARD_SIZE,
+                ),
+                side=np.asarray(raw["side"], dtype=np.float32),
+                legal_mask=legal_mask,
+                action_index=int(raw["actionIndex"]),
+                player=raw["player"],
+                value=float(raw["value"]),
+            )
+        )
+    return samples, batch["summary"]
 
 
 def selfplay_records(

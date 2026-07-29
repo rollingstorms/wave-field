@@ -3,6 +3,23 @@ use serde::Serialize;
 use std::collections::{HashMap, HashSet};
 use std::time::Instant;
 
+const TRAINING_BOARD_CHANNELS: usize = 13;
+const TRAINING_BOARD_SIZE: usize = 7;
+const TRAINING_PIECE_IDS: [&str; 12] = [
+    "blue-rook-1",
+    "blue-king-1",
+    "blue-rook-2",
+    "blue-pawn-1",
+    "blue-spy-1",
+    "blue-pawn-2",
+    "red-pawn-1",
+    "red-spy-1",
+    "red-pawn-2",
+    "red-rook-1",
+    "red-king-1",
+    "red-rook-2",
+];
+
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct AiBatchSummary {
@@ -89,6 +106,39 @@ pub struct RandomProfileSummary {
     pub avg_candidate_moves_per_ply: f64,
 }
 
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct TrainingBatchSample {
+    pub board: Vec<f32>,
+    pub side: Vec<f32>,
+    pub legal_action_indexes: Vec<usize>,
+    pub action_index: usize,
+    pub player: String,
+    pub value: f32,
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct TrainingBatchSummary {
+    pub games: u64,
+    pub samples: usize,
+    pub red_wins: u64,
+    pub blue_wins: u64,
+    pub capped: u64,
+    pub decisive: u64,
+    pub total_plies: u64,
+    pub mean_plies: f64,
+    pub elapsed_ms: u128,
+    pub samples_per_second: f64,
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct TrainingBatch {
+    pub summary: TrainingBatchSummary,
+    pub samples: Vec<TrainingBatchSample>,
+}
+
 #[derive(Default)]
 struct GameMetrics {
     first_loss_owner: Option<Player>,
@@ -117,6 +167,177 @@ fn piece_type_key(piece_type: PieceType) -> &'static str {
         PieceType::Rook => "rook",
         PieceType::Spy => "spy",
         PieceType::King => "king",
+    }
+}
+
+fn piece_type_index(piece_type: PieceType) -> usize {
+    match piece_type {
+        PieceType::Pawn => 0,
+        PieceType::Rook => 1,
+        PieceType::Spy => 2,
+        PieceType::King => 3,
+    }
+}
+
+fn player_index(player: Player) -> usize {
+    match player {
+        Player::Red => 0,
+        Player::Blue => 1,
+    }
+}
+
+fn training_piece_slot(piece_id: &str) -> usize {
+    TRAINING_PIECE_IDS
+        .iter()
+        .position(|candidate| *candidate == piece_id)
+        .expect("known training piece id")
+}
+
+fn training_square_index(position: Position) -> usize {
+    position.y as usize * TRAINING_BOARD_SIZE + position.x as usize
+}
+
+fn training_action_index(piece_id: &str, destination: Position) -> usize {
+    training_piece_slot(piece_id) * TRAINING_BOARD_SIZE * TRAINING_BOARD_SIZE
+        + training_square_index(destination)
+}
+
+fn push_components(values: &mut Vec<f32>, components: &PlayerComponents) {
+    values.extend(components.pawn.iter().map(|value| f32::from(*value)));
+    values.extend(components.rook.iter().map(|value| f32::from(*value)));
+    values.extend(components.spy.iter().map(|value| f32::from(*value)));
+    values.extend(components.king.iter().map(|value| f32::from(*value)));
+}
+
+fn training_side(state: &GameState) -> Vec<f32> {
+    let mut values = Vec::with_capacity(19);
+    push_components(&mut values, &state.components.red);
+    push_components(&mut values, &state.components.blue);
+    values.push(if state.current_player == Player::Red {
+        1.0
+    } else {
+        -1.0
+    });
+    values
+}
+
+fn set_board_value(board: &mut [f32], channel: usize, position: Position, value: f32) {
+    let index = channel * TRAINING_BOARD_SIZE * TRAINING_BOARD_SIZE
+        + position.y as usize * TRAINING_BOARD_SIZE
+        + position.x as usize;
+    board[index] = value;
+}
+
+fn training_board(state: &GameState, field: &Field) -> Vec<f32> {
+    let mut board = vec![0.0; TRAINING_BOARD_CHANNELS * TRAINING_BOARD_SIZE * TRAINING_BOARD_SIZE];
+    for piece in &state.pieces {
+        let occupancy_channel = player_index(piece.owner) * 4 + piece_type_index(piece.piece_type);
+        set_board_value(&mut board, occupancy_channel, piece.position, 1.0);
+        if piece.unstable {
+            let unstable_channel = match piece.owner {
+                Player::Red => 8,
+                Player::Blue => 9,
+            };
+            set_board_value(&mut board, unstable_channel, piece.position, 1.0);
+        }
+    }
+    for y in 0..TRAINING_BOARD_SIZE {
+        for x in 0..TRAINING_BOARD_SIZE {
+            let value = field[y][x] as f32;
+            let position = Position {
+                x: x as i32,
+                y: y as i32,
+            };
+            set_board_value(&mut board, 10, position, (value / 8.0).clamp(-1.0, 1.0));
+            set_board_value(
+                &mut board,
+                11,
+                position,
+                (value.abs() / 8.0).clamp(0.0, 1.0),
+            );
+            set_board_value(
+                &mut board,
+                12,
+                position,
+                if state.current_player == Player::Red {
+                    1.0
+                } else {
+                    -1.0
+                },
+            );
+        }
+    }
+    board
+}
+
+fn material_value(state: &GameState, player: Player) -> f32 {
+    let own = piece_count(state, player) as f32;
+    let opponent = piece_count(state, player.opponent()) as f32;
+    ((own - opponent) / 6.0).clamp(-1.0, 1.0)
+}
+
+fn result_value_for_state(state: &GameState, player: Player, material_for_capped: bool) -> f32 {
+    match state.status {
+        GameStatus::RedWon => {
+            if player == Player::Red {
+                1.0
+            } else {
+                -1.0
+            }
+        }
+        GameStatus::BlueWon => {
+            if player == Player::Blue {
+                1.0
+            } else {
+                -1.0
+            }
+        }
+        GameStatus::Playing => {
+            if material_for_capped {
+                material_value(state, player)
+            } else {
+                0.0
+            }
+        }
+    }
+}
+
+fn playable_training_candidates(state: &GameState) -> Vec<(String, Position, GameState)> {
+    let field = evaluate_field(state);
+    let mut candidates = Vec::new();
+    for piece in state
+        .pieces
+        .iter()
+        .filter(|piece| piece.owner == state.current_player)
+    {
+        for destination in get_legal_moves(&piece.id, state, &field) {
+            let result = apply_training_move(&piece.id, destination, state.clone());
+            if result.ok {
+                candidates.push((piece.id.clone(), destination, result.state));
+            }
+        }
+    }
+    candidates
+}
+
+fn encode_training_sample(
+    state: &GameState,
+    candidates: &[(String, Position, GameState)],
+    action_index: usize,
+) -> TrainingBatchSample {
+    let field = evaluate_field(state);
+    let legal_action_indexes = candidates
+        .iter()
+        .map(|(piece_id, destination, _)| training_action_index(piece_id, *destination))
+        .collect::<Vec<_>>();
+    let (piece_id, destination, _) = &candidates[action_index];
+    TrainingBatchSample {
+        board: training_board(state, &field),
+        side: training_side(state),
+        legal_action_indexes,
+        action_index: training_action_index(piece_id, *destination),
+        player: player_key(state.current_player).to_owned(),
+        value: 0.0,
     }
 }
 
@@ -595,6 +816,81 @@ pub fn simulate_random_lean_games(
         max_game_plies,
         started_at.elapsed().as_millis(),
     )
+}
+
+pub fn generate_random_training_batch(
+    initial_state: &GameState,
+    games: u64,
+    max_plies: u64,
+    seed: u32,
+    material_for_capped: bool,
+) -> TrainingBatch {
+    let started_at = Instant::now();
+    let mut samples = Vec::new();
+    let mut red_wins = 0;
+    let mut blue_wins = 0;
+    let mut capped = 0;
+    let mut total_plies = 0;
+
+    for game in 0..games {
+        let mut state = initial_state.clone();
+        let mut rng = u64::from(seed).wrapping_add(game);
+        let game_sample_start = samples.len();
+        let mut plies = 0;
+
+        while state.status == GameStatus::Playing && plies < max_plies {
+            let candidates = playable_training_candidates(&state);
+            if candidates.is_empty() {
+                state = no_move_loss_training(state);
+                break;
+            }
+
+            let selected = (random_unit(&mut rng) as usize) % candidates.len();
+            samples.push(encode_training_sample(&state, &candidates, selected));
+            state = candidates[selected].2.clone();
+            plies += 1;
+        }
+
+        for sample in &mut samples[game_sample_start..] {
+            let player = if sample.player == "red" {
+                Player::Red
+            } else {
+                Player::Blue
+            };
+            sample.value = result_value_for_state(&state, player, material_for_capped);
+        }
+
+        total_plies += plies;
+        match state.status {
+            GameStatus::RedWon => red_wins += 1,
+            GameStatus::BlueWon => blue_wins += 1,
+            GameStatus::Playing => capped += 1,
+        }
+    }
+
+    let elapsed_ms = started_at.elapsed().as_millis();
+    let decisive = red_wins + blue_wins;
+    let samples_per_second = if elapsed_ms == 0 {
+        0.0
+    } else {
+        samples.len() as f64 / (elapsed_ms as f64 / 1000.0)
+    };
+
+    TrainingBatch {
+        summary: TrainingBatchSummary {
+            games,
+            samples: samples.len(),
+            red_wins,
+            blue_wins,
+            capped,
+            decisive,
+            total_plies,
+            mean_plies: ratio(total_plies as f64, games),
+            elapsed_ms,
+            samples_per_second,
+        },
+        samples,
+    }
 }
 
 pub fn profile_random_games(

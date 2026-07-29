@@ -23,6 +23,9 @@ PYTHONPATH=training python3 -m unittest discover training/tests
 PYTHONPATH=training python3 -m wavefield.train --games 8 --epochs 3 --batch-size 64
 ```
 
+Random-policy training uses the Rust batch generator by default. Add
+`--python-selfplay` when you need to debug the slower Python rollout path.
+
 The MVP model uses a hybrid view:
 
 - board planes: occupancy, instability, field sign/magnitude, current player
@@ -59,6 +62,8 @@ PYTHONPATH=training python3 -m wavefield.bench --games 25 --max-plies 80
 ```
 
 The benchmark compares the pure Rust random batch path against the Python loop
-that encodes states for training. The Python path is expected to be slower until
-we move more self-play batching into Rust or replace the JSON bridge with a
-native interface.
+that encodes states for training. `rust_random_training_batch` is the current
+fast path for random training data: Rust rolls out games, encodes board tensors,
+emits legal action indexes, and returns the batch to Python for PyTorch updates.
+Model-driven self-play still runs through Python because PyTorch selects moves
+at each ply.

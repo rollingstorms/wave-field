@@ -188,3 +188,20 @@ class RustEngine:
         seed: int = 0,
     ) -> Any:
         return self.request("simulateRandomLeanGames", state, games=games, maxPlies=max_plies, seed=seed)
+
+    def generate_random_training_batch(
+        self,
+        state: Dict[str, Any],
+        games: int,
+        max_plies: int,
+        seed: int = 0,
+        material_for_capped: bool = True,
+    ) -> Any:
+        return self.request(
+            "generateRandomTrainingBatch",
+            state,
+            games=games,
+            maxPlies=max_plies,
+            seed=seed,
+            materialForCapped=material_for_capped,
+        )

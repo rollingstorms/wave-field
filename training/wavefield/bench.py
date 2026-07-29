@@ -36,12 +36,16 @@ def main() -> None:
         "rust_random_lean",
         lambda: engine.simulate_random_lean_games(state, args.games, args.max_plies, args.seed),
     )
+    rust_training = timed(
+        "rust_random_training_batch",
+        lambda: engine.generate_random_training_batch(state, args.games, args.max_plies, args.seed),
+    )
     python = timed(
         "python_random_with_encoding",
         lambda: selfplay_records(engine, args.games, args.max_plies, args.seed, policy="random"),
     )
 
-    for item in (rust, python):
+    for item in (rust, rust_training, python):
         games_per_second = args.games / item["seconds"] if item["seconds"] else 0.0
         print(f"{item['label']} seconds={item['seconds']:.3f} games_per_second={games_per_second:.2f}")
 
