@@ -5,22 +5,25 @@
   "license": "MIT",
   "type": "module",
   "scripts": {
-    "dev": "vite --host 127.0.0.1",
-    "arena": "vite --host 127.0.0.1 --mode arena",
+    "engine:build": "node scripts/build-rust-engine.mjs",
+    "engine:bench": "node scripts/bench-rust-engine.mjs",
+    "dev": "npm run engine:build && vite --host 127.0.0.1",
+    "arena": "npm run engine:build && vite --host 127.0.0.1 --mode arena",
     "build": "tsc && vite build && node scripts/copy-arena-entry.mjs",
-    "test": "vitest run",
-    "test:watch": "vitest"
+    "test": "cargo build --manifest-path engine/Cargo.toml && vitest run",
+    "test:watch": "cargo build --manifest-path engine/Cargo.toml && vitest"
   },
   "dependencies": {
     "@vitejs/plugin-react": "6.0.2",
-    "vite": "8.0.13",
-    "typescript": "5.9.3",
+    "lucide-react": "0.468.0",
     "react": "19.2.6",
     "react-dom": "19.2.6",
-    "vitest": "4.0.15",
-    "lucide-react": "0.468.0"
+    "typescript": "5.9.3",
+    "vite": "8.0.13",
+    "vitest": "4.0.15"
   },
   "devDependencies": {
+    "@types/node": "^26.1.2",
     "@types/react": "19.2.14",
     "@types/react-dom": "19.2.3"
   }

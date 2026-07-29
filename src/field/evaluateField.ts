@@ -1,5 +1,6 @@
 import { BOARD_SIZE, PIECE_STRENGTH } from "../game/constants";
 import type { ComponentDefinitions, GameState, Piece, PieceType, Position } from "../game/types";
+import { rustEvaluateField } from "../game/rustEngine";
 import { offset } from "./distance";
 import { evaluateComponentBasis } from "./kernels";
 
@@ -31,6 +32,10 @@ export function evaluateSignedPieceContribution(
 }
 
 export function evaluateField(state: GameState, definitions: ComponentDefinitions = state.definitions): number[][] {
+  if (definitions === state.definitions) {
+    const rustField = rustEvaluateField(state);
+    if (rustField) return rustField;
+  }
   return Array.from({ length: BOARD_SIZE }, (_, y) =>
     Array.from({ length: BOARD_SIZE }, (_, x) =>
       state.pieces.reduce((total, piece) => total + evaluateSignedPieceContribution(piece, { x, y }, state, definitions), 0),

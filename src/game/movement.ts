@@ -1,6 +1,7 @@
 import { BOARD_SIZE } from "./constants";
 import type { GameState, Piece, Position } from "./types";
 import { isSquareCompatible } from "../field/projection";
+import { rustLegalMoves } from "./rustEngine";
 
 export function inBounds(position: Position): boolean {
   return position.x >= 0 && position.x < BOARD_SIZE && position.y >= 0 && position.y < BOARD_SIZE;
@@ -41,6 +42,8 @@ export function canPieceEnter(piece: Piece, destination: Position, state: GameSt
 }
 
 export function getLegalMoves(pieceId: string, state: GameState, field: number[][]): Position[] {
+  const rustMoves = rustLegalMoves(pieceId, state);
+  if (rustMoves) return rustMoves;
   const piece = state.pieces.find((candidate) => candidate.id === pieceId);
   if (!piece) return [];
   const moves: Position[] = [];

@@ -4,6 +4,7 @@ import { COMPONENT_COUNTS, TUNING_STRENGTH } from "./constants";
 import { snapshot } from "./initialState";
 import { getLegalMoves } from "./movement";
 import { applyMove, opponent } from "./rules";
+import { rustPlayHeuristicTurn } from "./rustEngine";
 import { activationOrderForProfile } from "./tuning";
 import type { Coefficient, GameSnapshot, GameState, Piece, PieceType, Player, PlayerComponents, Position } from "./types";
 import { getUnstablePieces, isKingUnprotected, markInstability } from "./victory";
@@ -208,6 +209,14 @@ function loopPenalty(
 
 export function playHeuristicTurn(state: GameState, player: Player = "red", options: AiTurnOptions = {}): GameState {
   if (state.status !== "playing" || state.currentPlayer !== player) return state;
+  const rustState = rustPlayHeuristicTurn(
+    state,
+    player,
+    options.seed ?? 0,
+    Math.max(0, Math.min(options.variety ?? 0, 1)),
+    Math.max(20, options.timeBudgetMs ?? defaultTimeBudgetMs),
+  );
+  if (rustState) return rustState;
 
   const choices: Array<{ tuned: GameState; pieceId: string; destination: { x: number; y: number }; preview: GameState; score: number }> = [];
   const fieldCache = new WeakMap<GameState, number[][]>();

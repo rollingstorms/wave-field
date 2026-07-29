@@ -1,8 +1,14 @@
 import { evaluateField } from "../field/evaluateField";
 import { isSquareCompatible } from "../field/projection";
 import type { GameState, Piece, Player } from "./types";
+import { rustKingUnprotected, rustMarkInstability, rustUnstablePieceIds } from "./rustEngine";
 
 export function getUnstablePieces(player: Player, state: GameState, field: number[][]): Piece[] {
+  const rustIds = rustUnstablePieceIds(player, state);
+  if (rustIds) {
+    const ids = new Set(rustIds);
+    return state.pieces.filter((piece) => ids.has(piece.id));
+  }
   return state.pieces.filter((piece) => {
     if (piece.owner !== player) return false;
     return !isSquareCompatible(player, field[piece.position.y][piece.position.x]);
@@ -10,6 +16,8 @@ export function getUnstablePieces(player: Player, state: GameState, field: numbe
 }
 
 export function markInstability(state: GameState, field: number[][]): GameState {
+  const rustState = rustMarkInstability(state);
+  if (rustState) return rustState;
   return {
     ...state,
     pieces: state.pieces.map((piece) => ({
@@ -20,6 +28,8 @@ export function markInstability(state: GameState, field: number[][]): GameState 
 }
 
 export function isKingUnprotected(player: Player, state: GameState, field: number[][]): boolean {
+  const rustResult = rustKingUnprotected(player, state);
+  if (rustResult !== null) return rustResult;
   const king = state.pieces.find((piece) => piece.owner === player && piece.type === "king");
   return Boolean(king && !isSquareCompatible(player, field[king.position.y][king.position.x]));
 }

@@ -245,11 +245,55 @@ always produce the same field and legal moves.
 
 ```bash
 npm install
+npm run engine:build
 npm run dev
 ```
 
-Use `npm test` to run the rules test suite and `npm run build` to create the
-production build.
+The development app and AI arena use the Rust rule engine through WebAssembly.
+Install its one-time toolchain prerequisites with:
+
+```bash
+rustup target add wasm32-unknown-unknown
+cargo install wasm-bindgen-cli --version 0.2.126 --locked
+```
+
+`npm run dev` and `npm run arena` rebuild the WebAssembly module before starting
+Vite. The Rust crate lives in `engine/`; its native JSON-lines binary is also a
+convenient boundary for scripts and future Python bindings. During migration,
+the production build continues to use the TypeScript engine.
+
+Use `npm test` to build Rust, run the existing TypeScript rules suite, and run
+cross-language parity checks for field evaluation, movement, turn resolution,
+tuning, instability, and check behavior. Use `cargo test --manifest-path
+engine/Cargo.toml` for Rust-only tests and `npm run build` for the production
+build.
+
+## Rust Engine Benchmarks
+
+The native Rust CLI supports developer simulation modes for arena analysis and
+training experiments:
+
+- `simulateRandomGames`: random legal self-play with rich per-ply metrics.
+- `simulateRandomLeanGames`: random legal self-play with terminal stats only.
+- `profileRandomGames`: lean random self-play with timing for candidate
+  generation and move application.
+- `simulateAiGames`: heuristic AI self-play baseline.
+
+Run the layered benchmark with:
+
+```bash
+npm run engine:bench
+```
+
+Useful overrides:
+
+```bash
+npm run engine:bench -- --games 5000 --heuristic-games 50 --time-budget-ms 10
+```
+
+Lean mode uses a training-oriented move path that skips browser-only history,
+status-message work, and full no-rescue trap search while preserving ordinary
+move consequences and cheap terminal checks.
 
 ## License
 
