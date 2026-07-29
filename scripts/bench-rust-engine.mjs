@@ -9,7 +9,7 @@ const initialStatePath = resolve(root, "engine/tests/initial-state.json");
 const options = {
   games: 500,
   heuristicGames: 50,
-  maxPlies: 160,
+  maxPlies: 300,
   seed: 90210,
   variety: 0.55,
   timeBudgetMs: 10,

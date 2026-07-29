@@ -1,10 +1,12 @@
 use std::io::{self, BufRead};
+
+use serde_json::json;
 use wave_field_engine::{
     AiTurnOptions, GameState, PieceType, Player, Position, apply_closest_playable_hint, apply_move,
-    apply_tuning, begin_turn, evaluate_field, get_legal_moves, get_playable_moves,
-    is_king_unprotected, play_heuristic_turn, profile_random_games, randomize_tuning, reset_tuning,
-    resign_in_check, simulate_ai_games, simulate_random_games, simulate_random_lean_games,
-    unstable_pieces,
+    apply_tuning, begin_turn, evaluate_field, generate_random_training_batch, get_legal_moves,
+    get_playable_moves, is_king_unprotected, play_heuristic_turn, profile_random_games,
+    randomize_tuning, reset_tuning, resign_in_check, simulate_ai_games, simulate_random_games,
+    simulate_random_lean_games, unstable_pieces,
 };
 
 fn main() {
@@ -41,6 +43,20 @@ fn main() {
                 &state,
             ))
             .unwrap(),
+            "playableActions" => {
+                let actions = state
+                    .pieces
+                    .iter()
+                    .filter(|piece| piece.owner == state.current_player)
+                    .flat_map(|piece| {
+                        get_playable_moves(&piece.id, &state)
+                            .into_iter()
+                            .map(|destination| json!({ "pieceId": piece.id, "destination": destination }))
+                            .collect::<Vec<_>>()
+                    })
+                    .collect::<Vec<_>>();
+                serde_json::to_value(actions).unwrap()
+            }
             "beginTurn" => {
                 let analyze = request["analyzeCheckmate"].as_bool().unwrap_or(true);
                 serde_json::to_value(begin_turn(state, analyze)).unwrap()
@@ -97,7 +113,7 @@ fn main() {
             "simulateAiGames" => serde_json::to_value(simulate_ai_games(
                 &state,
                 request["games"].as_u64().unwrap_or(100),
-                request["maxPlies"].as_u64().unwrap_or(160),
+                request["maxPlies"].as_u64().unwrap_or(300),
                 request["seed"].as_u64().unwrap_or(0) as u32,
                 request["variety"].as_f64().unwrap_or(0.55),
                 request["timeBudgetMs"].as_u64().unwrap_or(20),
@@ -106,22 +122,30 @@ fn main() {
             "simulateRandomGames" => serde_json::to_value(simulate_random_games(
                 &state,
                 request["games"].as_u64().unwrap_or(100),
-                request["maxPlies"].as_u64().unwrap_or(160),
+                request["maxPlies"].as_u64().unwrap_or(300),
                 request["seed"].as_u64().unwrap_or(0) as u32,
             ))
             .unwrap(),
             "simulateRandomLeanGames" => serde_json::to_value(simulate_random_lean_games(
                 &state,
                 request["games"].as_u64().unwrap_or(100),
-                request["maxPlies"].as_u64().unwrap_or(160),
+                request["maxPlies"].as_u64().unwrap_or(300),
                 request["seed"].as_u64().unwrap_or(0) as u32,
             ))
             .unwrap(),
             "profileRandomGames" => serde_json::to_value(profile_random_games(
                 &state,
                 request["games"].as_u64().unwrap_or(100),
-                request["maxPlies"].as_u64().unwrap_or(160),
+                request["maxPlies"].as_u64().unwrap_or(300),
                 request["seed"].as_u64().unwrap_or(0) as u32,
+            ))
+            .unwrap(),
+            "generateRandomTrainingBatch" => serde_json::to_value(generate_random_training_batch(
+                &state,
+                request["games"].as_u64().unwrap_or(100),
+                request["maxPlies"].as_u64().unwrap_or(300),
+                request["seed"].as_u64().unwrap_or(0) as u32,
+                request["materialForCapped"].as_bool().unwrap_or(true),
             ))
             .unwrap(),
             method => panic!("unknown method: {method}"),
