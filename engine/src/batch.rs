@@ -51,6 +51,44 @@ pub struct AiBatchSummary {
     pub avg_loser_pieces: f64,
 }
 
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct LeanBatchSummary {
+    pub games: u64,
+    pub red_wins: u64,
+    pub blue_wins: u64,
+    pub capped: u64,
+    pub decisive: u64,
+    pub total_plies: u64,
+    pub mean_plies: f64,
+    pub min_plies: u64,
+    pub max_plies: u64,
+    pub elapsed_ms: u128,
+    pub ms_per_game: f64,
+    pub ms_per_ply: f64,
+    pub plies_per_second: f64,
+    pub projected_500_games_ms: f64,
+}
+
+#[derive(Default)]
+struct ProfileTotals {
+    candidate_generation_ns: u128,
+    apply_move_ns: u128,
+    candidate_moves: u64,
+    candidate_turns: u64,
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct RandomProfileSummary {
+    pub batch: LeanBatchSummary,
+    pub candidate_generation_ms: f64,
+    pub apply_move_ms: f64,
+    pub avg_candidate_generation_ms_per_ply: f64,
+    pub avg_apply_move_ms_per_ply: f64,
+    pub avg_candidate_moves_per_ply: f64,
+}
+
 #[derive(Default)]
 struct GameMetrics {
     first_loss_owner: Option<Player>,
@@ -219,6 +257,448 @@ pub fn simulate_ai_games(
                     time_budget_ms: Some(time_budget_ms),
                 },
             );
+            plies += 1;
+            update_game_metrics(&before, &state, plies, &mut metrics);
+        }
+
+        total_plies += plies;
+        min_game_plies = min_game_plies.min(plies);
+        max_game_plies = max_game_plies.max(plies);
+        match state.status {
+            GameStatus::RedWon => red_wins += 1,
+            GameStatus::BlueWon => blue_wins += 1,
+            GameStatus::Playing => capped += 1,
+        }
+
+        if let Some(owner) = metrics.first_loss_owner {
+            match owner {
+                Player::Red => first_loss_red += 1,
+                Player::Blue => first_loss_blue += 1,
+            }
+            match state.status {
+                GameStatus::RedWon if owner == Player::Red => first_loss_team_wins += 1,
+                GameStatus::BlueWon if owner == Player::Blue => first_loss_team_wins += 1,
+                GameStatus::RedWon | GameStatus::BlueWon => first_loss_team_losses += 1,
+                GameStatus::Playing => first_loss_team_capped += 1,
+            }
+            if matches!(
+                (state.status, owner),
+                (GameStatus::RedWon, Player::Blue) | (GameStatus::BlueWon, Player::Red)
+            ) {
+                loser_first_loss_ply_total += metrics.first_loss_ply.unwrap_or(0);
+                loser_first_loss_games += 1;
+            }
+        }
+
+        if state.status != GameStatus::Playing {
+            let red_pieces = piece_count(&state, Player::Red);
+            let blue_pieces = piece_count(&state, Player::Blue);
+            let (winner_pieces, loser_pieces) = match state.status {
+                GameStatus::RedWon => (red_pieces, blue_pieces),
+                GameStatus::BlueWon => (blue_pieces, red_pieces),
+                GameStatus::Playing => unreachable!(),
+            };
+            *winner_piece_counts
+                .entry(winner_pieces.to_string())
+                .or_insert(0) += 1;
+            winner_piece_total += winner_pieces;
+            loser_piece_total += loser_pieces;
+            decisive_piece_count_games += 1;
+            if winner_pieces < loser_pieces {
+                underdog_wins += 1;
+            }
+        }
+
+        checks_created += metrics.checks_created;
+        unstable_created += metrics.unstable_created;
+        rescue_opportunities += metrics.rescue_opportunities;
+        rescues += metrics.rescues;
+        material_losses += metrics.material_losses;
+        repeated_piece_destinations += metrics.repeated_piece_destinations;
+        for (piece_type, count) in metrics.losses_by_piece {
+            *losses_by_piece.entry(piece_type).or_insert(0) += count;
+        }
+        for (owner, count) in metrics.losses_by_owner {
+            *losses_by_owner.entry(owner).or_insert(0) += count;
+        }
+    }
+
+    let elapsed_ms = started_at.elapsed().as_millis();
+    let decisive = red_wins + blue_wins;
+    let ms_per_game = ratio(elapsed_ms as f64, games);
+    let ms_per_ply = ratio(elapsed_ms as f64, total_plies);
+
+    AiBatchSummary {
+        games,
+        red_wins,
+        blue_wins,
+        capped,
+        decisive,
+        total_plies,
+        mean_plies: ratio(total_plies as f64, games),
+        min_plies: if games == 0 { 0 } else { min_game_plies },
+        max_plies: max_game_plies,
+        elapsed_ms,
+        ms_per_game,
+        ms_per_ply,
+        plies_per_second: if elapsed_ms == 0 {
+            0.0
+        } else {
+            total_plies as f64 / (elapsed_ms as f64 / 1000.0)
+        },
+        projected_500_games_ms: ms_per_game * 500.0,
+        decisive_rate: ratio(decisive as f64, games),
+        cap_rate: ratio(capped as f64, games),
+        red_win_rate: ratio(red_wins as f64, games),
+        blue_win_rate: ratio(blue_wins as f64, games),
+        blue_decisive_share: ratio(blue_wins as f64, decisive),
+        first_loss_red,
+        first_loss_blue,
+        first_loss_team_wins,
+        first_loss_team_losses,
+        first_loss_team_capped,
+        first_loss_win_rate: ratio(
+            first_loss_team_wins as f64,
+            first_loss_team_wins + first_loss_team_losses,
+        ),
+        underdog_wins,
+        underdog_win_rate: ratio(underdog_wins as f64, decisive),
+        checks_created,
+        check_rate_per_ply: ratio(checks_created as f64, total_plies),
+        unstable_created,
+        unstable_creation_rate_per_ply: ratio(unstable_created as f64, total_plies),
+        rescue_opportunities,
+        rescues,
+        rescue_rate: ratio(rescues as f64, rescue_opportunities),
+        material_losses,
+        losses_by_piece,
+        losses_by_owner,
+        winner_piece_counts,
+        repeated_piece_destinations,
+        repeated_piece_destination_rate: ratio(repeated_piece_destinations as f64, total_plies),
+        avg_loser_first_loss_ply: ratio(loser_first_loss_ply_total as f64, loser_first_loss_games),
+        avg_winner_pieces: ratio(winner_piece_total as f64, decisive_piece_count_games),
+        avg_loser_pieces: ratio(loser_piece_total as f64, decisive_piece_count_games),
+    }
+}
+
+fn random_unit(seed: &mut u64) -> u64 {
+    *seed ^= *seed << 13;
+    *seed ^= *seed >> 7;
+    *seed ^= *seed << 17;
+    *seed
+}
+
+fn no_move_loss(mut state: GameState) -> GameState {
+    state.status = match state.current_player {
+        Player::Red => GameStatus::BlueWon,
+        Player::Blue => GameStatus::RedWon,
+    };
+    state.selected_piece_id = None;
+    state.message = format!("{} has no legal move", player_key(state.current_player));
+    let snapshot = state.snapshot();
+    state.history.push(snapshot);
+    state
+}
+
+fn random_play_turn(state: GameState, rng: &mut u64) -> GameState {
+    if state.status != GameStatus::Playing {
+        return state;
+    }
+
+    let field = evaluate_field(&state);
+    let mut candidates = Vec::new();
+    for piece in state
+        .pieces
+        .iter()
+        .filter(|piece| piece.owner == state.current_player)
+    {
+        for destination in get_legal_moves(&piece.id, &state, &field) {
+            candidates.push((piece.id.clone(), destination));
+        }
+    }
+    if candidates.is_empty() {
+        return no_move_loss(state);
+    }
+
+    let start = (random_unit(rng) as usize) % candidates.len();
+    for offset in 0..candidates.len() {
+        let (piece_id, destination) = &candidates[(start + offset) % candidates.len()];
+        let result = apply_move(piece_id, *destination, state.clone(), false);
+        if result.ok {
+            return result.state;
+        }
+    }
+
+    no_move_loss(state)
+}
+
+fn no_move_loss_training(mut state: GameState) -> GameState {
+    state.status = match state.current_player {
+        Player::Red => GameStatus::BlueWon,
+        Player::Blue => GameStatus::RedWon,
+    };
+    state.selected_piece_id = None;
+    state
+}
+
+fn random_play_training_turn(state: GameState, rng: &mut u64) -> GameState {
+    if state.status != GameStatus::Playing {
+        return state;
+    }
+
+    let field = evaluate_field(&state);
+    let mut candidates = Vec::new();
+    for piece in state
+        .pieces
+        .iter()
+        .filter(|piece| piece.owner == state.current_player)
+    {
+        for destination in get_legal_moves(&piece.id, &state, &field) {
+            candidates.push((piece.id.clone(), destination));
+        }
+    }
+    if candidates.is_empty() {
+        return no_move_loss_training(state);
+    }
+
+    let start = (random_unit(rng) as usize) % candidates.len();
+    for offset in 0..candidates.len() {
+        let (piece_id, destination) = &candidates[(start + offset) % candidates.len()];
+        let result = apply_training_move(piece_id, *destination, state.clone());
+        if result.ok {
+            return result.state;
+        }
+    }
+
+    no_move_loss_training(state)
+}
+
+fn random_play_turn_profile(
+    state: GameState,
+    rng: &mut u64,
+    profile: &mut ProfileTotals,
+) -> GameState {
+    if state.status != GameStatus::Playing {
+        return state;
+    }
+
+    let candidate_started_at = Instant::now();
+    let field = evaluate_field(&state);
+    let mut candidates = Vec::new();
+    for piece in state
+        .pieces
+        .iter()
+        .filter(|piece| piece.owner == state.current_player)
+    {
+        for destination in get_legal_moves(&piece.id, &state, &field) {
+            candidates.push((piece.id.clone(), destination));
+        }
+    }
+    profile.candidate_generation_ns += candidate_started_at.elapsed().as_nanos();
+    profile.candidate_moves += candidates.len() as u64;
+    profile.candidate_turns += 1;
+
+    if candidates.is_empty() {
+        return no_move_loss_training(state);
+    }
+
+    let start = (random_unit(rng) as usize) % candidates.len();
+    for offset in 0..candidates.len() {
+        let (piece_id, destination) = &candidates[(start + offset) % candidates.len()];
+        let apply_started_at = Instant::now();
+        let result = apply_training_move(piece_id, *destination, state.clone());
+        profile.apply_move_ns += apply_started_at.elapsed().as_nanos();
+        if result.ok {
+            return result.state;
+        }
+    }
+
+    no_move_loss_training(state)
+}
+
+fn summarize_lean(
+    games: u64,
+    red_wins: u64,
+    blue_wins: u64,
+    capped: u64,
+    total_plies: u64,
+    min_game_plies: u64,
+    max_game_plies: u64,
+    elapsed_ms: u128,
+) -> LeanBatchSummary {
+    let decisive = red_wins + blue_wins;
+    let ms_per_game = ratio(elapsed_ms as f64, games);
+    let ms_per_ply = ratio(elapsed_ms as f64, total_plies);
+    LeanBatchSummary {
+        games,
+        red_wins,
+        blue_wins,
+        capped,
+        decisive,
+        total_plies,
+        mean_plies: ratio(total_plies as f64, games),
+        min_plies: if games == 0 { 0 } else { min_game_plies },
+        max_plies: max_game_plies,
+        elapsed_ms,
+        ms_per_game,
+        ms_per_ply,
+        plies_per_second: if elapsed_ms == 0 {
+            0.0
+        } else {
+            total_plies as f64 / (elapsed_ms as f64 / 1000.0)
+        },
+        projected_500_games_ms: ms_per_game * 500.0,
+    }
+}
+
+pub fn simulate_random_lean_games(
+    initial_state: &GameState,
+    games: u64,
+    max_plies: u64,
+    seed: u32,
+) -> LeanBatchSummary {
+    let started_at = Instant::now();
+    let mut red_wins = 0;
+    let mut blue_wins = 0;
+    let mut capped = 0;
+    let mut total_plies = 0;
+    let mut min_game_plies = u64::MAX;
+    let mut max_game_plies = 0;
+
+    for game in 0..games {
+        let mut state = initial_state.clone();
+        let mut rng = u64::from(seed).wrapping_add(game);
+        let mut plies = 0;
+        while state.status == GameStatus::Playing && plies < max_plies {
+            state = random_play_training_turn(state, &mut rng);
+            plies += 1;
+        }
+
+        total_plies += plies;
+        min_game_plies = min_game_plies.min(plies);
+        max_game_plies = max_game_plies.max(plies);
+        match state.status {
+            GameStatus::RedWon => red_wins += 1,
+            GameStatus::BlueWon => blue_wins += 1,
+            GameStatus::Playing => capped += 1,
+        }
+    }
+
+    summarize_lean(
+        games,
+        red_wins,
+        blue_wins,
+        capped,
+        total_plies,
+        min_game_plies,
+        max_game_plies,
+        started_at.elapsed().as_millis(),
+    )
+}
+
+pub fn profile_random_games(
+    initial_state: &GameState,
+    games: u64,
+    max_plies: u64,
+    seed: u32,
+) -> RandomProfileSummary {
+    let started_at = Instant::now();
+    let mut red_wins = 0;
+    let mut blue_wins = 0;
+    let mut capped = 0;
+    let mut total_plies = 0;
+    let mut min_game_plies = u64::MAX;
+    let mut max_game_plies = 0;
+    let mut profile = ProfileTotals::default();
+
+    for game in 0..games {
+        let mut state = initial_state.clone();
+        let mut rng = u64::from(seed).wrapping_add(game);
+        let mut plies = 0;
+        while state.status == GameStatus::Playing && plies < max_plies {
+            state = random_play_turn_profile(state, &mut rng, &mut profile);
+            plies += 1;
+        }
+
+        total_plies += plies;
+        min_game_plies = min_game_plies.min(plies);
+        max_game_plies = max_game_plies.max(plies);
+        match state.status {
+            GameStatus::RedWon => red_wins += 1,
+            GameStatus::BlueWon => blue_wins += 1,
+            GameStatus::Playing => capped += 1,
+        }
+    }
+
+    let batch = summarize_lean(
+        games,
+        red_wins,
+        blue_wins,
+        capped,
+        total_plies,
+        min_game_plies,
+        max_game_plies,
+        started_at.elapsed().as_millis(),
+    );
+    RandomProfileSummary {
+        candidate_generation_ms: profile.candidate_generation_ns as f64 / 1_000_000.0,
+        apply_move_ms: profile.apply_move_ns as f64 / 1_000_000.0,
+        avg_candidate_generation_ms_per_ply: ratio(
+            profile.candidate_generation_ns as f64 / 1_000_000.0,
+            profile.candidate_turns,
+        ),
+        avg_apply_move_ms_per_ply: ratio(
+            profile.apply_move_ns as f64 / 1_000_000.0,
+            profile.candidate_turns,
+        ),
+        avg_candidate_moves_per_ply: ratio(profile.candidate_moves as f64, profile.candidate_turns),
+        batch,
+    }
+}
+
+pub fn simulate_random_games(
+    initial_state: &GameState,
+    games: u64,
+    max_plies: u64,
+    seed: u32,
+) -> AiBatchSummary {
+    let started_at = Instant::now();
+    let mut red_wins = 0;
+    let mut blue_wins = 0;
+    let mut capped = 0;
+    let mut total_plies = 0;
+    let mut min_game_plies = u64::MAX;
+    let mut max_game_plies = 0;
+    let mut first_loss_red = 0;
+    let mut first_loss_blue = 0;
+    let mut first_loss_team_wins = 0;
+    let mut first_loss_team_losses = 0;
+    let mut first_loss_team_capped = 0;
+    let mut underdog_wins = 0;
+    let mut checks_created = 0;
+    let mut unstable_created = 0;
+    let mut rescue_opportunities = 0;
+    let mut rescues = 0;
+    let mut material_losses = 0;
+    let mut losses_by_piece = HashMap::new();
+    let mut losses_by_owner = HashMap::new();
+    let mut winner_piece_counts = HashMap::new();
+    let mut repeated_piece_destinations = 0;
+    let mut loser_first_loss_ply_total = 0;
+    let mut loser_first_loss_games = 0;
+    let mut winner_piece_total = 0;
+    let mut loser_piece_total = 0;
+    let mut decisive_piece_count_games = 0;
+
+    for game in 0..games {
+        let mut state = initial_state.clone();
+        let mut rng = u64::from(seed).wrapping_add(game);
+        let mut metrics = GameMetrics::default();
+        let mut plies = 0;
+        while state.status == GameStatus::Playing && plies < max_plies {
+            let before = state.clone();
+            state = random_play_turn(state, &mut rng);
             plies += 1;
             update_game_metrics(&before, &state, plies, &mut metrics);
         }

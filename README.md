@@ -268,6 +268,32 @@ tuning, instability, and check behavior. Use `cargo test --manifest-path
 engine/Cargo.toml` for Rust-only tests and `npm run build` for the production
 build.
 
+## Rust Engine Benchmarks
+
+The native Rust CLI supports developer simulation modes for arena analysis and
+training experiments:
+
+- `simulateRandomGames`: random legal self-play with rich per-ply metrics.
+- `simulateRandomLeanGames`: random legal self-play with terminal stats only.
+- `profileRandomGames`: lean random self-play with timing for candidate
+  generation and move application.
+- `simulateAiGames`: heuristic AI self-play baseline.
+
+Run the layered benchmark with:
+
+```bash
+npm run engine:bench
+```
+
+Useful overrides:
+
+```bash
+npm run engine:bench -- --games 5000 --heuristic-games 50 --time-budget-ms 10
+```
+
+Lean mode uses a training-oriented move path that skips browser-only history and
+status-message work while preserving rule consequences and terminal detection.
+
 ## License
 
 The code in this repository is licensed under the MIT License. See

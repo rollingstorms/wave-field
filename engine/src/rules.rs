@@ -327,6 +327,39 @@ pub fn apply_move(
     }
 }
 
+pub fn apply_training_move(piece_id: &str, destination: Position, state: GameState) -> MoveResult {
+    if state.status != GameStatus::Playing {
+        return MoveResult {
+            ok: false,
+            state,
+            reason: None,
+        };
+    }
+
+    let previous = state;
+    let candidate = move_piece(previous.clone(), piece_id, destination);
+    let mut resolved = resolve_own_turn_consequences(previous.current_player, &previous, candidate);
+    let resolved_field = evaluate_field(&resolved);
+    if is_king_unprotected(previous.current_player, &resolved, &resolved_field) {
+        return MoveResult {
+            ok: false,
+            state: previous,
+            reason: None,
+        };
+    }
+    resolved.current_player = previous.current_player.opponent();
+    if previous.current_player == Player::Red {
+        resolved.turn_number += 1;
+    }
+    resolved.selected_piece_id = None;
+    let next = begin_turn(resolved, false);
+    MoveResult {
+        ok: true,
+        state: next,
+        reason: None,
+    }
+}
+
 pub fn get_playable_moves(piece_id: &str, state: &GameState) -> Vec<Position> {
     let field = evaluate_field(state);
     get_legal_moves(piece_id, state, &field)
