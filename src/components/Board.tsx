@@ -464,7 +464,7 @@ export function Board({ state, field, typeFields, continuousField, showTypeSums,
             <strong>{selectedPiece.type === "king" ? "UNPROTECTED BIG HAT" : "UNSTABLE PIECE"}</strong>
             <p>
               {selectedPiece.type === "king"
-                ? "Try alternate component tuning to create a legal escape, then move any piece that leaves the Big Hat on friendly or neutral territory."
+                ? "Try alternate component tuning to create a safe escape, then move any piece that leaves the Big Hat on friendly or neutral territory."
                 : "Move this piece or tune the field until its square is friendly or neutral. Otherwise it disappears when the turn ends."}
             </p>
           </div>

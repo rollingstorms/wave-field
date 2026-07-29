@@ -285,7 +285,7 @@ export function RulesPage({ onBack }: RulesPageProps) {
           </p>
         </div>
         <div className="marker-demo" aria-label="Move marker examples">
-          <span><i className="legal-dot" /> Legal move</span>
+          <span><i className="legal-dot" /> Safe move</span>
           <span><i className="king-block-marker">{PIECE_INITIALS.king}</i> Big Hat unsafe</span>
           <span><i className="legal-dot risky-dot" /><b>!</b> Loss warning</span>
         </div>
@@ -297,7 +297,7 @@ export function RulesPage({ onBack }: RulesPageProps) {
           <div><dt>Blue moves first</dt><dd>{playerLabel.blue} opens the game.</dd></div>
           <div><dt>No captures by collision</dt><dd>Friendly and opposing pieces both block movement.</dd></div>
           <div><dt>{PIECE_DISPLAY_NAMES.spy}s are special</dt><dd>They ignore hostile territory while moving, but can still become unstable.</dd></div>
-          <div><dt>Move ends turn</dt><dd>Tune freely first, then commit one legal move.</dd></div>
+          <div><dt>Move ends turn</dt><dd>Tune freely first, then commit one safe move.</dd></div>
         </dl>
       </section>
     </main>

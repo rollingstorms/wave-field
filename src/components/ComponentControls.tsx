@@ -112,7 +112,7 @@ export function ComponentControls({ state, locked = false, onTune, onRandomize, 
         <span><i className="swatch red" /> &gt; 0</span>
         <span><i className="swatch neutral" /> = 0</span>
         <span><i className="swatch blue" /> &lt; 0</span>
-        <span><i className="legend-legal" /> Legal</span>
+        <span><i className="legend-legal" /> Safe</span>
         <span><i className="legend-risk"><b>!</b></i> Loss</span>
         <span><i className="legend-king">{PIECE_INITIALS.king}</i> Big Hat</span>
         <span><i className="legend-unstable">!</i> Unstable</span>
