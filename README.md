@@ -291,8 +291,9 @@ Useful overrides:
 npm run engine:bench -- --games 5000 --heuristic-games 50 --time-budget-ms 10
 ```
 
-Lean mode uses a training-oriented move path that skips browser-only history and
-status-message work while preserving rule consequences and terminal detection.
+Lean mode uses a training-oriented move path that skips browser-only history,
+status-message work, and full no-rescue trap search while preserving ordinary
+move consequences and cheap terminal checks.
 
 ## License
 
