@@ -190,11 +190,12 @@ h1 {
   touch-action: none;
   -webkit-user-select: none;
   -webkit-touch-callout: none;
+  overflow: hidden;
 }
 
-.square.red { background: var(--red); }
-.square.neutral { background: var(--neutral); }
-.square.blue { background: var(--blue); }
+.square.red { background-color: var(--red); }
+.square.neutral { background-color: var(--neutral); }
+.square.blue { background-color: var(--blue); }
 
 .board.dragging,
 .board.dragging .square {

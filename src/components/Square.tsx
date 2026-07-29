@@ -44,7 +44,7 @@ export function Square({ position, territory, fieldValue, piece, legal, risky, k
   return (
     <button
       className={`square ${territory} ${energyColor ? "energy-square" : ""} ${continuousColor ? "continuous-square" : ""} ${energySelected ? "energy-selected" : ""} ${legal ? "legal" : ""} ${risky ? "risky-move" : ""} ${selected ? "selected-square" : ""} ${dragPreview ? "drag-preview-square" : ""} ${typeSums ? "type-sums-visible" : ""}`}
-      style={renderedColor ? { background: renderedColor } : undefined}
+      style={renderedColor ? { backgroundColor: renderedColor } : undefined}
       onClick={onClick}
       data-board-x={position.x}
       data-board-y={position.y}
