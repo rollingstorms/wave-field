@@ -156,7 +156,8 @@ def select_model_action(
     actions: List[Action],
     temperature: float = 1.0,
     device: torch.device | str = "cpu",
-) -> Tuple[Action, Sample]:
+    record_sample: bool = True,
+) -> Tuple[Action, Sample | None]:
     board, side, mask = encode_state(state, engine, actions)
     board_tensor = torch.tensor(board, dtype=torch.float32, device=device).unsqueeze(0)
     side_tensor = torch.tensor(side, dtype=torch.float32, device=device).unsqueeze(0)
@@ -177,13 +178,17 @@ def select_model_action(
         selected = actions[0]
         selected_index = action_index(selected)
 
-    return selected, Sample(
-        board=board,
-        side=side,
-        legal_mask=mask,
-        action_index=selected_index,
-        player=state["currentPlayer"],
-    )
+    sample = None
+    if record_sample:
+        sample = Sample(
+            board=board,
+            side=side,
+            legal_mask=mask,
+            action_index=selected_index,
+            player=state["currentPlayer"],
+        )
+
+    return selected, sample
 
 
 def play_game(
@@ -197,6 +202,7 @@ def play_game(
     device: torch.device | str = "cpu",
     cap_value: CapValueMode = "material",
     collect_metrics: bool = True,
+    record_samples: bool = True,
     heuristic_variety: float = 0.55,
     heuristic_time_budget_ms: int = 10,
 ) -> GameRecord:
@@ -240,8 +246,10 @@ def play_game(
                 actions,
                 temperature=temperature,
                 device=device,
+                record_sample=record_samples,
             )
-            samples.append(sample)
+            if sample is not None:
+                samples.append(sample)
             next_state = engine.apply_action(state, action, analyze_checkmate=False)
         elif policy == "heuristic":
             next_state = engine.play_heuristic_turn(
@@ -253,7 +261,8 @@ def play_game(
             )
         else:
             action = rng.choice(actions)
-            samples.append(_sample_from_action(state, engine, actions, action))
+            if record_samples:
+                samples.append(_sample_from_action(state, engine, actions, action))
             next_state = engine.apply_action(state, action, analyze_checkmate=False)
 
         after_pieces = _piece_map(next_state)
@@ -362,6 +371,7 @@ def selfplay_records(
     device: torch.device | str = "cpu",
     cap_value: CapValueMode = "material",
     collect_metrics: bool = True,
+    record_samples: bool = True,
 ) -> List[GameRecord]:
     return [
         play_game(
@@ -374,6 +384,7 @@ def selfplay_records(
             device=device,
             cap_value=cap_value,
             collect_metrics=collect_metrics,
+            record_samples=record_samples,
         )
         for game in range(games)
     ]

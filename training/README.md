@@ -55,6 +55,16 @@ The evaluator reports winner counts, mean plies, capped games, first-loss
 outcomes, piece-loss frequency, rescue rate, pressure, underdog wins, and wins
 by final piece count.
 
+## Head-to-Head Matches
+
+```bash
+PYTHONPATH=training python3 -m wavefield.match --red model --blue heuristic --games 25 --max-plies 150
+PYTHONPATH=training python3 -m wavefield.match --red heuristic --blue model --games 25 --max-plies 150
+```
+
+Use side-swapped matches when comparing policies so first-player and color bias
+do not get mistaken for model strength.
+
 ## Benchmark
 
 ```bash
