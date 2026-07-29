@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import random
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, Literal, Optional, Tuple
+from typing import Any, Dict, List, Literal, Optional, Sequence, Tuple
 
 import numpy as np
 import torch
@@ -189,6 +189,51 @@ def select_model_action(
         )
 
     return selected, sample
+
+
+def select_model_actions_batched(
+    model: PolicyValueNet,
+    states: Sequence[Dict[str, Any]],
+    encoded: Sequence[Tuple[np.ndarray, np.ndarray, np.ndarray]],
+    actions_by_state: Sequence[List[Action]],
+    temperature: float = 1.0,
+    device: torch.device | str = "cpu",
+    record_samples: bool = True,
+) -> List[Tuple[Action, Sample | None]]:
+    boards = torch.tensor(np.stack([item[0] for item in encoded]), dtype=torch.float32, device=device)
+    sides = torch.tensor(np.stack([item[1] for item in encoded]), dtype=torch.float32, device=device)
+    masks = torch.tensor(np.stack([item[2] for item in encoded]), dtype=torch.float32, device=device)
+
+    with torch.no_grad():
+        logits, _values = model(boards, sides)
+        masked = masked_policy_logits(logits, masks)
+        if temperature <= 0:
+            selected_indexes = masked.argmax(dim=1).tolist()
+        else:
+            probs = torch.softmax(masked / temperature, dim=1)
+            selected_indexes = torch.multinomial(probs, 1).squeeze(1).tolist()
+
+    selections: List[Tuple[Action, Sample | None]] = []
+    for state, (board, side, mask), actions, selected_index in zip(states, encoded, actions_by_state, selected_indexes):
+        legal_indexes = {action_index(action) for action in actions}
+        if selected_index in legal_indexes:
+            action = decode_action(int(selected_index))
+        else:
+            action = actions[0]
+            selected_index = action_index(action)
+
+        sample = None
+        if record_samples:
+            sample = Sample(
+                board=board,
+                side=side,
+                legal_mask=mask,
+                action_index=int(selected_index),
+                player=state["currentPlayer"],
+            )
+        selections.append((action, sample))
+
+    return selections
 
 
 def play_game(
@@ -388,3 +433,98 @@ def selfplay_records(
         )
         for game in range(games)
     ]
+
+
+def batched_model_selfplay_records(
+    engine: RustEngine,
+    model: PolicyValueNet,
+    games: int,
+    max_plies: int = 160,
+    seed: int = 0,
+    temperature: float = 1.0,
+    device: torch.device | str = "cpu",
+    cap_value: CapValueMode = "material",
+    batch_size: int = 32,
+    record_samples: bool = True,
+) -> List[GameRecord]:
+    if games <= 0:
+        return []
+
+    model.eval()
+    states = [load_initial_state() for _ in range(games)]
+    sample_lists: List[List[Sample]] = [[] for _ in range(games)]
+    stats = [GameStats() for _ in range(games)]
+    active = set(range(games))
+
+    torch.manual_seed(seed)
+
+    for ply in range(max_plies):
+        active_indexes = [index for index in sorted(active) if states[index]["status"] == "playing"]
+        if not active_indexes:
+            break
+
+        for start in range(0, len(active_indexes), batch_size):
+            batch_indexes = active_indexes[start:start + batch_size]
+            encoded_indexes: List[int] = []
+            batch_states: List[Dict[str, Any]] = []
+            batch_actions: List[List[Action]] = []
+            encoded = []
+
+            for game_index in batch_indexes:
+                state = states[game_index]
+                actions = engine.legal_actions(state)
+                if not actions:
+                    active.discard(game_index)
+                    continue
+                encoded_indexes.append(game_index)
+                batch_states.append(state)
+                batch_actions.append(actions)
+                encoded.append(encode_state(state, engine, actions))
+
+            if not batch_states:
+                continue
+
+            selections = select_model_actions_batched(
+                model,
+                batch_states,
+                encoded,
+                batch_actions,
+                temperature=temperature,
+                device=device,
+                record_samples=record_samples,
+            )
+
+            for game_index, (action, sample) in zip(encoded_indexes, selections):
+                before = states[game_index]
+                before_pieces = _piece_map(before)
+                next_state = engine.apply_action(before, action, analyze_checkmate=False)
+                if sample is not None:
+                    sample_lists[game_index].append(sample)
+
+                after_pieces = _piece_map(next_state)
+                lost_ids = [piece_id for piece_id in before_pieces if piece_id not in after_pieces]
+                for piece_id in lost_ids:
+                    lost_piece = before_pieces[piece_id]
+                    owner = lost_piece["owner"]
+                    piece_type = lost_piece["type"]
+                    stats[game_index].losses_by_player[owner] += 1
+                    stats[game_index].losses_by_piece_type[piece_type] = (
+                        stats[game_index].losses_by_piece_type.get(piece_type, 0) + 1
+                    )
+                    if stats[game_index].first_loss_player is None:
+                        stats[game_index].first_loss_player = owner
+                        stats[game_index].first_loss_piece_type = piece_type
+
+                states[game_index] = next_state
+                stats[game_index].plies = ply + 1
+                if next_state["status"] != "playing":
+                    active.discard(game_index)
+
+    records = []
+    for game_index, state in enumerate(states):
+        stats[game_index].status = state["status"]
+        stats[game_index].winner = _winner(state["status"])
+        stats[game_index].final_piece_counts = _piece_counts(state)
+        _assign_values(sample_lists[game_index], state, cap_value)
+        records.append(GameRecord(samples=sample_lists[game_index], stats=stats[game_index], final_state=state))
+    return records

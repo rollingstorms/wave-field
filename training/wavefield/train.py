@@ -10,7 +10,14 @@ import torch.nn.functional as F
 
 from .engine import RustEngine
 from .model import PolicyValueNet, masked_policy_logits
-from .selfplay import CapValueMode, PolicyMode, Sample, rust_random_training_samples, selfplay_records
+from .selfplay import (
+    CapValueMode,
+    PolicyMode,
+    Sample,
+    batched_model_selfplay_records,
+    rust_random_training_samples,
+    selfplay_records,
+)
 
 
 def parse_args() -> argparse.Namespace:
@@ -20,6 +27,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--epochs", type=int, default=3, help="Training epochs per generated batch.")
     parser.add_argument("--iterations", type=int, default=1, help="Generate/train cycles.")
     parser.add_argument("--batch-size", type=int, default=64)
+    parser.add_argument("--rollout-batch-size", type=int, default=32)
     parser.add_argument("--seed", type=int, default=90210)
     parser.add_argument("--lr", type=float, default=1.0e-3)
     parser.add_argument("--hidden-size", type=int, default=128)
@@ -126,6 +134,22 @@ def main() -> None:
             generated_games = int(batch_summary["games"])
             decisive = int(batch_summary["decisive"])
             generator_label = "rust-random"
+        elif policy == "model":
+            records = batched_model_selfplay_records(
+                engine,
+                model,
+                games=args.games,
+                max_plies=args.max_plies,
+                seed=args.seed + start_iteration + iteration,
+                temperature=args.temperature,
+                device=device,
+                cap_value=cap_value,
+                batch_size=args.rollout_batch_size,
+            )
+            samples = [sample for record in records for sample in record.samples]
+            generated_games = len(records)
+            decisive = sum(1 for record in records if record.stats.decisive)
+            generator_label = "batched-model"
         else:
             records = selfplay_records(
                 engine,

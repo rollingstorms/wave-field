@@ -43,6 +43,10 @@ This is still a pipeline MVP, not a strong bot. Capped games use a material
 target by default so non-decisive runs do not all collapse to value `0.0`.
 Use `--cap-value zero` to disable that.
 
+Model-policy training uses batched rollouts by default: multiple active game
+states are encoded together and passed through one PyTorch forward call per ply.
+Tune that with `--rollout-batch-size`.
+
 ## Evaluation
 
 ```bash
@@ -76,4 +80,4 @@ that encodes states for training. `rust_random_training_batch` is the current
 fast path for random training data: Rust rolls out games, encodes board tensors,
 emits legal action indexes, and returns the batch to Python for PyTorch updates.
 Model-driven self-play still runs through Python because PyTorch selects moves
-at each ply.
+at each ply, but inference is batched across active games.

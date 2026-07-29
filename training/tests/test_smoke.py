@@ -8,7 +8,7 @@ from wavefield.encoding import ACTION_SIZE, BOARD_CHANNELS, SIDE_SIZE, decode_ac
 from wavefield.engine import RustEngine, load_initial_state
 from wavefield.eval import aggregate
 from wavefield.model import PolicyValueNet, masked_policy_logits
-from wavefield.selfplay import play_game, random_selfplay_game
+from wavefield.selfplay import batched_model_selfplay_records, play_game, random_selfplay_game
 
 
 class TrainingSmokeTest(unittest.TestCase):
@@ -55,6 +55,20 @@ class TrainingSmokeTest(unittest.TestCase):
         summary = aggregate([record])
         self.assertEqual(summary["games"], 1)
         self.assertIn("avg_pressure", summary)
+
+    def test_batched_model_selfplay_generates_samples(self) -> None:
+        model = PolicyValueNet(hidden_size=32)
+        records = batched_model_selfplay_records(
+            self.engine,
+            model,
+            games=2,
+            max_plies=3,
+            seed=29,
+            batch_size=2,
+        )
+        self.assertEqual(len(records), 2)
+        self.assertTrue(all(record.samples for record in records))
+        self.assertEqual(records[0].samples[0].board.shape, (BOARD_CHANNELS, 7, 7))
 
     def test_rust_training_batch_generates_encoded_samples(self) -> None:
         batch = self.engine.generate_random_training_batch(load_initial_state(), games=1, max_plies=2, seed=31)
