@@ -515,14 +515,22 @@ h1 {
 
 .unstable {
   position: absolute;
-  right: 7px;
-  top: 4px;
-  width: 22px;
-  height: 22px;
-  border: 1px solid var(--text);
-  background: #111313;
-  color: var(--text);
+  right: 5px;
+  top: 5px;
   z-index: 7;
+  display: grid;
+  width: 18px;
+  height: 18px;
+  place-items: center;
+  border: 2px solid #111313;
+  border-radius: 50%;
+  background: var(--influence);
+  color: #111313;
+  font-size: 0.72rem;
+  font-weight: 900;
+  line-height: 1;
+  box-shadow: 0 0 0 2px rgba(245, 225, 134, 0.45);
+  pointer-events: none;
 }
 
 .loss-pop {
@@ -1000,12 +1008,13 @@ h1 {
 }
 
 .legend-unstable {
-  border: 1px solid var(--text);
-  background: #111313;
-  color: var(--text);
+  border: 2px solid #111313;
+  border-radius: 50%;
+  background: var(--influence);
+  color: #111313;
   font-size: 0.68rem;
   font-style: normal;
-  font-weight: 700;
+  font-weight: 900;
 }
 
 .developer {
