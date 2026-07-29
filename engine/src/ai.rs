@@ -105,7 +105,11 @@ fn profile_after_control_change(
     Some(profile)
 }
 
-fn tuning_candidates(state: &GameState, player: Player, max_candidates: usize) -> Vec<PlayerComponents> {
+fn tuning_candidates(
+    state: &GameState,
+    player: Player,
+    max_candidates: usize,
+) -> Vec<PlayerComponents> {
     let current = state.components.get(player);
     let mut candidates = vec![current.clone()];
     let mut seen = vec![serde_json::to_string(current).expect("serializable components")];
@@ -264,10 +268,30 @@ fn components_key(components: &PlayerMap<PlayerComponents>) -> String {
     fn profile_key(profile: &PlayerComponents) -> String {
         format!(
             "{}/{}/{}/{}",
-            profile.pawn.iter().map(i8::to_string).collect::<Vec<_>>().join(","),
-            profile.rook.iter().map(i8::to_string).collect::<Vec<_>>().join(","),
-            profile.spy.iter().map(i8::to_string).collect::<Vec<_>>().join(","),
-            profile.king.iter().map(i8::to_string).collect::<Vec<_>>().join(","),
+            profile
+                .pawn
+                .iter()
+                .map(i8::to_string)
+                .collect::<Vec<_>>()
+                .join(","),
+            profile
+                .rook
+                .iter()
+                .map(i8::to_string)
+                .collect::<Vec<_>>()
+                .join(","),
+            profile
+                .spy
+                .iter()
+                .map(i8::to_string)
+                .collect::<Vec<_>>()
+                .join(","),
+            profile
+                .king
+                .iter()
+                .map(i8::to_string)
+                .collect::<Vec<_>>()
+                .join(","),
         )
     }
     format!(
@@ -348,9 +372,16 @@ fn same_position(left: Position, right: Position) -> bool {
     left == right
 }
 
-fn moved_piece(before: &GameSnapshot, after: &GameSnapshot) -> Option<(String, Position, Position)> {
+fn moved_piece(
+    before: &GameSnapshot,
+    after: &GameSnapshot,
+) -> Option<(String, Position, Position)> {
     for piece in &before.pieces {
-        if let Some(next) = after.pieces.iter().find(|candidate| candidate.id == piece.id) {
+        if let Some(next) = after
+            .pieces
+            .iter()
+            .find(|candidate| candidate.id == piece.id)
+        {
             if !same_position(piece.position, next.position) {
                 return Some((piece.id.clone(), piece.position, next.position));
             }
@@ -385,7 +416,10 @@ fn loop_penalty(
     repetition_counts: &HashMap<String, usize>,
     recent_moves: &HashMap<String, (Position, Position)>,
 ) -> f64 {
-    let repeat_count = repetition_counts.get(&state_key(preview)).copied().unwrap_or(0) as f64;
+    let repeat_count = repetition_counts
+        .get(&state_key(preview))
+        .copied()
+        .unwrap_or(0) as f64;
     let reverses_last_move = recent_moves.get(&piece.id).is_some_and(|(from, to)| {
         same_position(*to, piece.position) && same_position(*from, destination)
     });
@@ -440,8 +474,7 @@ pub fn play_heuristic_turn(state: GameState, player: Player, options: AiTurnOpti
     let repetition_counts = recent_state_counts(&state);
     let recent_moves = last_move_by_piece(&state, player);
     let started_at = search_started_at();
-    let deadline =
-        Duration::from_millis(options.time_budget_ms.unwrap_or(DEFAULT_TIME_BUDGET_MS).max(20));
+    let deadline = Duration::from_millis(options.time_budget_ms.unwrap_or(DEFAULT_TIME_BUDGET_MS));
     let mut best_score = f64::NEG_INFINITY;
 
     fn remember_choice(
@@ -463,7 +496,9 @@ pub fn play_heuristic_turn(state: GameState, player: Player, options: AiTurnOpti
             });
             sort_choices(choices);
             choices.truncate(EXACT_CANDIDATE_LIMIT);
-            *best_score = choices.last().map_or(f64::NEG_INFINITY, |choice| choice.score);
+            *best_score = choices
+                .last()
+                .map_or(f64::NEG_INFINITY, |choice| choice.score);
         }
     }
 
@@ -541,7 +576,8 @@ pub fn play_heuristic_turn(state: GameState, player: Player, options: AiTurnOpti
         candidate_window.sort_by(|left, right| {
             let right_value =
                 right.score + choice_noise(right, &state, player, seed) * variety * 180.0;
-            let left_value = left.score + choice_noise(left, &state, player, seed) * variety * 180.0;
+            let left_value =
+                left.score + choice_noise(left, &state, player, seed) * variety * 180.0;
             right_value
                 .partial_cmp(&left_value)
                 .unwrap_or(Ordering::Equal)
@@ -558,7 +594,12 @@ pub fn play_heuristic_turn(state: GameState, player: Player, options: AiTurnOpti
     };
     let mut fallback = None;
     for choice in choices.iter().take(analysis_limit) {
-        let result = apply_move(&choice.piece_id, choice.destination, choice.tuned.clone(), true);
+        let result = apply_move(
+            &choice.piece_id,
+            choice.destination,
+            choice.tuned.clone(),
+            true,
+        );
         if !result.ok {
             continue;
         }
@@ -572,7 +613,9 @@ pub fn play_heuristic_turn(state: GameState, player: Player, options: AiTurnOpti
             fallback = Some(result.state);
         }
     }
-    if let Some(mut fallback) = fallback.or_else(|| choices.first().map(|choice| choice.preview.clone())) {
+    if let Some(mut fallback) =
+        fallback.or_else(|| choices.first().map(|choice| choice.preview.clone()))
+    {
         fallback.history = {
             let mut history = state.history.clone();
             history.push(state.snapshot());
