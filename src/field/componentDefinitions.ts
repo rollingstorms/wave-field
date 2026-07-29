@@ -12,8 +12,8 @@ export const DEFAULT_COMPONENTS: PlayerComponents = {
 export const DEFAULT_DEFINITIONS: ComponentDefinitions = {
   pawn: [{ kind: "preset", name: "Checkerboard", preset: "checkerboard", decayBase: 2, originScale: 1 }],
   rook: [
-    { kind: "ring", name: "Push pairs", geometry: "chebyshev", ringValues: [1, 1, -1], repeat: true, decayBase: 2, originScale: 1 },
-    { kind: "ring", name: "Pull gap push", geometry: "chebyshev", ringValues: [1, 0, -1], repeat: true, decayBase: 2, originScale: 1 },
+    { kind: "ring", name: "Push pairs", geometry: "chebyshev", ringValues: [0, 1, 1, -1], repeat: true, decayBase: 2, originScale: 1 },
+    { kind: "ring", name: "Pull gap push", geometry: "chebyshev", ringValues: [0, 1, 0, -1], repeat: true, decayBase: 2, originScale: 1 },
   ],
   spy: [
     { kind: "preset", name: "Round Hat mask", preset: "checkerboard", decayBase: 2, originScale: 1 },

@@ -231,6 +231,7 @@
         "name": "Push pairs",
         "geometry": "chebyshev",
         "ringValues": [
+          0,
           1,
           1,
           -1
@@ -244,6 +245,7 @@
         "name": "Pull gap push",
         "geometry": "chebyshev",
         "ringValues": [
+          0,
           1,
           0,
           -1
