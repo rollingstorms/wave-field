@@ -6,8 +6,9 @@ import torch
 
 from wavefield.encoding import ACTION_SIZE, BOARD_CHANNELS, SIDE_SIZE, decode_action, encode_state
 from wavefield.engine import RustEngine, load_initial_state
+from wavefield.eval import aggregate
 from wavefield.model import PolicyValueNet, masked_policy_logits
-from wavefield.selfplay import random_selfplay_game
+from wavefield.selfplay import play_game, random_selfplay_game
 
 
 class TrainingSmokeTest(unittest.TestCase):
@@ -45,6 +46,15 @@ class TrainingSmokeTest(unittest.TestCase):
         samples = random_selfplay_game(self.engine, max_plies=4, seed=17)
         self.assertGreater(len(samples), 0)
         self.assertEqual(samples[0].board.shape, (BOARD_CHANNELS, 7, 7))
+
+    def test_model_selfplay_generates_stats(self) -> None:
+        model = PolicyValueNet(hidden_size=32)
+        record = play_game(self.engine, max_plies=3, seed=23, policy="model", model=model)
+        self.assertGreater(len(record.samples), 0)
+        self.assertEqual(record.stats.plies, len(record.samples))
+        summary = aggregate([record])
+        self.assertEqual(summary["games"], 1)
+        self.assertIn("avg_pressure", summary)
 
 
 if __name__ == "__main__":

@@ -86,7 +86,7 @@ export function AiDuelPanel({
       </label>
       <label className="range-control">
         <span>Turn cap {maxTurns}</span>
-        <input type="range" min="10" max="160" step="5" value={maxTurns} onChange={(event) => onSetMaxTurns(Number(event.currentTarget.value))} />
+        <input type="range" min="10" max="300" step="5" value={maxTurns} onChange={(event) => onSetMaxTurns(Number(event.currentTarget.value))} />
       </label>
 
       <div className="ai-metrics" aria-label="AI duel metrics">
