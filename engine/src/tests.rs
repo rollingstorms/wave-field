@@ -47,3 +47,24 @@ fn training_move_matches_normal_move_without_ui_fields() {
 
     assert_eq!(normal_state, training_state);
 }
+
+#[test]
+fn training_safety_matches_normal_move_acceptance_for_initial_moves() {
+    let state = fixture();
+    let field = evaluate_field(&state);
+    for piece in state
+        .pieces
+        .iter()
+        .filter(|piece| piece.owner == state.current_player)
+    {
+        for destination in get_legal_moves(&piece.id, &state, &field) {
+            let normal = apply_move(&piece.id, destination, state.clone(), false);
+            let safe = training_move_is_safe_with_field(&piece.id, destination, &state, &field);
+            assert_eq!(
+                normal.ok, safe,
+                "{} to ({}, {})",
+                piece.id, destination.x, destination.y
+            );
+        }
+    }
+}

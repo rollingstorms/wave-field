@@ -383,11 +383,37 @@ pub fn training_move_is_safe_with_field(
     if state.status != GameStatus::Playing {
         return false;
     }
-    let candidate = move_piece(state.clone(), piece_id, destination);
-    let resolved =
-        resolve_own_turn_consequences_with_field(state.current_player, state, field, candidate);
-    let resolved_field = evaluate_field(&resolved);
-    !is_king_unprotected(state.current_player, &resolved, &resolved_field)
+    let mut candidate = move_piece(state.clone(), piece_id, destination);
+    let mut deadlines = state
+        .pieces
+        .iter()
+        .filter(|piece| {
+            piece.owner == state.current_player
+                && piece.piece_type != PieceType::King
+                && piece.unstable
+        })
+        .map(|piece| piece.id.clone())
+        .collect::<HashSet<_>>();
+    for piece in unstable_pieces(state.current_player, state, field) {
+        if piece.piece_type != PieceType::King {
+            deadlines.insert(piece.id);
+        }
+    }
+
+    loop {
+        let candidate_field = evaluate_field(&candidate);
+        let lost_ids = unstable_pieces(state.current_player, &candidate, &candidate_field)
+            .into_iter()
+            .filter(|piece| piece.piece_type != PieceType::King && deadlines.contains(&piece.id))
+            .map(|piece| piece.id)
+            .collect::<HashSet<_>>();
+        if lost_ids.is_empty() {
+            return !is_king_unprotected(state.current_player, &candidate, &candidate_field);
+        }
+        candidate
+            .pieces
+            .retain(|piece| !lost_ids.contains(&piece.id));
+    }
 }
 
 pub fn get_playable_moves(piece_id: &str, state: &GameState) -> Vec<Position> {
