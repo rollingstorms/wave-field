@@ -5,7 +5,14 @@ import unittest
 import numpy as np
 import torch
 
-from wavefield.encoding import ACTION_SIZE, BOARD_CHANNELS, SIDE_SIZE, decode_action, encode_state
+from wavefield.encoding import (
+    ACTION_SIZE,
+    BOARD_CHANNELS,
+    RICH_BOARD_CHANNELS,
+    SIDE_SIZE,
+    decode_action,
+    encode_state,
+)
 from wavefield.engine import RustEngine, load_initial_state
 from wavefield.eval import aggregate
 from wavefield.experiment import parse_weights, replay_weight_samples, sample_metadata_summary
@@ -37,6 +44,29 @@ class TrainingSmokeTest(unittest.TestCase):
         self.assertGreater(int(legal_mask.sum()), 0)
 
         model = PolicyValueNet(hidden_size=32)
+        logits, value = model(
+            torch.tensor(board).unsqueeze(0),
+            torch.tensor(side).unsqueeze(0),
+        )
+        masked = masked_policy_logits(logits, torch.tensor(legal_mask).unsqueeze(0))
+        self.assertEqual(logits.shape, (1, ACTION_SIZE))
+        self.assertEqual(value.shape, (1,))
+        self.assertTrue(torch.isfinite(masked.max()))
+
+    def test_piece_identity_view_and_residual_forward_pass(self) -> None:
+        state = load_initial_state()
+        actions = self.engine.legal_actions(state)
+        board, side, legal_mask = encode_state(state, self.engine, actions, input_view="piece_identity")
+
+        self.assertEqual(board.shape, (RICH_BOARD_CHANNELS, 7, 7))
+        self.assertEqual(int(board[BOARD_CHANNELS:].sum()), len(state["pieces"]))
+
+        model = PolicyValueNet(
+            hidden_size=32,
+            board_channels=RICH_BOARD_CHANNELS,
+            side_size=SIDE_SIZE,
+            architecture="residual",
+        )
         logits, value = model(
             torch.tensor(board).unsqueeze(0),
             torch.tensor(side).unsqueeze(0),

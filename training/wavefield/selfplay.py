@@ -20,7 +20,9 @@ from .encoding import (
     PIECE_TYPES,
     PLAYERS,
     RED_UNSTABLE_CHANNEL,
+    InputView,
     action_index,
+    board_channels_for_view,
     decode_action,
     encode_state,
 )
@@ -186,8 +188,9 @@ def _sample_from_action(
     engine: RustEngine,
     actions: List[Action],
     action: Action,
+    input_view: InputView = "base",
 ) -> Sample:
-    board, side, mask = encode_state(state, engine, actions)
+    board, side, mask = encode_state(state, engine, actions, input_view=input_view)
     return Sample(
         board=board,
         side=side,
@@ -209,8 +212,9 @@ def select_model_action(
     temperature: float = 1.0,
     device: torch.device | str = "cpu",
     record_sample: bool = True,
+    input_view: InputView = "base",
 ) -> Tuple[Action, Sample | None]:
-    board, side, mask = encode_state(state, engine, actions)
+    board, side, mask = encode_state(state, engine, actions, input_view=input_view)
     board_tensor = torch.tensor(board, dtype=torch.float32, device=device).unsqueeze(0)
     side_tensor = torch.tensor(side, dtype=torch.float32, device=device).unsqueeze(0)
     mask_tensor = torch.tensor(mask, dtype=torch.float32, device=device).unsqueeze(0)
@@ -310,6 +314,7 @@ def play_game(
     record_samples: bool = True,
     heuristic_variety: float = 0.55,
     heuristic_time_budget_ms: int = 10,
+    input_view: InputView = "base",
 ) -> GameRecord:
     if policy == "model" and model is None:
         raise ValueError("model policy requires a model")
@@ -352,6 +357,7 @@ def play_game(
                 temperature=temperature,
                 device=device,
                 record_sample=record_samples,
+                input_view=input_view,
             )
             if sample is not None:
                 samples.append(sample)
@@ -367,7 +373,7 @@ def play_game(
         else:
             action = rng.choice(actions)
             if record_samples:
-                samples.append(_sample_from_action(state, engine, actions, action))
+                samples.append(_sample_from_action(state, engine, actions, action, input_view=input_view))
             next_state = engine.apply_action(state, action, analyze_checkmate=False)
 
         after_pieces = _piece_map(next_state)
@@ -484,6 +490,7 @@ def selfplay_records(
     cap_value: CapValueMode = "material",
     collect_metrics: bool = True,
     record_samples: bool = True,
+    input_view: InputView = "base",
 ) -> List[GameRecord]:
     return [
         play_game(
@@ -497,6 +504,7 @@ def selfplay_records(
             cap_value=cap_value,
             collect_metrics=collect_metrics,
             record_samples=record_samples,
+            input_view=input_view,
         )
         for game in range(games)
     ]
@@ -514,6 +522,7 @@ def batched_model_selfplay_records(
     batch_size: int = 32,
     record_samples: bool = True,
     profile: Profile | None = None,
+    input_view: InputView = "base",
 ) -> List[GameRecord]:
     if games <= 0:
         return []
@@ -552,7 +561,7 @@ def batched_model_selfplay_records(
                 batch_states.append(state)
                 batch_actions.append(actions)
                 encode_started_at = time.perf_counter()
-                encoded.append(encode_state(state, engine, actions))
+                encoded.append(encode_state(state, engine, actions, input_view=input_view))
                 _profile_add(profile, "encode_seconds", time.perf_counter() - encode_started_at)
 
             if not batch_states:
@@ -612,10 +621,10 @@ def batched_model_selfplay_records(
     return records
 
 
-def _sample_from_rollout_position(position: Dict[str, Any]) -> Sample:
+def _sample_from_rollout_position(position: Dict[str, Any], input_view: InputView = "base") -> Sample:
     legal_mask = np.zeros((ACTION_SIZE,), dtype=np.float32)
     legal_mask[np.asarray(position["legalActionIndexes"], dtype=np.int64)] = 1.0
-    board = np.zeros((BOARD_CHANNELS, BOARD_SIZE, BOARD_SIZE), dtype=np.float32)
+    board = np.zeros((board_channels_for_view(input_view), BOARD_SIZE, BOARD_SIZE), dtype=np.float32)
     owner_counts = _owner_counts_from_slots(position["pieces"])
     piece_type_counts = _piece_type_counts_from_slots(position["pieces"])
     for piece in position["pieces"]:
@@ -624,6 +633,8 @@ def _sample_from_rollout_position(position: Dict[str, Any]) -> Sample:
         x = int(piece["x"])
         y = int(piece["y"])
         board[PLAYERS.index(owner) * len(PIECE_TYPES) + PIECE_TYPES.index(piece_type), y, x] = 1.0
+        if input_view == "piece_identity":
+            board[BOARD_CHANNELS + int(piece["slot"]), y, x] = 1.0
         if bool(piece["unstable"]):
             unstable_channel = RED_UNSTABLE_CHANNEL if owner == "red" else BLUE_UNSTABLE_CHANNEL
             board[unstable_channel, y, x] = 1.0
@@ -682,6 +693,7 @@ def session_model_selfplay_records(
     collect_metrics: bool = False,
     profile: Profile | None = None,
     initial_states: List[Dict[str, Any]] | None = None,
+    input_view: InputView = "base",
 ) -> List[GameRecord]:
     if games <= 0:
         return []
@@ -736,7 +748,7 @@ def session_model_selfplay_records(
             for start in range(0, len(positions), batch_size):
                 chunk = positions[start:start + batch_size]
                 tensor_started_at = time.perf_counter()
-                samples = [_sample_from_rollout_position(position) for position in chunk]
+                samples = [_sample_from_rollout_position(position, input_view=input_view) for position in chunk]
                 boards = torch.tensor(
                     np.stack([sample.board for sample in samples]),
                     dtype=torch.float32,

@@ -11,6 +11,7 @@ import numpy as np
 import torch
 
 from .eval import aggregate
+from .encoding import SIDE_SIZE, board_channels_for_view
 from .engine import RustEngine
 from .model import PolicyValueNet
 from .scenarios import DEFAULT_SCENARIOS, build_scenario_states, scenario_names
@@ -23,6 +24,8 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--run-dir", type=Path, default=Path("training/runs/dev"))
     parser.add_argument("--seed", type=int, default=90210)
     parser.add_argument("--hidden-size", type=int, default=128)
+    parser.add_argument("--model-arch", choices=("conv", "residual"), default="conv")
+    parser.add_argument("--input-view", choices=("base", "piece_identity"), default="base")
     parser.add_argument("--lr", type=float, default=1.0e-3)
     parser.add_argument("--device", default="auto")
     parser.add_argument("--max-plies", type=int, default=120)
@@ -65,6 +68,13 @@ class JsonlLogger:
         print(json.dumps(event, sort_keys=True), flush=True)
         with self.path.open("a") as handle:
             handle.write(json.dumps(event, sort_keys=True) + "\n")
+
+
+def serializable_config(args: argparse.Namespace) -> Dict[str, Any]:
+    return {
+        key: str(value) if isinstance(value, Path) else value
+        for key, value in vars(args).items()
+    }
 
 
 def sample_metadata_summary(samples: List[Sample]) -> Dict[str, Any]:
@@ -226,6 +236,7 @@ def run_session_eval(
         record_samples=False,
         collect_metrics=args.eval_pressure,
         initial_states=initial_states,
+        input_view=args.input_view,
     )
     logger.write(
         {
@@ -243,24 +254,33 @@ def main() -> None:
     source_weights = parse_weights(args.source_weights)
     phase_weights = parse_weights(args.phase_weights)
     scenarios = scenario_names(args.scenarios)
+    if args.input_view != "base" and (args.pretrain_random_games > 0 or args.random_games_per_iteration > 0):
+        raise ValueError("Rust random training batches currently support only --input-view base")
     torch.manual_seed(args.seed)
     args.run_dir.mkdir(parents=True, exist_ok=True)
     logger = JsonlLogger(args.run_dir / "events.jsonl")
 
     engine = RustEngine()
-    model = PolicyValueNet(hidden_size=args.hidden_size).to(device)
+    model = PolicyValueNet(
+        hidden_size=args.hidden_size,
+        board_channels=board_channels_for_view(args.input_view),
+        side_size=SIDE_SIZE,
+        architecture=args.model_arch,
+    ).to(device)
     optimizer = torch.optim.AdamW(model.parameters(), lr=args.lr)
 
     logger.write(
         {
             "event": "config",
             "config": {
-                **vars(args),
+                **serializable_config(args),
                 "run_dir": str(args.run_dir),
                 "device": str(device),
                 "source_weights": source_weights,
                 "phase_weights": phase_weights,
                 "scenarios": scenarios,
+                "board_channels": board_channels_for_view(args.input_view),
+                "side_size": SIDE_SIZE,
             },
         }
     )
@@ -349,6 +369,7 @@ def main() -> None:
                 cap_value=args.cap_value,
                 batch_size=args.rollout_batch_size,
                 profile=profile,
+                input_view=args.input_view,
             )
             model_samples = [sample for record in records for sample in record.samples]
             iteration_samples.extend(model_samples)
@@ -384,6 +405,7 @@ def main() -> None:
                 batch_size=args.rollout_batch_size,
                 profile=scenario_profile,
                 initial_states=scenario_states,
+                input_view=args.input_view,
             )
             scenario_samples = [sample for record in scenario_records for sample in record.samples]
             iteration_samples.extend(scenario_samples)
@@ -446,7 +468,11 @@ def main() -> None:
             "model": model.state_dict(),
             "optimizer": optimizer.state_dict(),
             "hidden_size": args.hidden_size,
-            "config": vars(args),
+            "board_channels": board_channels_for_view(args.input_view),
+            "side_size": SIDE_SIZE,
+            "model_arch": args.model_arch,
+            "input_view": args.input_view,
+            "config": serializable_config(args),
         },
         checkpoint_path,
     )

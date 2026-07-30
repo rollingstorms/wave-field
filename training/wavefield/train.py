@@ -97,7 +97,7 @@ def train_epoch(
 def load_checkpoint(path: Path, model: PolicyValueNet, optimizer: torch.optim.Optimizer) -> Dict[str, Any]:
     if not path.exists():
         return {"iterations": 0, "samples": 0}
-    checkpoint = torch.load(path, map_location="cpu")
+    checkpoint = torch.load(path, map_location="cpu", weights_only=False)
     model.load_state_dict(checkpoint["model"])
     if "optimizer" in checkpoint:
         optimizer.load_state_dict(checkpoint["optimizer"])
