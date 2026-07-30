@@ -183,7 +183,12 @@ fn handle_rollout_request(
         }
         "getRolloutBatch" => {
             let session_id = request["sessionId"].as_u64().expect("rollout sessionId");
-            serde_json::to_value(rollout_sessions.batch(session_id).unwrap()).unwrap()
+            serde_json::to_value(
+                rollout_sessions
+                    .batch(session_id, request["profile"].as_bool().unwrap_or(false))
+                    .unwrap(),
+            )
+            .unwrap()
         }
         "applyRolloutActions" => {
             let session_id = request["sessionId"].as_u64().expect("rollout sessionId");

@@ -1,9 +1,11 @@
 use crate::{
-    GameState, GameStatus, apply_move, training_action_to_move, training_legal_action_indexes,
-    training_observation,
+    Field, GameState, GameStatus, Player, apply_move, evaluate_field,
+    playable_training_action_indexes_with_field, training_action_to_move,
+    training_legal_action_indexes, training_piece_slot, training_side,
 };
 use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, HashSet};
+use std::time::Instant;
 
 #[derive(Default)]
 pub struct RolloutSessionStore {
@@ -31,10 +33,20 @@ pub struct CreateRolloutSessionResult {
 pub struct RolloutBatchPosition {
     pub game_index: usize,
     pub ply: u64,
-    pub board: Vec<f32>,
+    pub pieces: Vec<RolloutPiece>,
+    pub field: Vec<f32>,
     pub side: Vec<f32>,
     pub legal_action_indexes: Vec<usize>,
     pub player: String,
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct RolloutPiece {
+    pub slot: usize,
+    pub x: i32,
+    pub y: i32,
+    pub unstable: bool,
 }
 
 #[derive(Serialize)]
@@ -43,6 +55,19 @@ pub struct RolloutBatch {
     pub session_id: u64,
     pub active_games: usize,
     pub positions: Vec<RolloutBatchPosition>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub profile: Option<RolloutBatchProfile>,
+}
+
+#[derive(Default, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct RolloutBatchProfile {
+    pub field_ms: f64,
+    pub legal_indexes_ms: f64,
+    pub pieces_ms: f64,
+    pub side_ms: f64,
+    pub flatten_field_ms: f64,
+    pub positions: u64,
 }
 
 #[derive(Deserialize)]
@@ -75,6 +100,33 @@ pub struct FinishRolloutSessionResult {
     pub games: Vec<FinishedRolloutGame>,
 }
 
+fn player_key(player: Player) -> &'static str {
+    match player {
+        Player::Red => "red",
+        Player::Blue => "blue",
+    }
+}
+
+fn compact_pieces(state: &GameState) -> Vec<RolloutPiece> {
+    state
+        .pieces
+        .iter()
+        .map(|piece| RolloutPiece {
+            slot: training_piece_slot(&piece.id),
+            x: piece.position.x,
+            y: piece.position.y,
+            unstable: piece.unstable,
+        })
+        .collect()
+}
+
+fn flattened_field(field: &Field) -> Vec<f32> {
+    field
+        .iter()
+        .flat_map(|row| row.iter().map(|value| *value as f32))
+        .collect()
+}
+
 impl RolloutSessionStore {
     pub fn create(&mut self, states: Vec<GameState>, max_plies: u64) -> CreateRolloutSessionResult {
         let session_id = self.next_id;
@@ -97,12 +149,17 @@ impl RolloutSessionStore {
         CreateRolloutSessionResult { session_id, games }
     }
 
-    pub fn batch(&mut self, session_id: u64) -> Result<RolloutBatch, String> {
+    pub fn batch(
+        &mut self,
+        session_id: u64,
+        profile_enabled: bool,
+    ) -> Result<RolloutBatch, String> {
         let session = self
             .sessions
             .get_mut(&session_id)
             .ok_or_else(|| format!("unknown rollout session: {session_id}"))?;
         let mut positions = Vec::new();
+        let mut profile = profile_enabled.then(RolloutBatchProfile::default);
         for game_index in 0..session.states.len() {
             if !session.active[game_index] {
                 continue;
@@ -114,26 +171,54 @@ impl RolloutSessionStore {
                 session.legal_action_cache[game_index] = None;
                 continue;
             }
-            let observation = training_observation(&session.states[game_index]);
-            if observation.legal_action_indexes.is_empty() {
+            let started_at = Instant::now();
+            let field = evaluate_field(&session.states[game_index]);
+            if let Some(profile) = &mut profile {
+                profile.field_ms += started_at.elapsed().as_secs_f64() * 1000.0;
+            }
+            let started_at = Instant::now();
+            let legal_action_indexes =
+                playable_training_action_indexes_with_field(&session.states[game_index], &field);
+            if let Some(profile) = &mut profile {
+                profile.legal_indexes_ms += started_at.elapsed().as_secs_f64() * 1000.0;
+            }
+            if legal_action_indexes.is_empty() {
                 session.active[game_index] = false;
                 session.legal_action_cache[game_index] = None;
                 continue;
             }
-            session.legal_action_cache[game_index] = Some(observation.legal_action_indexes.clone());
+            session.legal_action_cache[game_index] = Some(legal_action_indexes.clone());
+            let started_at = Instant::now();
+            let pieces = compact_pieces(&session.states[game_index]);
+            if let Some(profile) = &mut profile {
+                profile.pieces_ms += started_at.elapsed().as_secs_f64() * 1000.0;
+            }
+            let started_at = Instant::now();
+            let flattened = flattened_field(&field);
+            if let Some(profile) = &mut profile {
+                profile.flatten_field_ms += started_at.elapsed().as_secs_f64() * 1000.0;
+            }
+            let started_at = Instant::now();
+            let side = training_side(&session.states[game_index]);
+            if let Some(profile) = &mut profile {
+                profile.side_ms += started_at.elapsed().as_secs_f64() * 1000.0;
+                profile.positions += 1;
+            }
             positions.push(RolloutBatchPosition {
                 game_index,
                 ply: session.plies[game_index],
-                board: observation.board,
-                side: observation.side,
-                legal_action_indexes: observation.legal_action_indexes,
-                player: observation.player,
+                pieces,
+                field: flattened,
+                side,
+                legal_action_indexes,
+                player: player_key(session.states[game_index].current_player).to_owned(),
             });
         }
         Ok(RolloutBatch {
             session_id,
             active_games: session.active.iter().filter(|active| **active).count(),
             positions,
+            profile,
         })
     }
 

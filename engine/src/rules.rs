@@ -45,6 +45,15 @@ fn resolve_own_turn_consequences(
     candidate: GameState,
 ) -> GameState {
     let previous_field = evaluate_field(previous);
+    resolve_own_turn_consequences_with_field(player, previous, &previous_field, candidate)
+}
+
+fn resolve_own_turn_consequences_with_field(
+    player: Player,
+    previous: &GameState,
+    previous_field: &Field,
+    candidate: GameState,
+) -> GameState {
     let mut deadlines = previous
         .pieces
         .iter()
@@ -361,11 +370,22 @@ pub fn apply_training_move(piece_id: &str, destination: Position, state: GameSta
 }
 
 pub fn training_move_is_safe(piece_id: &str, destination: Position, state: &GameState) -> bool {
+    let field = evaluate_field(state);
+    training_move_is_safe_with_field(piece_id, destination, state, &field)
+}
+
+pub fn training_move_is_safe_with_field(
+    piece_id: &str,
+    destination: Position,
+    state: &GameState,
+    field: &Field,
+) -> bool {
     if state.status != GameStatus::Playing {
         return false;
     }
     let candidate = move_piece(state.clone(), piece_id, destination);
-    let resolved = resolve_own_turn_consequences(state.current_player, state, candidate);
+    let resolved =
+        resolve_own_turn_consequences_with_field(state.current_player, state, field, candidate);
     let resolved_field = evaluate_field(&resolved);
     !is_king_unprotected(state.current_player, &resolved, &resolved_field)
 }

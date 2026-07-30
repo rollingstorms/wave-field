@@ -8,7 +8,22 @@ from typing import Any, Dict, List, Literal, MutableMapping, Optional, Sequence,
 import numpy as np
 import torch
 
-from .encoding import ACTION_SIZE, BOARD_CHANNELS, BOARD_SIZE, action_index, decode_action, encode_state
+from .encoding import (
+    ACTION_SIZE,
+    BLUE_UNSTABLE_CHANNEL,
+    BOARD_CHANNELS,
+    BOARD_SIZE,
+    CURRENT_PLAYER_CHANNEL,
+    FIELD_MAGNITUDE_CHANNEL,
+    FIELD_SIGNED_CHANNEL,
+    PIECE_IDS,
+    PIECE_TYPES,
+    PLAYERS,
+    RED_UNSTABLE_CHANNEL,
+    action_index,
+    decode_action,
+    encode_state,
+)
 from .engine import Action, RustEngine, load_initial_state
 from .model import PolicyValueNet, masked_policy_logits
 
@@ -562,12 +577,24 @@ def batched_model_selfplay_records(
 def _sample_from_rollout_position(position: Dict[str, Any]) -> Sample:
     legal_mask = np.zeros((ACTION_SIZE,), dtype=np.float32)
     legal_mask[np.asarray(position["legalActionIndexes"], dtype=np.int64)] = 1.0
+    board = np.zeros((BOARD_CHANNELS, BOARD_SIZE, BOARD_SIZE), dtype=np.float32)
+    for piece in position["pieces"]:
+        piece_id = PIECE_IDS[int(piece["slot"])]
+        owner, piece_type, *_rest = piece_id.split("-")
+        x = int(piece["x"])
+        y = int(piece["y"])
+        board[PLAYERS.index(owner) * len(PIECE_TYPES) + PIECE_TYPES.index(piece_type), y, x] = 1.0
+        if bool(piece["unstable"]):
+            unstable_channel = RED_UNSTABLE_CHANNEL if owner == "red" else BLUE_UNSTABLE_CHANNEL
+            board[unstable_channel, y, x] = 1.0
+
+    field = np.asarray(position["field"], dtype=np.float32).reshape(BOARD_SIZE, BOARD_SIZE)
+    board[FIELD_SIGNED_CHANNEL] = np.clip(field / 8.0, -1.0, 1.0)
+    board[FIELD_MAGNITUDE_CHANNEL] = np.clip(np.abs(field) / 8.0, 0.0, 1.0)
+    board[CURRENT_PLAYER_CHANNEL].fill(1.0 if position["player"] == "red" else -1.0)
+
     return Sample(
-        board=np.asarray(position["board"], dtype=np.float32).reshape(
-            BOARD_CHANNELS,
-            BOARD_SIZE,
-            BOARD_SIZE,
-        ),
+        board=board,
         side=np.asarray(position["side"], dtype=np.float32),
         legal_mask=legal_mask,
         action_index=-1,
@@ -607,8 +634,24 @@ def session_model_selfplay_records(
     try:
         while True:
             get_batch_started_at = time.perf_counter()
-            rollout_batch = engine.get_rollout_batch(session_id)
+            rollout_batch = engine.get_rollout_batch(session_id, profile=profile is not None)
             _profile_add(profile, "get_batch_seconds", time.perf_counter() - get_batch_started_at)
+            rust_batch_profile = rollout_batch.get("profile")
+            if profile is not None and rust_batch_profile:
+                _profile_add(profile, "rust_batch_field_seconds", rust_batch_profile["fieldMs"] / 1000.0)
+                _profile_add(
+                    profile,
+                    "rust_batch_legal_indexes_seconds",
+                    rust_batch_profile["legalIndexesMs"] / 1000.0,
+                )
+                _profile_add(profile, "rust_batch_pieces_seconds", rust_batch_profile["piecesMs"] / 1000.0)
+                _profile_add(
+                    profile,
+                    "rust_batch_flatten_field_seconds",
+                    rust_batch_profile["flattenFieldMs"] / 1000.0,
+                )
+                _profile_add(profile, "rust_batch_side_seconds", rust_batch_profile["sideMs"] / 1000.0)
+                _profile_increment(profile, "rust_batch_positions", int(rust_batch_profile["positions"]))
             positions = rollout_batch["positions"]
             if not positions:
                 break

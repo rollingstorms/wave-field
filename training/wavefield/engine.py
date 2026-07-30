@@ -233,8 +233,8 @@ class RustEngine:
         result = self.request("createRolloutSession", states=states, maxPlies=max_plies)
         return int(result["sessionId"])
 
-    def get_rollout_batch(self, session_id: int) -> Dict[str, Any]:
-        return self.request("getRolloutBatch", sessionId=session_id)
+    def get_rollout_batch(self, session_id: int, profile: bool = False) -> Dict[str, Any]:
+        return self.request("getRolloutBatch", sessionId=session_id, profile=profile)
 
     def apply_rollout_actions(self, session_id: int, actions: List[Dict[str, int]]) -> Dict[str, Any]:
         return self.request("applyRolloutActions", sessionId=session_id, actions=actions)

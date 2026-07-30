@@ -370,7 +370,7 @@ pub fn playable_training_candidates(state: &GameState) -> Vec<(String, Position)
         .filter(|piece| piece.owner == state.current_player)
     {
         for destination in get_legal_moves(&piece.id, state, &field) {
-            if training_move_is_safe(&piece.id, destination, state) {
+            if training_move_is_safe_with_field(&piece.id, destination, state, &field) {
                 candidates.push((piece.id.clone(), destination));
             }
         }
@@ -383,6 +383,27 @@ pub fn training_legal_action_indexes(state: &GameState) -> Vec<usize> {
         .iter()
         .map(|(piece_id, destination)| training_action_index(piece_id, *destination))
         .collect()
+}
+
+pub fn playable_training_action_indexes(state: &GameState) -> Vec<usize> {
+    let field = evaluate_field(state);
+    playable_training_action_indexes_with_field(state, &field)
+}
+
+pub fn playable_training_action_indexes_with_field(state: &GameState, field: &Field) -> Vec<usize> {
+    let mut indexes = Vec::new();
+    for piece in state
+        .pieces
+        .iter()
+        .filter(|piece| piece.owner == state.current_player)
+    {
+        for destination in get_legal_moves(&piece.id, state, field) {
+            if training_move_is_safe_with_field(&piece.id, destination, state, field) {
+                indexes.push(training_action_index(&piece.id, destination));
+            }
+        }
+    }
+    indexes
 }
 
 pub fn training_observation(state: &GameState) -> TrainingObservation {
@@ -422,7 +443,7 @@ fn playable_training_candidates_profiled(
     profile.attempted_candidates += legal_moves.len() as u64;
     for (piece_id, destination) in legal_moves {
         let apply_started_at = Instant::now();
-        let safe = training_move_is_safe(&piece_id, destination, state);
+        let safe = training_move_is_safe_with_field(&piece_id, destination, state, &field);
         profile.candidate_apply_ns += apply_started_at.elapsed().as_nanos();
         if safe {
             candidates.push((piece_id, destination));
