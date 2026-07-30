@@ -135,6 +135,7 @@ def main() -> None:
             device=device,
             batch_size=args.rollout_batch_size,
             record_samples=False,
+            collect_metrics=True,
         )
     else:
         records = selfplay_records(

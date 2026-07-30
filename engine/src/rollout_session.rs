@@ -19,6 +19,7 @@ struct RolloutSession {
     active: Vec<bool>,
     legal_action_cache: Vec<Option<Vec<usize>>>,
     metrics: Vec<RolloutGameMetrics>,
+    collect_pressure: bool,
     max_plies: u64,
 }
 
@@ -127,6 +128,8 @@ pub struct RolloutGameMetrics {
     pub losses_by_piece_type: HashMap<String, u64>,
     pub rescue_opportunities: u64,
     pub rescues: u64,
+    pub pressure_sum: HashMap<String, u64>,
+    pub pressure_samples: u64,
 }
 
 fn unstable_ids_for_player(state: &GameState, player: Player) -> HashSet<String> {
@@ -188,6 +191,22 @@ fn update_metrics(before: &GameState, after: &GameState, metrics: &mut RolloutGa
     }
 }
 
+fn pressure_count(state: &GameState, player: Player) -> u64 {
+    let mut probe = state.clone();
+    probe.current_player = player;
+    let field = evaluate_field(&probe);
+    playable_training_action_indexes_with_field(&probe, &field).len() as u64
+}
+
+fn update_pressure(state: &GameState, metrics: &mut RolloutGameMetrics) {
+    for player in [Player::Red, Player::Blue] {
+        let key = player_key(player).to_owned();
+        let count = pressure_count(state, player);
+        *metrics.pressure_sum.entry(key).or_insert(0) += count;
+    }
+    metrics.pressure_samples += 1;
+}
+
 fn compact_pieces(state: &GameState) -> Vec<RolloutPiece> {
     state
         .pieces
@@ -209,7 +228,12 @@ fn flattened_field(field: &Field) -> Vec<f32> {
 }
 
 impl RolloutSessionStore {
-    pub fn create(&mut self, states: Vec<GameState>, max_plies: u64) -> CreateRolloutSessionResult {
+    pub fn create(
+        &mut self,
+        states: Vec<GameState>,
+        max_plies: u64,
+        collect_pressure: bool,
+    ) -> CreateRolloutSessionResult {
         let session_id = self.next_id;
         self.next_id += 1;
         let games = states.len();
@@ -225,6 +249,7 @@ impl RolloutSessionStore {
                 active,
                 legal_action_cache: vec![None; games],
                 metrics: vec![RolloutGameMetrics::default(); games],
+                collect_pressure,
                 max_plies,
             },
         );
@@ -346,6 +371,9 @@ impl RolloutSessionStore {
                 return Err(format!("invalid rollout action: {}", action.action_index));
             };
             let before = session.states[action.game_index].clone();
+            if session.collect_pressure {
+                update_pressure(&before, &mut session.metrics[action.game_index]);
+            }
             let result = apply_move(&piece_id, destination, before.clone(), false);
             if !result.ok {
                 return Err(result.reason.unwrap_or_else(|| {

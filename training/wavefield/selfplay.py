@@ -613,6 +613,7 @@ def session_model_selfplay_records(
     cap_value: CapValueMode = "material",
     batch_size: int = 32,
     record_samples: bool = True,
+    collect_metrics: bool = False,
     profile: Profile | None = None,
 ) -> List[GameRecord]:
     if games <= 0:
@@ -627,6 +628,7 @@ def session_model_selfplay_records(
     session_id = engine.create_rollout_session(
         [load_initial_state() for _ in range(games)],
         max_plies=max_plies,
+        collect_pressure=collect_metrics,
     )
     _profile_add(profile, "create_session_seconds", time.perf_counter() - create_started_at)
     sample_lists: List[List[Sample]] = [[] for _ in range(games)]
@@ -747,6 +749,11 @@ def session_model_selfplay_records(
             },
             rescue_opportunities=int(metrics.get("rescueOpportunities", 0)),
             rescues=int(metrics.get("rescues", 0)),
+            pressure_sum={
+                "red": int(metrics.get("pressureSum", {}).get("red", 0)),
+                "blue": int(metrics.get("pressureSum", {}).get("blue", 0)),
+            },
+            pressure_samples=int(metrics.get("pressureSamples", 0)),
             final_piece_counts=_piece_counts(state),
         )
         _assign_values(sample_lists[game_index], state, cap_value)
