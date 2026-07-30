@@ -730,10 +730,23 @@ def session_model_selfplay_records(
     for game in sorted(finished["games"], key=lambda item: int(item["gameIndex"])):
         game_index = int(game["gameIndex"])
         state = game["state"]
+        metrics = game.get("metrics", {})
         stats = GameStats(
             plies=int(game["plies"]),
             status=state["status"],
             winner=_winner(state["status"]),
+            first_loss_player=metrics.get("firstLossPlayer"),
+            first_loss_piece_type=metrics.get("firstLossPieceType"),
+            losses_by_player={
+                "red": int(metrics.get("lossesByPlayer", {}).get("red", 0)),
+                "blue": int(metrics.get("lossesByPlayer", {}).get("blue", 0)),
+            },
+            losses_by_piece_type={
+                piece_type: int(count)
+                for piece_type, count in metrics.get("lossesByPieceType", {}).items()
+            },
+            rescue_opportunities=int(metrics.get("rescueOpportunities", 0)),
+            rescues=int(metrics.get("rescues", 0)),
             final_piece_counts=_piece_counts(state),
         )
         _assign_values(sample_lists[game_index], state, cap_value)
