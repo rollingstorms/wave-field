@@ -2,13 +2,19 @@ from __future__ import annotations
 
 import unittest
 
+import numpy as np
 import torch
 
 from wavefield.encoding import ACTION_SIZE, BOARD_CHANNELS, SIDE_SIZE, decode_action, encode_state
 from wavefield.engine import RustEngine, load_initial_state
 from wavefield.eval import aggregate
 from wavefield.model import PolicyValueNet, masked_policy_logits
-from wavefield.selfplay import batched_model_selfplay_records, play_game, random_selfplay_game
+from wavefield.selfplay import (
+    batched_model_selfplay_records,
+    play_game,
+    random_selfplay_game,
+    session_model_selfplay_records,
+)
 
 
 class TrainingSmokeTest(unittest.TestCase):
@@ -69,6 +75,40 @@ class TrainingSmokeTest(unittest.TestCase):
         self.assertEqual(len(records), 2)
         self.assertTrue(all(record.samples for record in records))
         self.assertEqual(records[0].samples[0].board.shape, (BOARD_CHANNELS, 7, 7))
+
+    def test_session_model_selfplay_matches_legacy_deterministic_rollout(self) -> None:
+        torch.manual_seed(41)
+        model = PolicyValueNet(hidden_size=32)
+        legacy = batched_model_selfplay_records(
+            self.engine,
+            model,
+            games=2,
+            max_plies=4,
+            seed=43,
+            temperature=0.0,
+            batch_size=2,
+        )
+        session = session_model_selfplay_records(
+            self.engine,
+            model,
+            games=2,
+            max_plies=4,
+            seed=43,
+            temperature=0.0,
+            batch_size=2,
+        )
+
+        self.assertEqual(len(session), len(legacy))
+        for session_record, legacy_record in zip(session, legacy):
+            self.assertEqual(session_record.final_state, legacy_record.final_state)
+            self.assertEqual(session_record.stats.plies, legacy_record.stats.plies)
+            self.assertEqual(len(session_record.samples), len(legacy_record.samples))
+            for session_sample, legacy_sample in zip(session_record.samples, legacy_record.samples):
+                np.testing.assert_allclose(session_sample.board, legacy_sample.board)
+                np.testing.assert_allclose(session_sample.side, legacy_sample.side)
+                np.testing.assert_allclose(session_sample.legal_mask, legacy_sample.legal_mask)
+                self.assertEqual(session_sample.action_index, legacy_sample.action_index)
+                self.assertEqual(session_sample.player, legacy_sample.player)
 
     def test_rust_training_batch_generates_encoded_samples(self) -> None:
         batch = self.engine.generate_random_training_batch(load_initial_state(), games=1, max_plies=2, seed=31)

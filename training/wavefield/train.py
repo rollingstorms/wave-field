@@ -17,6 +17,7 @@ from .selfplay import (
     batched_model_selfplay_records,
     rust_random_training_samples,
     selfplay_records,
+    session_model_selfplay_records,
 )
 
 
@@ -35,6 +36,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--policy", choices=("random", "model"), default="random")
     parser.add_argument("--cap-value", choices=("zero", "material"), default="material")
     parser.add_argument("--python-selfplay", action="store_true", help="Use the slower Python random self-play path.")
+    parser.add_argument("--legacy-model-selfplay", action="store_true", help="Use the older full-state JSON model rollout path.")
     parser.add_argument("--device", default="auto", help="auto, cpu, mps, or cuda.")
     parser.add_argument("--checkpoint", type=Path, default=Path("training/checkpoints/policy_value.pt"))
     parser.add_argument("--resume", action="store_true")
@@ -135,7 +137,8 @@ def main() -> None:
             decisive = int(batch_summary["decisive"])
             generator_label = "rust-random"
         elif policy == "model":
-            records = batched_model_selfplay_records(
+            rollout = batched_model_selfplay_records if args.legacy_model_selfplay else session_model_selfplay_records
+            records = rollout(
                 engine,
                 model,
                 games=args.games,
@@ -149,7 +152,7 @@ def main() -> None:
             samples = [sample for record in records for sample in record.samples]
             generated_games = len(records)
             decisive = sum(1 for record in records if record.stats.decisive)
-            generator_label = "batched-model"
+            generator_label = "batched-model-legacy" if args.legacy_model_selfplay else "rust-session-model"
         else:
             records = selfplay_records(
                 engine,

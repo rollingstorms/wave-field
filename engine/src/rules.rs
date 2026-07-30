@@ -39,12 +39,73 @@ fn move_piece(mut state: GameState, piece_id: &str, destination: Position) -> Ga
     state
 }
 
+fn training_candidate_state(state: &GameState, piece_id: &str, destination: Position) -> GameState {
+    let mut pieces = state.pieces.clone();
+    if let Some(piece) = pieces.iter_mut().find(|piece| piece.id == piece_id) {
+        piece.position = destination;
+    }
+    GameState {
+        pieces,
+        current_player: state.current_player,
+        components: state.components.clone(),
+        activation_orders: state.activation_orders.clone(),
+        default_components: state.default_components.clone(),
+        status: state.status,
+        selected_piece_id: None,
+        turn_number: state.turn_number,
+        definitions: state.definitions.clone(),
+        wave_scales: state.wave_scales.clone(),
+        home_energy: state.home_energy.clone(),
+        history: Vec::new(),
+        message: String::new(),
+    }
+}
+
+#[derive(Clone, Debug)]
+pub struct TrainingSafetyContext {
+    pub player: Player,
+    deadline_ids: HashSet<String>,
+}
+
+impl TrainingSafetyContext {
+    pub fn new(state: &GameState, field: &Field) -> Self {
+        let mut deadline_ids = state
+            .pieces
+            .iter()
+            .filter(|piece| {
+                piece.owner == state.current_player
+                    && piece.piece_type != PieceType::King
+                    && piece.unstable
+            })
+            .map(|piece| piece.id.clone())
+            .collect::<HashSet<_>>();
+        for piece in unstable_pieces(state.current_player, state, field) {
+            if piece.piece_type != PieceType::King {
+                deadline_ids.insert(piece.id);
+            }
+        }
+        Self {
+            player: state.current_player,
+            deadline_ids,
+        }
+    }
+}
+
 fn resolve_own_turn_consequences(
     player: Player,
     previous: &GameState,
     candidate: GameState,
 ) -> GameState {
     let previous_field = evaluate_field(previous);
+    resolve_own_turn_consequences_with_field(player, previous, &previous_field, candidate)
+}
+
+fn resolve_own_turn_consequences_with_field(
+    player: Player,
+    previous: &GameState,
+    previous_field: &Field,
+    candidate: GameState,
+) -> GameState {
     let mut deadlines = previous
         .pieces
         .iter()
@@ -361,13 +422,47 @@ pub fn apply_training_move(piece_id: &str, destination: Position, state: GameSta
 }
 
 pub fn training_move_is_safe(piece_id: &str, destination: Position, state: &GameState) -> bool {
+    let field = evaluate_field(state);
+    training_move_is_safe_with_field(piece_id, destination, state, &field)
+}
+
+pub fn training_move_is_safe_with_field(
+    piece_id: &str,
+    destination: Position,
+    state: &GameState,
+    field: &Field,
+) -> bool {
+    let context = TrainingSafetyContext::new(state, field);
+    training_move_is_safe_with_context(piece_id, destination, state, &context)
+}
+
+pub fn training_move_is_safe_with_context(
+    piece_id: &str,
+    destination: Position,
+    state: &GameState,
+    context: &TrainingSafetyContext,
+) -> bool {
     if state.status != GameStatus::Playing {
         return false;
     }
-    let candidate = move_piece(state.clone(), piece_id, destination);
-    let resolved = resolve_own_turn_consequences(state.current_player, state, candidate);
-    let resolved_field = evaluate_field(&resolved);
-    !is_king_unprotected(state.current_player, &resolved, &resolved_field)
+    let mut candidate = training_candidate_state(state, piece_id, destination);
+
+    loop {
+        let candidate_field = evaluate_field(&candidate);
+        let lost_ids = unstable_pieces(context.player, &candidate, &candidate_field)
+            .into_iter()
+            .filter(|piece| {
+                piece.piece_type != PieceType::King && context.deadline_ids.contains(&piece.id)
+            })
+            .map(|piece| piece.id)
+            .collect::<HashSet<_>>();
+        if lost_ids.is_empty() {
+            return !is_king_unprotected(context.player, &candidate, &candidate_field);
+        }
+        candidate
+            .pieces
+            .retain(|piece| !lost_ids.contains(&piece.id));
+    }
 }
 
 pub fn get_playable_moves(piece_id: &str, state: &GameState) -> Vec<Position> {

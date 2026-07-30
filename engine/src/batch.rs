@@ -3,9 +3,9 @@ use serde::Serialize;
 use std::collections::{HashMap, HashSet};
 use std::time::Instant;
 
-const TRAINING_BOARD_CHANNELS: usize = 13;
-const TRAINING_BOARD_SIZE: usize = 7;
-const TRAINING_PIECE_IDS: [&str; 12] = [
+pub const TRAINING_BOARD_CHANNELS: usize = 13;
+pub const TRAINING_BOARD_SIZE: usize = 7;
+pub const TRAINING_PIECE_IDS: [&str; 12] = [
     "blue-rook-1",
     "blue-king-1",
     "blue-rook-2",
@@ -119,6 +119,15 @@ pub struct TrainingBatchSample {
 
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
+pub struct TrainingObservation {
+    pub board: Vec<f32>,
+    pub side: Vec<f32>,
+    pub legal_action_indexes: Vec<usize>,
+    pub player: String,
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct TrainingBatchSummary {
     pub games: u64,
     pub samples: usize,
@@ -220,20 +229,36 @@ fn player_index(player: Player) -> usize {
     }
 }
 
-fn training_piece_slot(piece_id: &str) -> usize {
+pub fn training_piece_slot(piece_id: &str) -> usize {
     TRAINING_PIECE_IDS
         .iter()
         .position(|candidate| *candidate == piece_id)
         .expect("known training piece id")
 }
 
-fn training_square_index(position: Position) -> usize {
+pub fn training_square_index(position: Position) -> usize {
     position.y as usize * TRAINING_BOARD_SIZE + position.x as usize
 }
 
-fn training_action_index(piece_id: &str, destination: Position) -> usize {
+pub fn training_action_index(piece_id: &str, destination: Position) -> usize {
     training_piece_slot(piece_id) * TRAINING_BOARD_SIZE * TRAINING_BOARD_SIZE
         + training_square_index(destination)
+}
+
+pub fn training_action_to_move(index: usize) -> Option<(String, Position)> {
+    let squares = TRAINING_BOARD_SIZE * TRAINING_BOARD_SIZE;
+    let slot = index / squares;
+    if slot >= TRAINING_PIECE_IDS.len() {
+        return None;
+    }
+    let square = index % squares;
+    Some((
+        TRAINING_PIECE_IDS[slot].to_owned(),
+        Position {
+            x: (square % TRAINING_BOARD_SIZE) as i32,
+            y: (square / TRAINING_BOARD_SIZE) as i32,
+        },
+    ))
 }
 
 fn push_components(values: &mut Vec<f32>, components: &PlayerComponents) {
@@ -243,7 +268,7 @@ fn push_components(values: &mut Vec<f32>, components: &PlayerComponents) {
     values.extend(components.king.iter().map(|value| f32::from(*value)));
 }
 
-fn training_side(state: &GameState) -> Vec<f32> {
+pub fn training_side(state: &GameState) -> Vec<f32> {
     let mut values = Vec::with_capacity(19);
     push_components(&mut values, &state.components.red);
     push_components(&mut values, &state.components.blue);
@@ -262,7 +287,7 @@ fn set_board_value(board: &mut [f32], channel: usize, position: Position, value:
     board[index] = value;
 }
 
-fn training_board(state: &GameState, field: &Field) -> Vec<f32> {
+pub fn training_board(state: &GameState, field: &Field) -> Vec<f32> {
     let mut board = vec![0.0; TRAINING_BOARD_CHANNELS * TRAINING_BOARD_SIZE * TRAINING_BOARD_SIZE];
     for piece in &state.pieces {
         let occupancy_channel = player_index(piece.owner) * 4 + piece_type_index(piece.piece_type);
@@ -336,8 +361,9 @@ fn result_value_for_state(state: &GameState, player: Player, material_for_capped
     }
 }
 
-fn playable_training_candidates(state: &GameState) -> Vec<(String, Position)> {
+pub fn playable_training_candidates(state: &GameState) -> Vec<(String, Position)> {
     let field = evaluate_field(state);
+    let safety = TrainingSafetyContext::new(state, &field);
     let mut candidates = Vec::new();
     for piece in state
         .pieces
@@ -345,12 +371,55 @@ fn playable_training_candidates(state: &GameState) -> Vec<(String, Position)> {
         .filter(|piece| piece.owner == state.current_player)
     {
         for destination in get_legal_moves(&piece.id, state, &field) {
-            if training_move_is_safe(&piece.id, destination, state) {
+            if training_move_is_safe_with_context(&piece.id, destination, state, &safety) {
                 candidates.push((piece.id.clone(), destination));
             }
         }
     }
     candidates
+}
+
+pub fn training_legal_action_indexes(state: &GameState) -> Vec<usize> {
+    playable_training_candidates(state)
+        .iter()
+        .map(|(piece_id, destination)| training_action_index(piece_id, *destination))
+        .collect()
+}
+
+pub fn playable_training_action_indexes(state: &GameState) -> Vec<usize> {
+    let field = evaluate_field(state);
+    playable_training_action_indexes_with_field(state, &field)
+}
+
+pub fn playable_training_action_indexes_with_field(state: &GameState, field: &Field) -> Vec<usize> {
+    let safety = TrainingSafetyContext::new(state, field);
+    let mut indexes = Vec::new();
+    for piece in state
+        .pieces
+        .iter()
+        .filter(|piece| piece.owner == state.current_player)
+    {
+        for destination in get_legal_moves(&piece.id, state, field) {
+            if training_move_is_safe_with_context(&piece.id, destination, state, &safety) {
+                indexes.push(training_action_index(&piece.id, destination));
+            }
+        }
+    }
+    indexes
+}
+
+pub fn training_observation(state: &GameState) -> TrainingObservation {
+    let field = evaluate_field(state);
+    let candidates = playable_training_candidates(state);
+    TrainingObservation {
+        board: training_board(state, &field),
+        side: training_side(state),
+        legal_action_indexes: candidates
+            .iter()
+            .map(|(piece_id, destination)| training_action_index(piece_id, *destination))
+            .collect(),
+        player: player_key(state.current_player).to_owned(),
+    }
 }
 
 fn playable_training_candidates_profiled(
@@ -373,10 +442,11 @@ fn playable_training_candidates_profiled(
     profile.legal_scan_ns += legal_started_at.elapsed().as_nanos();
 
     let mut candidates = Vec::new();
+    let safety = TrainingSafetyContext::new(state, &field);
     profile.attempted_candidates += legal_moves.len() as u64;
     for (piece_id, destination) in legal_moves {
         let apply_started_at = Instant::now();
-        let safe = training_move_is_safe(&piece_id, destination, state);
+        let safe = training_move_is_safe_with_context(&piece_id, destination, state, &safety);
         profile.candidate_apply_ns += apply_started_at.elapsed().as_nanos();
         if safe {
             candidates.push((piece_id, destination));
