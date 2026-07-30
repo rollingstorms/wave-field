@@ -9,7 +9,15 @@ from typing import Any, Dict, List
 import torch
 
 from .engine import RustEngine, TuningAction
+from .encoding import (
+    decode_tuning_action,
+    encode_state,
+    legal_tuning_actions,
+    legal_tuning_mask,
+    tuning_action_index,
+)
 from .eval import load_model
+from .model import masked_policy_logits
 from .selfplay import select_model_action
 from .train import resolve_device
 
@@ -21,6 +29,9 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--host", default="127.0.0.1")
     parser.add_argument("--port", type=int, default=8765)
     parser.add_argument("--temperature", type=float, default=0.0)
+    parser.add_argument("--tuning-temperature", type=float, default=None)
+    parser.add_argument("--max-tuning-actions", type=int, default=3)
+    parser.add_argument("--min-tuning-actions", type=int, default=0)
     parser.add_argument("--device", default="auto")
     return parser.parse_args()
 
@@ -36,39 +47,72 @@ class ModelMoveServer:
             self.device,
         )
 
-    def _heuristic_tuning_actions(self, state: Dict[str, Any]) -> List[TuningAction]:
-        heuristic_state = self.engine.play_heuristic_turn(
-            state,
-            player=state["currentPlayer"],
-            seed=0,
-            variety=0.0,
-            time_budget_ms=20,
-        )
-        player = state["currentPlayer"]
-        current = state["components"][player]
-        target = heuristic_state["components"][player]
-        tuning_actions: List[TuningAction] = []
-        probe = state
-        for piece_type in ("pawn", "rook", "spy", "king"):
-            for component_index, target_value in enumerate(target[piece_type]):
-                current_value = probe["components"][player][piece_type][component_index]
-                if current_value == target_value or target_value == 0:
-                    continue
-                action: TuningAction = {
-                    "type": "tune",
-                    "pieceType": piece_type,
-                    "componentIndex": component_index,
-                    "value": int(target_value),
-                }
-                probe = self.engine.apply_tuning(probe, action)
-                tuning_actions.append(action)
-        return tuning_actions
+    def _select_tuning_action(self, state: Dict[str, Any], temperature: float) -> TuningAction | None:
+        actions = legal_tuning_actions(state)
+        if not actions:
+            return None
+        moves = self.engine.legal_actions(state)
+        board, side, _move_mask = encode_state(state, self.engine, moves, input_view=self.input_view)
+        board_tensor = torch.tensor(board, dtype=torch.float32, device=self.device).unsqueeze(0)
+        side_tensor = torch.tensor(side, dtype=torch.float32, device=self.device).unsqueeze(0)
+        tune_mask = torch.tensor(legal_tuning_mask(actions), dtype=torch.float32, device=self.device).unsqueeze(0)
+
+        with torch.no_grad():
+            _kind_logits, _move_logits, tune_logits = self.model.full_policy(board_tensor, side_tensor)
+            masked = masked_policy_logits(tune_logits, tune_mask).squeeze(0)
+            if temperature <= 0:
+                selected_index = int(masked.argmax().item())
+            else:
+                probs = torch.softmax(masked / temperature, dim=0)
+                selected_index = int(torch.multinomial(probs, 1).item())
+
+        legal_indexes = {tuning_action_index(action) for action in actions}
+        if selected_index not in legal_indexes:
+            selected_index = tuning_action_index(actions[0])
+        return decode_tuning_action(selected_index)
+
+    def _should_tune(self, state: Dict[str, Any], tune_count: int, temperature: float) -> bool:
+        if tune_count < self.args.min_tuning_actions:
+            return True
+        if tune_count >= self.args.max_tuning_actions:
+            return False
+        tune_actions = legal_tuning_actions(state)
+        move_actions = self.engine.legal_actions(state)
+        if not tune_actions:
+            return False
+        if not move_actions:
+            return True
+
+        board, side, move_mask = encode_state(state, self.engine, move_actions, input_view=self.input_view)
+        board_tensor = torch.tensor(board, dtype=torch.float32, device=self.device).unsqueeze(0)
+        side_tensor = torch.tensor(side, dtype=torch.float32, device=self.device).unsqueeze(0)
+        move_mask_tensor = torch.tensor(move_mask, dtype=torch.float32, device=self.device).unsqueeze(0)
+        tune_mask_tensor = torch.tensor(legal_tuning_mask(tune_actions), dtype=torch.float32, device=self.device).unsqueeze(0)
+
+        with torch.no_grad():
+            kind_logits, _move_logits, _tune_logits = self.model.full_policy(board_tensor, side_tensor)
+            has_move = move_mask_tensor.sum(dim=1) > 0
+            has_tune = tune_mask_tensor.sum(dim=1) > 0
+            kind_mask = torch.stack([has_move, has_tune], dim=1).to(dtype=torch.float32)
+            masked = masked_policy_logits(kind_logits, kind_mask).squeeze(0)
+            if temperature <= 0:
+                return int(masked.argmax().item()) == 1
+            probs = torch.softmax(masked / temperature, dim=0)
+            return int(torch.multinomial(probs, 1).item()) == 1
 
     def move(self, state: Dict[str, Any], temperature: float | None = None) -> Dict[str, Any]:
-        tuning_actions = self._heuristic_tuning_actions(state)
+        action_temperature = self.args.temperature if temperature is None else temperature
+        tuning_temperature = self.args.tuning_temperature
+        if tuning_temperature is None:
+            tuning_temperature = action_temperature
         tuned_state = state
-        for action in tuning_actions:
+        tuning_actions: List[TuningAction] = []
+        while self._should_tune(tuned_state, len(tuning_actions), tuning_temperature):
+            action = self._select_tuning_action(tuned_state, tuning_temperature)
+            if action is None:
+                break
             tuned_state = self.engine.apply_tuning(tuned_state, action)
+            tuning_actions.append(action)
 
         actions = self.engine.legal_actions(tuned_state)
         if not actions:
@@ -78,7 +122,7 @@ class ModelMoveServer:
             tuned_state,
             self.engine,
             actions,
-            temperature=self.args.temperature if temperature is None else temperature,
+            temperature=action_temperature,
             device=self.device,
             record_sample=False,
             input_view=self.input_view,

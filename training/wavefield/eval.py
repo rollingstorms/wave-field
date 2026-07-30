@@ -51,7 +51,7 @@ def load_model(
         side_size=SIDE_SIZE,
         architecture=resolved_arch,
     ).to(device)
-    model.load_state_dict(checkpoint["model"])
+    model.load_state_dict(checkpoint["model"], strict=False)
     model.eval()
     return model, resolved_view
 

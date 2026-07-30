@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from argparse import Namespace
 import unittest
 
 import numpy as np
@@ -235,19 +236,28 @@ class TrainingSmokeTest(unittest.TestCase):
         self.assertEqual(summary["low_material"], 6)
         self.assertEqual(summary["legal_count"]["mean"], 4.0)
 
-    def test_local_model_server_plans_tuning_actions(self) -> None:
+    def test_local_model_server_uses_model_tuning_head(self) -> None:
         server = ModelMoveServer.__new__(ModelMoveServer)
         server.engine = self.engine
+        server.model = PolicyValueNet(hidden_size=32)
+        server.device = torch.device("cpu")
+        server.input_view = "base"
+        server.args = Namespace(
+            checkpoint="test-checkpoint.pt",
+            temperature=0.0,
+            tuning_temperature=0.0,
+            max_tuning_actions=1,
+            min_tuning_actions=1,
+        )
         state = load_initial_state()
-        player = state["currentPlayer"]
-        state["components"][player]["rook"] = [-1, -1]
-        state["activationOrders"][player]["rook"] = [0, 1]
 
-        actions = server._heuristic_tuning_actions(state)
+        response = server.move(state)
 
+        actions = response["actions"]
         self.assertGreater(len(actions), 0)
-        self.assertTrue(all(action["type"] == "tune" for action in actions))
-        self.assertTrue(all(action["value"] in (-1, 1) for action in actions))
+        self.assertEqual(actions[0]["type"], "tune")
+        self.assertEqual(actions[-1]["type"], "move")
+        self.assertEqual(response["tuningActions"], 1)
 
 
 if __name__ == "__main__":

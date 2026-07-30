@@ -98,7 +98,7 @@ def load_checkpoint(path: Path, model: PolicyValueNet, optimizer: torch.optim.Op
     if not path.exists():
         return {"iterations": 0, "samples": 0}
     checkpoint = torch.load(path, map_location="cpu", weights_only=False)
-    model.load_state_dict(checkpoint["model"])
+    model.load_state_dict(checkpoint["model"], strict=False)
     if "optimizer" in checkpoint:
         optimizer.load_state_dict(checkpoint["optimizer"])
     return checkpoint

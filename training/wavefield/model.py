@@ -3,7 +3,7 @@ from __future__ import annotations
 import torch
 from torch import nn
 
-from .encoding import ACTION_SIZE, BOARD_CHANNELS, SIDE_SIZE
+from .encoding import ACTION_SIZE, BOARD_CHANNELS, SIDE_SIZE, TUNING_ACTION_SIZE
 
 
 BOARD_TOKEN_COUNT = 7 * 7
@@ -89,9 +89,11 @@ class PolicyValueNet(nn.Module):
             nn.ReLU(),
         )
         self.policy = nn.Linear(hidden_size, ACTION_SIZE)
+        self.action_kind = nn.Linear(hidden_size, 2)
+        self.tuning_policy = nn.Linear(hidden_size, TUNING_ACTION_SIZE)
         self.value = nn.Sequential(nn.Linear(hidden_size, 1), nn.Tanh())
 
-    def forward(self, board: torch.Tensor, side: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
+    def encode_hidden(self, board: torch.Tensor, side: torch.Tensor) -> torch.Tensor:
         if self.architecture == "transformer":
             squares = board.permute(0, 2, 3, 1).reshape(board.shape[0], BOARD_TOKEN_COUNT, self.board_channels)
             square_tokens = self.square_projection(squares)
@@ -101,8 +103,15 @@ class PolicyValueNet(nn.Module):
             embedding = self.transformer(tokens).flatten(start_dim=1)
         else:
             embedding = torch.cat([self.board(board), self.side(side)], dim=1)
-        hidden = self.trunk(embedding)
+        return self.trunk(embedding)
+
+    def forward(self, board: torch.Tensor, side: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
+        hidden = self.encode_hidden(board, side)
         return self.policy(hidden), self.value(hidden).squeeze(-1)
+
+    def full_policy(self, board: torch.Tensor, side: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
+        hidden = self.encode_hidden(board, side)
+        return self.action_kind(hidden), self.policy(hidden), self.tuning_policy(hidden)
 
 
 def masked_policy_logits(logits: torch.Tensor, legal_mask: torch.Tensor) -> torch.Tensor:

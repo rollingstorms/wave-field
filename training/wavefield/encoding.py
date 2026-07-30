@@ -4,7 +4,7 @@ from typing import Any, Dict, Iterable, List, Literal, Tuple
 
 import numpy as np
 
-from .engine import Action, RustEngine
+from .engine import Action, RustEngine, TuningAction
 
 
 BOARD_SIZE = 7
@@ -39,6 +39,19 @@ InputView = Literal["base", "piece_identity"]
 TUNING_SIZE_PER_PLAYER = sum({"pawn": 1, "rook": 2, "spy": 3, "king": 3}.values())
 SIDE_SIZE = TUNING_SIZE_PER_PLAYER * len(PLAYERS) + 1
 ACTION_SIZE = len(PIECE_IDS) * BOARD_SIZE * BOARD_SIZE
+TUNING_SLOTS = (
+    ("pawn", 0),
+    ("rook", 0),
+    ("rook", 1),
+    ("spy", 0),
+    ("spy", 1),
+    ("spy", 2),
+    ("king", 0),
+    ("king", 1),
+    ("king", 2),
+)
+TUNING_VALUES = (-1, 1)
+TUNING_ACTION_SIZE = len(TUNING_SLOTS) * len(TUNING_VALUES)
 
 
 def board_channels_for_view(input_view: InputView = "base") -> int:
@@ -65,6 +78,47 @@ def decode_action(index: int) -> Action:
     slot, destination_index = divmod(index, BOARD_SIZE * BOARD_SIZE)
     y, x = divmod(destination_index, BOARD_SIZE)
     return {"pieceId": PIECE_IDS[slot], "destination": {"x": x, "y": y}}
+
+
+def tuning_action_index(action: TuningAction) -> int:
+    slot = TUNING_SLOTS.index((action["pieceType"], action["componentIndex"]))
+    value_slot = TUNING_VALUES.index(action["value"])
+    return slot * len(TUNING_VALUES) + value_slot
+
+
+def decode_tuning_action(index: int) -> TuningAction:
+    slot, value_slot = divmod(index, len(TUNING_VALUES))
+    piece_type, component_index = TUNING_SLOTS[slot]
+    return {
+        "type": "tune",
+        "pieceType": piece_type,
+        "componentIndex": component_index,
+        "value": TUNING_VALUES[value_slot],
+    }
+
+
+def legal_tuning_actions(state: Dict[str, Any]) -> List[TuningAction]:
+    player = state["currentPlayer"]
+    actions: List[TuningAction] = []
+    for piece_type, component_index in TUNING_SLOTS:
+        current = state["components"][player][piece_type][component_index]
+        for value in TUNING_VALUES:
+            if current == value:
+                continue
+            actions.append({
+                "type": "tune",
+                "pieceType": piece_type,
+                "componentIndex": component_index,
+                "value": value,
+            })
+    return actions
+
+
+def legal_tuning_mask(actions: Iterable[TuningAction]) -> np.ndarray:
+    mask = np.zeros((TUNING_ACTION_SIZE,), dtype=np.float32)
+    for action in actions:
+        mask[tuning_action_index(action)] = 1.0
+    return mask
 
 
 def _occupancy_channel(owner: str, piece_type: str) -> int:
