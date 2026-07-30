@@ -20,6 +20,12 @@ import type { BasisDefinition, PieceType, Player, Position } from "../game/types
 const arenaEnabled = globalThis.location?.pathname.replace(/\/$/, "").endsWith("/arena")
   || (import.meta.env.DEV && import.meta.env.MODE === "arena");
 type SidePolicy = AiPolicy | "human";
+type NeuralStats = Record<Player, { turns: number; tuneActions: number; lastTurnTunes: number }>;
+
+const emptyNeuralStats = (): NeuralStats => ({
+  blue: { turns: 0, tuneActions: 0, lastTurnTunes: 0 },
+  red: { turns: 0, tuneActions: 0, lastTurnTunes: 0 },
+});
 
 export function App() {
   const [state, dispatch] = useReducer(gameReducer, undefined, createInitialState);
@@ -38,6 +44,7 @@ export function App() {
   const [duelMaxTurns, setDuelMaxTurns] = useState(80);
   const [aiThinking, setAiThinking] = useState(false);
   const [aiStatus, setAiStatus] = useState<string | null>(null);
+  const [neuralStats, setNeuralStats] = useState<NeuralStats>(emptyNeuralStats);
   const [hintSearching, setHintSearching] = useState(false);
   const [editorSelection, setEditorSelection] = useState<{ pieceType: PieceType; componentIndex: number }>({ pieceType: "rook", componentIndex: 0 });
   const field = useMemo(() => evaluateField(state), [state]);
@@ -68,6 +75,15 @@ export function App() {
       }
       if (!isNeuralPolicy(policy)) return;
       const actions = await requestNeuralTurn(state, policy);
+      const tuneCount = actions.filter((action) => action.type === "tune").length;
+      setNeuralStats((stats) => ({
+        ...stats,
+        [state.currentPlayer]: {
+          turns: stats[state.currentPlayer].turns + 1,
+          tuneActions: stats[state.currentPlayer].tuneActions + tuneCount,
+          lastTurnTunes: tuneCount,
+        },
+      }));
       for (const action of actions) {
         if (action.type === "tune") {
           dispatch({
@@ -143,6 +159,7 @@ export function App() {
     setDuelRunning(false);
     setAiThinking(false);
     setAiStatus(null);
+    setNeuralStats(emptyNeuralStats());
     setDuelSeed(Math.floor(Math.random() * 1_000_000_000));
     dispatch({ type: "restart", keepDefinitions: true });
   }
@@ -216,6 +233,7 @@ export function App() {
               sidePolicies={sidePolicies}
               duelRunning={duelRunning}
               aiStatus={aiStatus}
+              neuralStats={neuralStats}
               speedMs={duelSpeedMs}
               maxTurns={duelMaxTurns}
               onSetSidePolicy={setSidePolicy}

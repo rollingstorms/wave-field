@@ -40,6 +40,8 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--batch-size", type=int, default=128)
     parser.add_argument("--rollout-batch-size", type=int, default=128)
     parser.add_argument("--temperature", type=float, default=1.0)
+    parser.add_argument("--full-policy", action="store_true", help="Train model turns with learned tune/move heads.")
+    parser.add_argument("--max-tuning-actions", type=int, default=3)
     parser.add_argument("--eval-every", type=int, default=1)
     parser.add_argument("--eval-games", type=int, default=25)
     parser.add_argument("--eval-temperature", type=float, default=0.0)
@@ -93,11 +95,13 @@ def sample_metadata_summary(samples: List[Sample]) -> Dict[str, Any]:
         if "material_balance_current" in sample.metadata
     ]
     values = [float(sample.value) for sample in samples]
+    action_kinds = Counter("tune" if sample.action_kind == 1 else "move" for sample in samples)
     summary: Dict[str, Any] = {
         "sources": dict(sources),
         "phases": dict(phases),
         "scenarios": dict(scenarios),
         "low_material": low_material,
+        "action_kinds": dict(action_kinds),
     }
     if legal_counts:
         summary["legal_count"] = numeric_summary(legal_counts)
@@ -206,7 +210,9 @@ def train_samples(
                 "samples": len(samples),
                 "seconds": round(time.perf_counter() - started_at, 3),
                 "loss": round(losses["loss"], 6),
+                "kind": round(losses["kind"], 6),
                 "policy": round(losses["policy"], 6),
+                "tuning": round(losses["tuning"], 6),
                 "value": round(losses["value"], 6),
             }
         )
@@ -224,20 +230,40 @@ def run_session_eval(
 ) -> None:
     started_at = time.perf_counter()
     games = len(initial_states) if initial_states is not None else args.eval_games
-    records = session_model_selfplay_records(
-        engine,
-        model,
-        games=games,
-        max_plies=args.max_plies,
-        seed=args.seed + 10_000 + iteration,
-        temperature=args.eval_temperature,
-        device=device,
-        batch_size=args.rollout_batch_size,
-        record_samples=False,
-        collect_metrics=args.eval_pressure,
-        initial_states=initial_states,
-        input_view=args.input_view,
-    )
+    if args.full_policy:
+        from .selfplay import selfplay_records
+        records = selfplay_records(
+            engine,
+            games=games,
+            max_plies=args.max_plies,
+            seed=args.seed + 10_000 + iteration,
+            policy="model",
+            model=model,
+            temperature=args.eval_temperature,
+            device=device,
+            cap_value=args.cap_value,
+            collect_metrics=args.eval_pressure,
+            record_samples=False,
+            input_view=args.input_view,
+            full_policy=True,
+            max_tuning_actions=args.max_tuning_actions,
+            initial_states=initial_states,
+        )
+    else:
+        records = session_model_selfplay_records(
+            engine,
+            model,
+            games=games,
+            max_plies=args.max_plies,
+            seed=args.seed + 10_000 + iteration,
+            temperature=args.eval_temperature,
+            device=device,
+            batch_size=args.rollout_batch_size,
+            record_samples=False,
+            collect_metrics=args.eval_pressure,
+            initial_states=initial_states,
+            input_view=args.input_view,
+        )
     logger.write(
         {
             "event": phase,
@@ -358,19 +384,36 @@ def main() -> None:
         profile: Dict[str, float] = {}
         if args.model_games > 0:
             started_at = time.perf_counter()
-            records = session_model_selfplay_records(
-                engine,
-                model,
-                games=args.model_games,
-                max_plies=args.max_plies,
-                seed=args.seed + iteration,
-                temperature=args.temperature,
-                device=device,
-                cap_value=args.cap_value,
-                batch_size=args.rollout_batch_size,
-                profile=profile,
-                input_view=args.input_view,
-            )
+            if args.full_policy:
+                from .selfplay import selfplay_records
+                records = selfplay_records(
+                    engine,
+                    games=args.model_games,
+                    max_plies=args.max_plies,
+                    seed=args.seed + iteration,
+                    policy="model",
+                    model=model,
+                    temperature=args.temperature,
+                    device=device,
+                    cap_value=args.cap_value,
+                    input_view=args.input_view,
+                    full_policy=True,
+                    max_tuning_actions=args.max_tuning_actions,
+                )
+            else:
+                records = session_model_selfplay_records(
+                    engine,
+                    model,
+                    games=args.model_games,
+                    max_plies=args.max_plies,
+                    seed=args.seed + iteration,
+                    temperature=args.temperature,
+                    device=device,
+                    cap_value=args.cap_value,
+                    batch_size=args.rollout_batch_size,
+                    profile=profile,
+                    input_view=args.input_view,
+                )
             model_samples = [sample for record in records for sample in record.samples]
             iteration_samples.extend(model_samples)
             logger.write(
@@ -393,20 +436,38 @@ def main() -> None:
             )
             scenario_profile: Dict[str, float] = {}
             started_at = time.perf_counter()
-            scenario_records = session_model_selfplay_records(
-                engine,
-                model,
-                games=args.scenario_games_per_iteration,
-                max_plies=args.max_plies,
-                seed=args.seed + 80_000 + iteration,
-                temperature=args.temperature,
-                device=device,
-                cap_value=args.cap_value,
-                batch_size=args.rollout_batch_size,
-                profile=scenario_profile,
-                initial_states=scenario_states,
-                input_view=args.input_view,
-            )
+            if args.full_policy:
+                from .selfplay import selfplay_records
+                scenario_records = selfplay_records(
+                    engine,
+                    games=args.scenario_games_per_iteration,
+                    max_plies=args.max_plies,
+                    seed=args.seed + 80_000 + iteration,
+                    policy="model",
+                    model=model,
+                    temperature=args.temperature,
+                    device=device,
+                    cap_value=args.cap_value,
+                    input_view=args.input_view,
+                    full_policy=True,
+                    max_tuning_actions=args.max_tuning_actions,
+                    initial_states=scenario_states,
+                )
+            else:
+                scenario_records = session_model_selfplay_records(
+                    engine,
+                    model,
+                    games=args.scenario_games_per_iteration,
+                    max_plies=args.max_plies,
+                    seed=args.seed + 80_000 + iteration,
+                    temperature=args.temperature,
+                    device=device,
+                    cap_value=args.cap_value,
+                    batch_size=args.rollout_batch_size,
+                    profile=scenario_profile,
+                    initial_states=scenario_states,
+                    input_view=args.input_view,
+                )
             scenario_samples = [sample for record in scenario_records for sample in record.samples]
             iteration_samples.extend(scenario_samples)
             logger.write(

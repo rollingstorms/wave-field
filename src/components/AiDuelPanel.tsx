@@ -12,6 +12,7 @@ interface AiDuelPanelProps {
   sidePolicies: Record<Player, AiPolicy | "human">;
   duelRunning: boolean;
   aiStatus: string | null;
+  neuralStats: Record<Player, { turns: number; tuneActions: number; lastTurnTunes: number }>;
   speedMs: number;
   maxTurns: number;
   onSetSidePolicy: (player: Player, policy: AiPolicy | "human") => void;
@@ -44,6 +45,7 @@ export function AiDuelPanel({
   sidePolicies,
   duelRunning,
   aiStatus,
+  neuralStats,
   speedMs,
   maxTurns,
   onSetSidePolicy,
@@ -122,6 +124,9 @@ export function AiDuelPanel({
               <div><dt>Mobility</dt><dd>{metric.mobility}</dd></div>
               <div><dt>Pieces</dt><dd>{metric.pieces}</dd></div>
               <div><dt>Unstable</dt><dd>{metric.unstable}</dd></div>
+              <div><dt>AI turns</dt><dd>{neuralStats[metric.player].turns}</dd></div>
+              <div><dt>Tune actions</dt><dd>{neuralStats[metric.player].tuneActions}</dd></div>
+              <div><dt>Last tune</dt><dd>{neuralStats[metric.player].lastTurnTunes}</dd></div>
             </dl>
           </article>
         ))}

@@ -24,9 +24,13 @@ from .encoding import (
     action_index,
     board_channels_for_view,
     decode_action,
+    decode_tuning_action,
     encode_state,
+    legal_tuning_actions,
+    legal_tuning_mask,
+    tuning_action_index,
 )
-from .engine import Action, RustEngine, load_initial_state
+from .engine import Action, TuningAction, RustEngine, load_initial_state
 from .model import PolicyValueNet, masked_policy_logits
 
 
@@ -43,6 +47,9 @@ class Sample:
     action_index: int
     player: str
     value: float = 0.0
+    action_kind: int = 0
+    legal_tuning_mask: np.ndarray | None = None
+    tuning_action_index: int = -100
     metadata: Dict[str, Any] = field(default_factory=dict)
 
 
@@ -251,6 +258,123 @@ def select_model_action(
     return selected, sample
 
 
+def _sample_from_tuning_action(
+    state: Dict[str, Any],
+    engine: RustEngine,
+    move_actions: List[Action],
+    tune_actions: List[TuningAction],
+    action: TuningAction,
+    input_view: InputView = "base",
+) -> Sample:
+    board, side, move_mask = encode_state(state, engine, move_actions, input_view=input_view)
+    return Sample(
+        board=board,
+        side=side,
+        legal_mask=move_mask,
+        action_index=-100,
+        player=state["currentPlayer"],
+        action_kind=1,
+        legal_tuning_mask=legal_tuning_mask(tune_actions),
+        tuning_action_index=tuning_action_index(action),
+        metadata={
+            "source": "python_model_full_policy",
+            "legal_count": len(move_actions),
+            "legal_tuning_count": len(tune_actions),
+        },
+    )
+
+
+def _sample_from_model_move_action(
+    state: Dict[str, Any],
+    engine: RustEngine,
+    move_actions: List[Action],
+    action: Action,
+    input_view: InputView = "base",
+) -> Sample:
+    sample = _sample_from_action(state, engine, move_actions, action, input_view=input_view)
+    sample.action_kind = 0
+    sample.tuning_action_index = -100
+    sample.legal_tuning_mask = legal_tuning_mask(legal_tuning_actions(state))
+    sample.metadata["source"] = "python_model_full_policy"
+    sample.metadata["legal_tuning_count"] = int(sample.legal_tuning_mask.sum())
+    return sample
+
+
+def _select_index(masked: torch.Tensor, temperature: float) -> int:
+    if temperature <= 0:
+        return int(masked.argmax().item())
+    probs = torch.softmax(masked / temperature, dim=0)
+    return int(torch.multinomial(probs, 1).item())
+
+
+def select_model_full_turn(
+    model: PolicyValueNet,
+    state: Dict[str, Any],
+    engine: RustEngine,
+    temperature: float = 1.0,
+    device: torch.device | str = "cpu",
+    record_samples: bool = True,
+    input_view: InputView = "base",
+    max_tuning_actions: int = 3,
+) -> Tuple[Dict[str, Any], List[Sample]]:
+    samples: List[Sample] = []
+    tuned_state = state
+    tune_count = 0
+
+    while True:
+        move_actions = engine.legal_actions(tuned_state)
+        tune_actions = legal_tuning_actions(tuned_state)
+        if not move_actions:
+            return tuned_state, samples
+
+        board, side, move_mask = encode_state(tuned_state, engine, move_actions, input_view=input_view)
+        board_tensor = torch.tensor(board, dtype=torch.float32, device=device).unsqueeze(0)
+        side_tensor = torch.tensor(side, dtype=torch.float32, device=device).unsqueeze(0)
+        move_mask_tensor = torch.tensor(move_mask, dtype=torch.float32, device=device).unsqueeze(0)
+        tune_mask = legal_tuning_mask(tune_actions)
+        tune_mask_tensor = torch.tensor(tune_mask, dtype=torch.float32, device=device).unsqueeze(0)
+
+        with torch.no_grad():
+            kind_logits, move_logits, tune_logits = model.full_policy(board_tensor, side_tensor)
+            can_tune = bool(tune_actions) and tune_count < max_tuning_actions
+            kind_mask = torch.tensor([[1.0, 1.0 if can_tune else 0.0]], dtype=torch.float32, device=device)
+            kind = _select_index(masked_policy_logits(kind_logits, kind_mask).squeeze(0), temperature)
+
+            if kind == 1 and can_tune:
+                selected_index = _select_index(masked_policy_logits(tune_logits, tune_mask_tensor).squeeze(0), temperature)
+                legal_indexes = {tuning_action_index(action) for action in tune_actions}
+                if selected_index not in legal_indexes:
+                    selected_index = tuning_action_index(tune_actions[0])
+                tune_action = decode_tuning_action(selected_index)
+                if record_samples:
+                    samples.append(
+                        _sample_from_tuning_action(
+                            tuned_state,
+                            engine,
+                            move_actions,
+                            tune_actions,
+                            tune_action,
+                            input_view=input_view,
+                        )
+                    )
+                tuned_state = engine.apply_tuning(tuned_state, tune_action)
+                tune_count += 1
+                continue
+
+            selected_index = _select_index(masked_policy_logits(move_logits, move_mask_tensor).squeeze(0), temperature)
+            legal_indexes = {action_index(action) for action in move_actions}
+            if selected_index in legal_indexes:
+                move_action = decode_action(selected_index)
+            else:
+                move_action = move_actions[0]
+                selected_index = action_index(move_action)
+            if record_samples:
+                sample = _sample_from_model_move_action(tuned_state, engine, move_actions, move_action, input_view=input_view)
+                sample.action_index = selected_index
+                samples.append(sample)
+            return engine.apply_action(tuned_state, move_action, analyze_checkmate=False), samples
+
+
 def select_model_actions_batched(
     model: PolicyValueNet,
     states: Sequence[Dict[str, Any]],
@@ -315,6 +439,8 @@ def play_game(
     heuristic_variety: float = 0.55,
     heuristic_time_budget_ms: int = 10,
     input_view: InputView = "base",
+    full_policy: bool = False,
+    max_tuning_actions: int = 3,
 ) -> GameRecord:
     if policy == "model" and model is None:
         raise ValueError("model policy requires a model")
@@ -349,19 +475,32 @@ def play_game(
 
         if policy == "model":
             assert model is not None
-            action, sample = select_model_action(
-                model,
-                state,
-                engine,
-                actions,
-                temperature=temperature,
-                device=device,
-                record_sample=record_samples,
-                input_view=input_view,
-            )
-            if sample is not None:
-                samples.append(sample)
-            next_state = engine.apply_action(state, action, analyze_checkmate=False)
+            if full_policy:
+                next_state, turn_samples = select_model_full_turn(
+                    model,
+                    state,
+                    engine,
+                    temperature=temperature,
+                    device=device,
+                    record_samples=record_samples,
+                    input_view=input_view,
+                    max_tuning_actions=max_tuning_actions,
+                )
+                samples.extend(turn_samples)
+            else:
+                action, sample = select_model_action(
+                    model,
+                    state,
+                    engine,
+                    actions,
+                    temperature=temperature,
+                    device=device,
+                    record_sample=record_samples,
+                    input_view=input_view,
+                )
+                if sample is not None:
+                    samples.append(sample)
+                next_state = engine.apply_action(state, action, analyze_checkmate=False)
         elif policy == "heuristic":
             next_state = engine.play_heuristic_turn(
                 state,
@@ -491,12 +630,18 @@ def selfplay_records(
     collect_metrics: bool = True,
     record_samples: bool = True,
     input_view: InputView = "base",
+    full_policy: bool = False,
+    max_tuning_actions: int = 3,
+    initial_states: List[Dict[str, Any]] | None = None,
 ) -> List[GameRecord]:
+    if initial_states is not None and len(initial_states) != games:
+        raise ValueError("initial_states length must match games")
     return [
         play_game(
             engine,
             max_plies=max_plies,
             seed=seed + game,
+            initial_state=initial_states[game] if initial_states is not None else None,
             policy=policy,
             model=model,
             temperature=temperature,
@@ -505,6 +650,8 @@ def selfplay_records(
             collect_metrics=collect_metrics,
             record_samples=record_samples,
             input_view=input_view,
+            full_policy=full_policy,
+            max_tuning_actions=max_tuning_actions,
         )
         for game in range(games)
     ]

@@ -111,7 +111,10 @@ class ModelMoveServer:
             action = self._select_tuning_action(tuned_state, tuning_temperature)
             if action is None:
                 break
-            tuned_state = self.engine.apply_tuning(tuned_state, action)
+            next_tuned_state = self.engine.apply_tuning(tuned_state, action)
+            if not self.engine.legal_actions(next_tuned_state):
+                break
+            tuned_state = next_tuned_state
             tuning_actions.append(action)
 
         actions = self.engine.legal_actions(tuned_state)
