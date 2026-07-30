@@ -41,6 +41,7 @@ class Sample:
     action_index: int
     player: str
     value: float = 0.0
+    metadata: Dict[str, Any] = field(default_factory=dict)
 
 
 @dataclass
@@ -175,6 +176,10 @@ def _sample_from_action(
         legal_mask=mask,
         action_index=action_index(action),
         player=state["currentPlayer"],
+        metadata={
+            "source": "python_rollout",
+            "legal_count": len(actions),
+        },
     )
 
 
@@ -209,13 +214,17 @@ def select_model_action(
 
     sample = None
     if record_sample:
-        sample = Sample(
-            board=board,
-            side=side,
-            legal_mask=mask,
-            action_index=selected_index,
-            player=state["currentPlayer"],
-        )
+            sample = Sample(
+                board=board,
+                side=side,
+                legal_mask=mask,
+                action_index=selected_index,
+                player=state["currentPlayer"],
+                metadata={
+                    "source": "python_model_rollout",
+                    "legal_count": len(actions),
+                },
+            )
 
     return selected, sample
 
@@ -259,6 +268,10 @@ def select_model_actions_batched(
                 legal_mask=mask,
                 action_index=int(selected_index),
                 player=state["currentPlayer"],
+                metadata={
+                    "source": "python_batched_model_rollout",
+                    "legal_count": len(actions),
+                },
             )
         selections.append((action, sample))
 
@@ -429,6 +442,10 @@ def rust_random_training_samples(
                 action_index=int(raw["actionIndex"]),
                 player=raw["player"],
                 value=float(raw["value"]),
+                metadata={
+                    "source": "rust_random",
+                    "legal_count": len(raw["legalActionIndexes"]),
+                },
             )
         )
     return samples, batch["summary"]
@@ -599,7 +616,22 @@ def _sample_from_rollout_position(position: Dict[str, Any]) -> Sample:
         legal_mask=legal_mask,
         action_index=-1,
         player=position["player"],
+        metadata={
+            "source": "rust_session_model",
+            "game_index": int(position["gameIndex"]),
+            "ply": int(position["ply"]),
+            "phase": _phase_for_ply(int(position["ply"])),
+            "legal_count": len(position["legalActionIndexes"]),
+        },
     )
+
+
+def _phase_for_ply(ply: int) -> str:
+    if ply < 20:
+        return "opening"
+    if ply < 80:
+        return "midgame"
+    return "endgame"
 
 
 def session_model_selfplay_records(

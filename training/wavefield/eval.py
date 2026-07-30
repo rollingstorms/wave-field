@@ -25,6 +25,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--temperature", type=float, default=1.0)
     parser.add_argument("--device", default="auto")
     parser.add_argument("--session", action="store_true", help="Use fast Rust session rollout for model eval.")
+    parser.add_argument("--no-pressure", action="store_true", help="Skip exact pressure during session eval for faster bulk runs.")
     parser.add_argument("--rollout-batch-size", type=int, default=128)
     parser.add_argument("--json", action="store_true")
     return parser.parse_args()
@@ -135,7 +136,7 @@ def main() -> None:
             device=device,
             batch_size=args.rollout_batch_size,
             record_samples=False,
-            collect_metrics=True,
+            collect_metrics=not args.no_pressure,
         )
     else:
         records = selfplay_records(
