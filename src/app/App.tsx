@@ -11,21 +11,29 @@ import { cloneDefinitions, DEFAULT_DEFINITIONS } from "../field/componentDefinit
 import { ALL_ENERGY_CHANNELS } from "../field/cmykEnergy";
 import type { EnergyChannelState } from "../field/cmykEnergy";
 import { evaluateField, evaluateTypeFields } from "../field/evaluateField";
+import { playHeuristicTurn } from "../game/ai";
 import { createInitialState } from "../game/initialState";
 import { isNeuralPolicy, policyLabel, requestNeuralTurn } from "../game/neuralAi";
 import type { AiPolicy } from "../game/neuralAi";
 import { gameReducer } from "../game/reducer";
-import type { BasisDefinition, PieceType, Player, Position } from "../game/types";
+import type { BasisDefinition, PieceType, Player, PlayerComponents, Position } from "../game/types";
 
 const arenaEnabled = globalThis.location?.pathname.replace(/\/$/, "").endsWith("/arena")
   || (import.meta.env.DEV && import.meta.env.MODE === "arena");
 type SidePolicy = AiPolicy | "human";
-type NeuralStats = Record<Player, { turns: number; tuneActions: number; lastTurnTunes: number }>;
+type AiStats = Record<Player, { turns: number; tuneActions: number; lastTurnTunes: number }>;
+const pieceTypes: PieceType[] = ["pawn", "rook", "spy", "king"];
 
-const emptyNeuralStats = (): NeuralStats => ({
+const emptyAiStats = (): AiStats => ({
   blue: { turns: 0, tuneActions: 0, lastTurnTunes: 0 },
   red: { turns: 0, tuneActions: 0, lastTurnTunes: 0 },
 });
+
+function componentChangeCount(before: PlayerComponents, after: PlayerComponents): number {
+  return pieceTypes.reduce((total, pieceType) => (
+    total + before[pieceType].filter((coefficient, index) => coefficient !== after[pieceType][index]).length
+  ), 0);
+}
 
 export function App() {
   const [state, dispatch] = useReducer(gameReducer, undefined, createInitialState);
@@ -44,7 +52,7 @@ export function App() {
   const [duelMaxTurns, setDuelMaxTurns] = useState(80);
   const [aiThinking, setAiThinking] = useState(false);
   const [aiStatus, setAiStatus] = useState<string | null>(null);
-  const [neuralStats, setNeuralStats] = useState<NeuralStats>(emptyNeuralStats);
+  const [aiStats, setAiStats] = useState<AiStats>(emptyAiStats);
   const [hintSearching, setHintSearching] = useState(false);
   const [editorSelection, setEditorSelection] = useState<{ pieceType: PieceType; componentIndex: number }>({ pieceType: "rook", componentIndex: 0 });
   const field = useMemo(() => evaluateField(state), [state]);
@@ -70,13 +78,25 @@ export function App() {
     setAiStatus(`${policyLabel(policy)} thinking`);
     const run = async () => {
       if (policy === "heuristic") {
-        dispatch({ type: "ai-turn", player: state.currentPlayer, seed: duelSeed, variety: bothAutomated ? 0.55 : 0 });
+        const player = state.currentPlayer;
+        const variety = bothAutomated ? 0.55 : 0;
+        const preview = playHeuristicTurn(state, player, { seed: duelSeed, variety });
+        const tuneCount = componentChangeCount(state.components[player], preview.components[player]);
+        setAiStats((stats) => ({
+          ...stats,
+          [player]: {
+            turns: stats[player].turns + 1,
+            tuneActions: stats[player].tuneActions + tuneCount,
+            lastTurnTunes: tuneCount,
+          },
+        }));
+        dispatch({ type: "ai-turn", player, seed: duelSeed, variety });
         return;
       }
       if (!isNeuralPolicy(policy)) return;
       const actions = await requestNeuralTurn(state, policy);
       const tuneCount = actions.filter((action) => action.type === "tune").length;
-      setNeuralStats((stats) => ({
+      setAiStats((stats) => ({
         ...stats,
         [state.currentPlayer]: {
           turns: stats[state.currentPlayer].turns + 1,
@@ -159,7 +179,7 @@ export function App() {
     setDuelRunning(false);
     setAiThinking(false);
     setAiStatus(null);
-    setNeuralStats(emptyNeuralStats());
+    setAiStats(emptyAiStats());
     setDuelSeed(Math.floor(Math.random() * 1_000_000_000));
     dispatch({ type: "restart", keepDefinitions: true });
   }
@@ -233,7 +253,7 @@ export function App() {
               sidePolicies={sidePolicies}
               duelRunning={duelRunning}
               aiStatus={aiStatus}
-              neuralStats={neuralStats}
+              aiStats={aiStats}
               speedMs={duelSpeedMs}
               maxTurns={duelMaxTurns}
               onSetSidePolicy={setSidePolicy}
