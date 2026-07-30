@@ -47,6 +47,7 @@ def play_match_game(
     max_plies: int,
     seed: int,
     temperature: float,
+    input_view: str,
 ) -> GameRecord:
     state = load_initial_state()
     stats = GameStats()
@@ -71,6 +72,7 @@ def play_match_game(
                 temperature=temperature,
                 device=device,
                 record_sample=False,
+                input_view=input_view,
             )
             state = engine.apply_action(state, action, analyze_checkmate=False)
         elif policy == "heuristic":
@@ -115,7 +117,7 @@ def main() -> None:
     args = parse_args()
     device = resolve_device(args.device)
     engine = RustEngine()
-    model = load_model(args.checkpoint, args.hidden_size, device)
+    model, input_view = load_model(args.checkpoint, args.hidden_size, device)
     policies: Dict[str, Policy] = {"red": args.red, "blue": args.blue}
     records = [
         play_match_game(
@@ -126,6 +128,7 @@ def main() -> None:
             max_plies=args.max_plies,
             seed=args.seed + game,
             temperature=args.temperature,
+            input_view=input_view,
         )
         for game in range(args.games)
     ]

@@ -137,6 +137,39 @@ PYTHONPATH=training python3 -m wavefield.match --red heuristic --blue model --ga
 Use side-swapped matches when comparing policies so first-player and color bias
 do not get mistaken for model strength.
 
+## Local Neural Arena
+
+The browser arena can call a local Python model server in dev. This is only for
+local experiments; it is not part of the GitHub Pages build because `.pt`
+checkpoints and PyTorch run outside the browser.
+
+Terminal 1:
+
+```bash
+PYTHONPATH=training python3 -m wavefield.serve_model \
+  --checkpoint training/runs/residual-rich-20m/checkpoint.pt \
+  --port 8765
+```
+
+Optional transformer server:
+
+```bash
+PYTHONPATH=training python3 -m wavefield.serve_model \
+  --checkpoint training/runs/transformer-rich-20m/checkpoint.pt \
+  --port 8766
+```
+
+Terminal 2:
+
+```bash
+npm run arena
+```
+
+Open `/arena`, then choose `Human`, `Heuristic`, `Neural residual`, or
+`Neural transformer` separately for Blue and Red. Human-vs-AI advances
+automatically when the AI side is to move. AI-vs-AI uses the arena
+Run/Pause/Step controls.
+
 ## Benchmark
 
 ```bash

@@ -1,19 +1,20 @@
 import { FastForward, Pause, Play, StepForward } from "lucide-react";
 import { BOARD_SIZE } from "../game/constants";
 import { getLegalMoves } from "../game/movement";
+import { policyLabel } from "../game/neuralAi";
+import type { AiPolicy } from "../game/neuralAi";
 import type { GameState, Player } from "../game/types";
 import { getUnstablePieces, isKingUnprotected } from "../game/victory";
-
-type AiMode = "off" | "red" | "duel";
 
 interface AiDuelPanelProps {
   state: GameState;
   field: number[][];
-  aiMode: AiMode;
+  sidePolicies: Record<Player, AiPolicy | "human">;
   duelRunning: boolean;
+  aiStatus: string | null;
   speedMs: number;
   maxTurns: number;
-  onSetAiMode: (mode: AiMode) => void;
+  onSetSidePolicy: (player: Player, policy: AiPolicy | "human") => void;
   onToggleRunning: () => void;
   onStep: () => void;
   onSetSpeed: (value: number) => void;
@@ -40,37 +41,57 @@ function playerMetrics(state: GameState, field: number[][], player: Player) {
 export function AiDuelPanel({
   state,
   field,
-  aiMode,
+  sidePolicies,
   duelRunning,
+  aiStatus,
   speedMs,
   maxTurns,
-  onSetAiMode,
+  onSetSidePolicy,
   onToggleRunning,
   onStep,
   onSetSpeed,
   onSetMaxTurns,
 }: AiDuelPanelProps) {
   const metrics = players.map((player) => playerMetrics(state, field, player));
-  const capReached = state.status === "playing" && aiMode === "duel" && state.turnNumber >= maxTurns;
-  const canStep = state.status === "playing" && (aiMode === "duel" || (aiMode === "red" && state.currentPlayer === "red"));
+  const bothAutomated = sidePolicies.blue !== "human" && sidePolicies.red !== "human";
+  const capReached = state.status === "playing" && bothAutomated && state.turnNumber >= maxTurns;
+  const currentPolicy = sidePolicies[state.currentPlayer];
+  const canStep = state.status === "playing" && currentPolicy !== "human" && !capReached;
   const boardSquares = BOARD_SIZE * BOARD_SIZE;
+  const modeLabel = bothAutomated
+    ? "Watch AI self-play"
+    : sidePolicies.blue === "human" && sidePolicies.red === "human"
+      ? "Manual play"
+      : "Human vs AI";
 
   return (
     <section className="ai-duel-panel" aria-labelledby="ai-duel-title">
       <header>
         <div>
           <h2 id="ai-duel-title">AI Arena</h2>
-          <span>{aiMode === "duel" ? "Blue AI vs Red AI" : aiMode === "red" ? "Manual Blue vs Red AI" : "Manual play"}</span>
+          <span>{modeLabel}</span>
         </div>
-        <select value={aiMode} onChange={(event) => onSetAiMode(event.currentTarget.value as AiMode)} aria-label="AI mode">
-          <option value="duel">AI duel</option>
-          <option value="red">Red AI only</option>
-          <option value="off">Manual</option>
-        </select>
       </header>
 
+      <div className="side-policy-grid" aria-label="Side policies">
+        {players.map((player) => (
+          <label key={player}>
+            <span>{playerName(player)}</span>
+            <select
+              value={sidePolicies[player]}
+              onChange={(event) => onSetSidePolicy(player, event.currentTarget.value as AiPolicy | "human")}
+            >
+              <option value="human">Human</option>
+              <option value="heuristic">Heuristic</option>
+              <option value="neural-residual">{policyLabel("neural-residual")}</option>
+              <option value="neural-transformer">{policyLabel("neural-transformer")}</option>
+            </select>
+          </label>
+        ))}
+      </div>
+
       <div className="duel-controls">
-        <button type="button" className={duelRunning ? "active" : ""} onClick={onToggleRunning} disabled={aiMode !== "duel" || state.status !== "playing" || capReached}>
+        <button type="button" className={duelRunning ? "active" : ""} onClick={onToggleRunning} disabled={!bothAutomated || state.status !== "playing" || capReached}>
           {duelRunning ? <Pause size={17} /> : <Play size={17} />}
           {duelRunning ? "Pause" : "Run"}
         </button>
@@ -88,6 +109,7 @@ export function AiDuelPanel({
         <span>Turn cap {maxTurns}</span>
         <input type="range" min="10" max="300" step="5" value={maxTurns} onChange={(event) => onSetMaxTurns(Number(event.currentTarget.value))} />
       </label>
+      {aiStatus && <p className="ai-status">{aiStatus}</p>}
 
       <div className="ai-metrics" aria-label="AI duel metrics">
         {metrics.map((metric) => (

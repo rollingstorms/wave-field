@@ -698,9 +698,33 @@ h1 {
 
 .ai-duel-panel header span,
 .range-control span,
+.side-policy-grid span,
+.ai-status,
 .duel-cap {
   color: var(--muted);
   font-size: 0.78rem;
+}
+
+.side-policy-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.side-policy-grid label {
+  min-width: 0;
+  display: grid;
+  gap: 6px;
+}
+
+.side-policy-grid select {
+  width: 100%;
+  min-height: 36px;
+  color: var(--text);
+  background: #101313;
+  border: 1px solid var(--line);
+  border-radius: 0;
+  padding: 0 8px;
 }
 
 .duel-controls {
@@ -794,6 +818,10 @@ h1 {
 .duel-cap {
   margin: 0;
   color: var(--influence);
+}
+
+.ai-status {
+  margin: 0;
 }
 
 .randomize-controls,
