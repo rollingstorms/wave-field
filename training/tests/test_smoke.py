@@ -76,6 +76,26 @@ class TrainingSmokeTest(unittest.TestCase):
         self.assertEqual(value.shape, (1,))
         self.assertTrue(torch.isfinite(masked.max()))
 
+    def test_piece_identity_view_and_transformer_forward_pass(self) -> None:
+        state = load_initial_state()
+        actions = self.engine.legal_actions(state)
+        board, side, legal_mask = encode_state(state, self.engine, actions, input_view="piece_identity")
+
+        model = PolicyValueNet(
+            hidden_size=32,
+            board_channels=RICH_BOARD_CHANNELS,
+            side_size=SIDE_SIZE,
+            architecture="transformer",
+        )
+        logits, value = model(
+            torch.tensor(board).unsqueeze(0),
+            torch.tensor(side).unsqueeze(0),
+        )
+        masked = masked_policy_logits(logits, torch.tensor(legal_mask).unsqueeze(0))
+        self.assertEqual(logits.shape, (1, ACTION_SIZE))
+        self.assertEqual(value.shape, (1,))
+        self.assertTrue(torch.isfinite(masked.max()))
+
     def test_decode_action_round_trip_shape(self) -> None:
         action = decode_action(0)
         self.assertEqual(action["pieceId"], "blue-rook-1")

@@ -23,7 +23,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--policy", choices=("random", "model", "heuristic"), default="random")
     parser.add_argument("--checkpoint", type=Path, default=Path("training/checkpoints/policy_value.pt"))
     parser.add_argument("--hidden-size", type=int, default=128)
-    parser.add_argument("--model-arch", choices=("conv", "residual"), default=None)
+    parser.add_argument("--model-arch", choices=("conv", "residual", "transformer"), default=None)
     parser.add_argument("--input-view", choices=("base", "piece_identity"), default=None)
     parser.add_argument("--temperature", type=float, default=1.0)
     parser.add_argument("--device", default="auto")

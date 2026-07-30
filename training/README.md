@@ -122,7 +122,8 @@ eval checkpoints.
 For input/model experiments, the default remains `--input-view base`
 `--model-arch conv`. The first richer view is `--input-view piece_identity`,
 which appends one board plane per piece slot. Pair it with
-`--model-arch residual` for the small residual CNN baseline. Rust random
+`--model-arch residual` for the small residual CNN baseline, or
+`--model-arch transformer` for the compact board-token transformer. Rust random
 training batches currently emit only the base view, so rich-view runs should use
 model/session and scenario-session data until the Rust encoder grows that mode.
 

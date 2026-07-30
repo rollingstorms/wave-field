@@ -24,7 +24,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--run-dir", type=Path, default=Path("training/runs/dev"))
     parser.add_argument("--seed", type=int, default=90210)
     parser.add_argument("--hidden-size", type=int, default=128)
-    parser.add_argument("--model-arch", choices=("conv", "residual"), default="conv")
+    parser.add_argument("--model-arch", choices=("conv", "residual", "transformer"), default="conv")
     parser.add_argument("--input-view", choices=("base", "piece_identity"), default="base")
     parser.add_argument("--lr", type=float, default=1.0e-3)
     parser.add_argument("--device", default="auto")
