@@ -15,6 +15,7 @@ struct RolloutSession {
     states: Vec<GameState>,
     plies: Vec<u64>,
     active: Vec<bool>,
+    legal_action_cache: Vec<Option<Vec<usize>>>,
     max_plies: u64,
 }
 
@@ -89,6 +90,7 @@ impl RolloutSessionStore {
                 states,
                 plies: vec![0; games],
                 active,
+                legal_action_cache: vec![None; games],
                 max_plies,
             },
         );
@@ -109,13 +111,16 @@ impl RolloutSessionStore {
                 || session.states[game_index].status != GameStatus::Playing
             {
                 session.active[game_index] = false;
+                session.legal_action_cache[game_index] = None;
                 continue;
             }
             let observation = training_observation(&session.states[game_index]);
             if observation.legal_action_indexes.is_empty() {
                 session.active[game_index] = false;
+                session.legal_action_cache[game_index] = None;
                 continue;
             }
+            session.legal_action_cache[game_index] = Some(observation.legal_action_indexes.clone());
             positions.push(RolloutBatchPosition {
                 game_index,
                 ply: session.plies[game_index],
@@ -159,7 +164,11 @@ impl RolloutSessionStore {
             if !session.active[action.game_index] {
                 continue;
             }
-            let legal = training_legal_action_indexes(&session.states[action.game_index]);
+            let legal = session.legal_action_cache[action.game_index]
+                .take()
+                .unwrap_or_else(|| {
+                    training_legal_action_indexes(&session.states[action.game_index])
+                });
             if !legal.contains(&action.action_index) {
                 return Err(format!(
                     "illegal rollout action {} for game {}",
@@ -183,6 +192,7 @@ impl RolloutSessionStore {
             session.states[action.game_index] = result.state;
             session.plies[action.game_index] += 1;
             applied += 1;
+            session.legal_action_cache[action.game_index] = None;
             if session.plies[action.game_index] >= session.max_plies
                 || session.states[action.game_index].status != GameStatus::Playing
             {

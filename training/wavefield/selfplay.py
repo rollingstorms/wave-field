@@ -613,6 +613,7 @@ def session_model_selfplay_records(
             if not positions:
                 break
 
+            pending_actions: List[Dict[str, int]] = []
             for start in range(0, len(positions), batch_size):
                 chunk = positions[start:start + batch_size]
                 tensor_started_at = time.perf_counter()
@@ -648,7 +649,6 @@ def session_model_selfplay_records(
                 _profile_increment(profile, "positions", len(chunk))
 
                 selection_started_at = time.perf_counter()
-                actions: List[Dict[str, int]] = []
                 for position, sample, selected_index in zip(chunk, samples, selected_indexes):
                     legal_indexes = {int(index) for index in position["legalActionIndexes"]}
                     if int(selected_index) not in legal_indexes:
@@ -658,7 +658,7 @@ def session_model_selfplay_records(
                     if record_samples:
                         sample_lists[game_index].append(sample)
                         _profile_increment(profile, "samples")
-                    actions.append(
+                    pending_actions.append(
                         {
                             "gameIndex": game_index,
                             "actionIndex": int(selected_index),
@@ -666,9 +666,11 @@ def session_model_selfplay_records(
                     )
                 _profile_add(profile, "selection_seconds", time.perf_counter() - selection_started_at)
 
+            if pending_actions:
                 apply_started_at = time.perf_counter()
-                engine.apply_rollout_actions(session_id, actions)
+                engine.apply_rollout_actions(session_id, pending_actions)
                 _profile_add(profile, "apply_batch_seconds", time.perf_counter() - apply_started_at)
+                _profile_increment(profile, "apply_batches")
 
         finish_started_at = time.perf_counter()
         finished = engine.finish_rollout_session(session_id)
