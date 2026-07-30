@@ -363,6 +363,7 @@ fn result_value_for_state(state: &GameState, player: Player, material_for_capped
 
 pub fn playable_training_candidates(state: &GameState) -> Vec<(String, Position)> {
     let field = evaluate_field(state);
+    let safety = TrainingSafetyContext::new(state, &field);
     let mut candidates = Vec::new();
     for piece in state
         .pieces
@@ -370,7 +371,7 @@ pub fn playable_training_candidates(state: &GameState) -> Vec<(String, Position)
         .filter(|piece| piece.owner == state.current_player)
     {
         for destination in get_legal_moves(&piece.id, state, &field) {
-            if training_move_is_safe_with_field(&piece.id, destination, state, &field) {
+            if training_move_is_safe_with_context(&piece.id, destination, state, &safety) {
                 candidates.push((piece.id.clone(), destination));
             }
         }
@@ -391,6 +392,7 @@ pub fn playable_training_action_indexes(state: &GameState) -> Vec<usize> {
 }
 
 pub fn playable_training_action_indexes_with_field(state: &GameState, field: &Field) -> Vec<usize> {
+    let safety = TrainingSafetyContext::new(state, field);
     let mut indexes = Vec::new();
     for piece in state
         .pieces
@@ -398,7 +400,7 @@ pub fn playable_training_action_indexes_with_field(state: &GameState, field: &Fi
         .filter(|piece| piece.owner == state.current_player)
     {
         for destination in get_legal_moves(&piece.id, state, field) {
-            if training_move_is_safe_with_field(&piece.id, destination, state, field) {
+            if training_move_is_safe_with_context(&piece.id, destination, state, &safety) {
                 indexes.push(training_action_index(&piece.id, destination));
             }
         }
@@ -440,10 +442,11 @@ fn playable_training_candidates_profiled(
     profile.legal_scan_ns += legal_started_at.elapsed().as_nanos();
 
     let mut candidates = Vec::new();
+    let safety = TrainingSafetyContext::new(state, &field);
     profile.attempted_candidates += legal_moves.len() as u64;
     for (piece_id, destination) in legal_moves {
         let apply_started_at = Instant::now();
-        let safe = training_move_is_safe_with_field(&piece_id, destination, state, &field);
+        let safe = training_move_is_safe_with_context(&piece_id, destination, state, &safety);
         profile.candidate_apply_ns += apply_started_at.elapsed().as_nanos();
         if safe {
             candidates.push((piece_id, destination));
