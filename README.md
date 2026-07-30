@@ -258,9 +258,11 @@ cargo install wasm-bindgen-cli --version 0.2.126 --locked
 ```
 
 `npm run dev` and `npm run arena` rebuild the WebAssembly module before starting
-Vite. The Rust crate lives in `engine/`; its native JSON-lines binary is also a
-convenient boundary for scripts and future Python bindings. During migration,
-the production build continues to use the TypeScript engine.
+Vite. The public `/arena` route is static-safe for GitHub Pages; local neural
+model controls live under `/local-arena` in development and call Python model
+servers on localhost. The Rust crate lives in `engine/`; its native JSON-lines
+binary is also a convenient boundary for scripts and future Python bindings.
+During migration, the production build continues to use the TypeScript engine.
 
 Use `npm test` to build Rust, run the existing TypeScript rules suite, and run
 cross-language parity checks for field evaluation, movement, turn resolution,

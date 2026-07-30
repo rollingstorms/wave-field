@@ -18,8 +18,10 @@ import type { AiPolicy } from "../game/neuralAi";
 import { gameReducer } from "../game/reducer";
 import type { BasisDefinition, PieceType, Player, PlayerComponents, Position } from "../game/types";
 
-const arenaEnabled = globalThis.location?.pathname.replace(/\/$/, "").endsWith("/arena")
-  || (import.meta.env.DEV && import.meta.env.MODE === "arena");
+const routePath = globalThis.location?.pathname.replace(/\/$/, "") ?? "";
+const localNeuralArenaEnabled = import.meta.env.DEV
+  && (routePath.endsWith("/local-arena") || import.meta.env.MODE === "arena");
+const arenaEnabled = routePath.endsWith("/arena") || localNeuralArenaEnabled;
 type SidePolicy = AiPolicy | "human";
 type AiStats = Record<Player, { turns: number; tuneActions: number; lastTurnTunes: number }>;
 const pieceTypes: PieceType[] = ["pawn", "rook", "spy", "king"];
@@ -94,6 +96,10 @@ export function App() {
         return;
       }
       if (!isNeuralPolicy(policy)) return;
+      if (!localNeuralArenaEnabled) {
+        setAiStatus("Neural models are available only in the local arena");
+        return;
+      }
       const actions = await requestNeuralTurn(state, policy);
       const tuneCount = actions.filter((action) => action.type === "tune").length;
       setAiStats((stats) => ({
@@ -250,6 +256,7 @@ export function App() {
             <AiDuelPanel
               state={state}
               field={field}
+              neuralEnabled={localNeuralArenaEnabled}
               sidePolicies={sidePolicies}
               duelRunning={duelRunning}
               aiStatus={aiStatus}

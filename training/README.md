@@ -165,10 +165,11 @@ Terminal 2:
 npm run arena
 ```
 
-Open `/arena`, then choose `Human`, `Heuristic`, `Neural residual`, or
-`Neural transformer` separately for Blue and Red. Human-vs-AI advances
-automatically when the AI side is to move. AI-vs-AI uses the arena
-Run/Pause/Step controls.
+Open `/local-arena`, then choose `Human`, `Heuristic`, `Neural residual`, or
+`Neural transformer` separately for Blue and Red. The public `/arena` route
+stays static-safe for GitHub Pages and only exposes browser-hosted policies.
+Human-vs-AI advances automatically when the AI side is to move. AI-vs-AI uses
+the arena Run/Pause/Step controls.
 
 The local server exposes a full-turn policy path: a model kind head chooses
 whether to tune or move, a tuning head chooses component edits, and the existing

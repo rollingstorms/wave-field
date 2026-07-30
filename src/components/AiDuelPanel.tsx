@@ -9,6 +9,7 @@ import { getUnstablePieces, isKingUnprotected } from "../game/victory";
 interface AiDuelPanelProps {
   state: GameState;
   field: number[][];
+  neuralEnabled: boolean;
   sidePolicies: Record<Player, AiPolicy | "human">;
   duelRunning: boolean;
   aiStatus: string | null;
@@ -42,6 +43,7 @@ function playerMetrics(state: GameState, field: number[][], player: Player) {
 export function AiDuelPanel({
   state,
   field,
+  neuralEnabled,
   sidePolicies,
   duelRunning,
   aiStatus,
@@ -70,7 +72,7 @@ export function AiDuelPanel({
     <section className="ai-duel-panel" aria-labelledby="ai-duel-title">
       <header>
         <div>
-          <h2 id="ai-duel-title">AI Arena</h2>
+          <h2 id="ai-duel-title">{neuralEnabled ? "Local AI Arena" : "AI Arena"}</h2>
           <span>{modeLabel}</span>
         </div>
       </header>
@@ -85,8 +87,8 @@ export function AiDuelPanel({
             >
               <option value="human">Human</option>
               <option value="heuristic">Heuristic</option>
-              <option value="neural-residual">{policyLabel("neural-residual")}</option>
-              <option value="neural-transformer">{policyLabel("neural-transformer")}</option>
+              {neuralEnabled && <option value="neural-residual">{policyLabel("neural-residual")}</option>}
+              {neuralEnabled && <option value="neural-transformer">{policyLabel("neural-transformer")}</option>}
             </select>
           </label>
         ))}
