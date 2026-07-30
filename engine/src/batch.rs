@@ -336,7 +336,7 @@ fn result_value_for_state(state: &GameState, player: Player, material_for_capped
     }
 }
 
-fn playable_training_candidates(state: &GameState) -> Vec<(String, Position, GameState)> {
+fn playable_training_candidates(state: &GameState) -> Vec<(String, Position)> {
     let field = evaluate_field(state);
     let mut candidates = Vec::new();
     for piece in state
@@ -345,9 +345,8 @@ fn playable_training_candidates(state: &GameState) -> Vec<(String, Position, Gam
         .filter(|piece| piece.owner == state.current_player)
     {
         for destination in get_legal_moves(&piece.id, state, &field) {
-            let result = apply_training_move(&piece.id, destination, state.clone());
-            if result.ok {
-                candidates.push((piece.id.clone(), destination, result.state));
+            if training_move_is_safe(&piece.id, destination, state) {
+                candidates.push((piece.id.clone(), destination));
             }
         }
     }
@@ -357,7 +356,7 @@ fn playable_training_candidates(state: &GameState) -> Vec<(String, Position, Gam
 fn playable_training_candidates_profiled(
     state: &GameState,
     profile: &mut TrainingProfileTotals,
-) -> Vec<(String, Position, GameState)> {
+) -> Vec<(String, Position)> {
     let started_at = Instant::now();
     let legal_started_at = Instant::now();
     let field = evaluate_field(state);
@@ -377,10 +376,10 @@ fn playable_training_candidates_profiled(
     profile.attempted_candidates += legal_moves.len() as u64;
     for (piece_id, destination) in legal_moves {
         let apply_started_at = Instant::now();
-        let result = apply_training_move(&piece_id, destination, state.clone());
+        let safe = training_move_is_safe(&piece_id, destination, state);
         profile.candidate_apply_ns += apply_started_at.elapsed().as_nanos();
-        if result.ok {
-            candidates.push((piece_id, destination, result.state));
+        if safe {
+            candidates.push((piece_id, destination));
         }
     }
     profile.candidate_generation_ns += started_at.elapsed().as_nanos();
@@ -391,15 +390,15 @@ fn playable_training_candidates_profiled(
 
 fn encode_training_sample(
     state: &GameState,
-    candidates: &[(String, Position, GameState)],
+    candidates: &[(String, Position)],
     action_index: usize,
 ) -> TrainingBatchSample {
     let field = evaluate_field(state);
     let legal_action_indexes = candidates
         .iter()
-        .map(|(piece_id, destination, _)| training_action_index(piece_id, *destination))
+        .map(|(piece_id, destination)| training_action_index(piece_id, *destination))
         .collect::<Vec<_>>();
-    let (piece_id, destination, _) = &candidates[action_index];
+    let (piece_id, destination) = &candidates[action_index];
     TrainingBatchSample {
         board: training_board(state, &field),
         side: training_side(state),
@@ -412,7 +411,7 @@ fn encode_training_sample(
 
 fn encode_training_sample_profiled(
     state: &GameState,
-    candidates: &[(String, Position, GameState)],
+    candidates: &[(String, Position)],
     action_index: usize,
     profile: &mut TrainingProfileTotals,
 ) -> TrainingBatchSample {
@@ -957,7 +956,13 @@ fn generate_random_training_batch_inner(
                 None => encode_training_sample(&state, &candidates, selected),
             };
             samples.push(sample);
-            state = candidates[selected].2.clone();
+            let (piece_id, destination) = &candidates[selected];
+            let result = apply_training_move(piece_id, *destination, state);
+            state = if result.ok {
+                result.state
+            } else {
+                no_move_loss_training(result.state)
+            };
             plies += 1;
         }
 

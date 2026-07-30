@@ -360,6 +360,16 @@ pub fn apply_training_move(piece_id: &str, destination: Position, state: GameSta
     }
 }
 
+pub fn training_move_is_safe(piece_id: &str, destination: Position, state: &GameState) -> bool {
+    if state.status != GameStatus::Playing {
+        return false;
+    }
+    let candidate = move_piece(state.clone(), piece_id, destination);
+    let resolved = resolve_own_turn_consequences(state.current_player, state, candidate);
+    let resolved_field = evaluate_field(&resolved);
+    !is_king_unprotected(state.current_player, &resolved, &resolved_field)
+}
+
 pub fn get_playable_moves(piece_id: &str, state: &GameState) -> Vec<Position> {
     let field = evaluate_field(state);
     get_legal_moves(piece_id, state, &field)
