@@ -247,6 +247,30 @@ pub fn find_closest_playable_configuration(
     None
 }
 
+fn has_playable_move_in_current_configuration(
+    player: Player,
+    state: &GameState,
+    field: &Field,
+) -> bool {
+    let pieces = state
+        .pieces
+        .iter()
+        .filter(|piece| piece.owner == player)
+        .cloned()
+        .collect::<Vec<_>>();
+    for piece in pieces {
+        for destination in get_legal_moves(&piece.id, state, field) {
+            let moved = move_piece(state.clone(), &piece.id, destination);
+            let resolved = resolve_own_turn_consequences(player, state, moved);
+            let resolved_field = evaluate_field(&resolved);
+            if !is_king_unprotected(player, &resolved, &resolved_field) {
+                return true;
+            }
+        }
+    }
+    false
+}
+
 fn board_coordinate(position: Position) -> String {
     let file = char::from_u32('A' as u32 + position.x as u32).unwrap_or('?');
     format!("{file}{}", BOARD_SIZE - position.y)
@@ -304,6 +328,22 @@ pub fn begin_turn(state: GameState, analyze_checkmate: bool) -> GameState {
     let unstable = unstable_pieces(resolved.current_player, &resolved, &resolved_field)
         .into_iter()
         .find(|piece| piece.piece_type != PieceType::King);
+    if analyze_checkmate
+        && unstable.is_none()
+        && !has_playable_move_in_current_configuration(
+            resolved.current_player,
+            &resolved,
+            &resolved_field,
+        )
+    {
+        let playable = find_closest_playable_configuration(resolved.current_player, &resolved);
+        if playable.is_none() {
+            resolved.status = win_status(resolved.current_player.opponent());
+            resolved.selected_piece_id = None;
+            resolved.message = format!("{} has no legal move", resolved.current_player.name());
+            return resolved;
+        }
+    }
     resolved.message = match unstable {
         Some(piece) => format!(
             "{} must rescue an unstable {}",

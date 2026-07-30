@@ -51,7 +51,7 @@ def load_model(
         side_size=SIDE_SIZE,
         architecture=resolved_arch,
     ).to(device)
-    model.load_state_dict(checkpoint["model"])
+    model.load_state_dict(checkpoint["model"], strict=False)
     model.eval()
     return model, resolved_view
 
@@ -65,6 +65,10 @@ def aggregate(records: List[Any]) -> Dict[str, Any]:
     wins_by_piece_count: Dict[str, Counter[int]] = defaultdict(Counter)
     underdog_wins = Counter()
     pressure_totals = Counter()
+    ai_turns = Counter()
+    tune_turns = Counter()
+    tune_actions = Counter()
+    effective_tune_changes = Counter()
     rescue_opportunities = 0
     rescues = 0
 
@@ -81,6 +85,10 @@ def aggregate(records: List[Any]) -> Dict[str, Any]:
         rescue_opportunities += stats.rescue_opportunities
         rescues += stats.rescues
         pressure_totals.update(stats.pressure_sum)
+        ai_turns.update(getattr(stats, "ai_turns_by_player", {}))
+        tune_turns.update(getattr(stats, "tune_turns_by_player", {}))
+        tune_actions.update(getattr(stats, "tune_actions_by_player", {}))
+        effective_tune_changes.update(getattr(stats, "effective_tune_changes_by_player", {}))
 
         if winner:
             winner_count = stats.final_piece_counts[winner]
@@ -111,6 +119,18 @@ def aggregate(records: List[Any]) -> Dict[str, Any]:
             player: pressure_totals[player] / pressure_samples if pressure_samples else 0.0
             for player in ("red", "blue")
         },
+        "tuning": {
+            player: {
+                "ai_turns": ai_turns[player],
+                "tune_turns": tune_turns[player],
+                "tune_turn_rate": tune_turns[player] / ai_turns[player] if ai_turns[player] else 0.0,
+                "tune_actions": tune_actions[player],
+                "tune_actions_per_turn": tune_actions[player] / ai_turns[player] if ai_turns[player] else 0.0,
+                "effective_changes": effective_tune_changes[player],
+                "effective_changes_per_turn": effective_tune_changes[player] / ai_turns[player] if ai_turns[player] else 0.0,
+            }
+            for player in ("red", "blue")
+        },
         "underdog_wins": dict(underdog_wins),
         "wins_by_final_piece_count": {
             player: dict(counts) for player, counts in wins_by_piece_count.items()
@@ -128,6 +148,7 @@ def print_summary(summary: Dict[str, Any]) -> None:
     print(f"piece_loss_frequency_per_game={summary['piece_loss_frequency_per_game']}")
     print(f"rescue_rate={summary['rescue_rate']:.3f} rescues={summary['rescues']}/{summary['rescue_opportunities']}")
     print(f"avg_pressure={summary['avg_pressure']}")
+    print(f"tuning={summary['tuning']}")
     print(f"underdog_wins={summary['underdog_wins']}")
     print(f"wins_by_final_piece_count={summary['wins_by_final_piece_count']}")
 

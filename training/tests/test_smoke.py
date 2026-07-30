@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from argparse import Namespace
 import unittest
 
 import numpy as np
@@ -18,6 +19,7 @@ from wavefield.eval import aggregate
 from wavefield.experiment import parse_weights, replay_weight_samples, sample_metadata_summary
 from wavefield.model import PolicyValueNet, masked_policy_logits
 from wavefield.scenarios import DEFAULT_SCENARIOS, build_scenario_states
+from wavefield.serve_model import ModelMoveServer
 from wavefield.selfplay import (
     Sample,
     batched_model_selfplay_records,
@@ -233,6 +235,29 @@ class TrainingSmokeTest(unittest.TestCase):
         self.assertEqual(summary["phases"], {"endgame": 6})
         self.assertEqual(summary["low_material"], 6)
         self.assertEqual(summary["legal_count"]["mean"], 4.0)
+
+    def test_local_model_server_uses_model_tuning_head(self) -> None:
+        server = ModelMoveServer.__new__(ModelMoveServer)
+        server.engine = self.engine
+        server.model = PolicyValueNet(hidden_size=32)
+        server.device = torch.device("cpu")
+        server.input_view = "base"
+        server.args = Namespace(
+            checkpoint="test-checkpoint.pt",
+            temperature=0.0,
+            tuning_temperature=0.0,
+            max_tuning_actions=1,
+            min_tuning_actions=1,
+        )
+        state = load_initial_state()
+
+        response = server.move(state)
+
+        actions = response["actions"]
+        self.assertGreater(len(actions), 0)
+        self.assertEqual(actions[0]["type"], "tune")
+        self.assertEqual(actions[-1]["type"], "move")
+        self.assertEqual(response["tuningActions"], 1)
 
 
 if __name__ == "__main__":

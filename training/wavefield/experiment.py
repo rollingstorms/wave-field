@@ -15,7 +15,7 @@ from .encoding import SIDE_SIZE, board_channels_for_view
 from .engine import RustEngine
 from .model import PolicyValueNet
 from .scenarios import DEFAULT_SCENARIOS, build_scenario_states, scenario_names
-from .selfplay import Sample, rust_random_training_samples, session_model_selfplay_records
+from .selfplay import Sample, heuristic_bootstrap_records, rust_random_training_samples, session_model_selfplay_records
 from .train import resolve_device, samples_to_tensors, train_epoch
 
 
@@ -30,9 +30,12 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--device", default="auto")
     parser.add_argument("--max-plies", type=int, default=120)
     parser.add_argument("--pretrain-random-games", type=int, default=0)
+    parser.add_argument("--heuristic-bootstrap-games", type=int, default=0)
+    parser.add_argument("--heuristic-bootstrap-per-iteration", type=int, default=0)
     parser.add_argument("--random-games-per-iteration", type=int, default=0)
     parser.add_argument("--model-games", type=int, default=100)
     parser.add_argument("--scenario-games-per-iteration", type=int, default=0)
+    parser.add_argument("--scenario-bootstrap-per-iteration", type=int, default=0)
     parser.add_argument("--scenario-eval-games", type=int, default=0)
     parser.add_argument("--scenarios", default=",".join(DEFAULT_SCENARIOS))
     parser.add_argument("--iterations", type=int, default=1)
@@ -40,10 +43,13 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--batch-size", type=int, default=128)
     parser.add_argument("--rollout-batch-size", type=int, default=128)
     parser.add_argument("--temperature", type=float, default=1.0)
+    parser.add_argument("--full-policy", action="store_true", help="Train model turns with learned tune/move heads.")
+    parser.add_argument("--max-tuning-actions", type=int, default=3)
     parser.add_argument("--eval-every", type=int, default=1)
     parser.add_argument("--eval-games", type=int, default=25)
     parser.add_argument("--eval-temperature", type=float, default=0.0)
     parser.add_argument("--eval-pressure", action="store_true")
+    parser.add_argument("--save-every", type=int, default=1)
     parser.add_argument("--cap-value", choices=("zero", "material"), default="material")
     parser.add_argument(
         "--phase-weights",
@@ -87,20 +93,29 @@ def sample_metadata_summary(samples: List[Sample]) -> Dict[str, Any]:
         for sample in samples
         if "legal_count" in sample.metadata
     ]
+    legal_tuning_counts = [
+        int(sample.metadata["legal_tuning_count"])
+        for sample in samples
+        if "legal_tuning_count" in sample.metadata
+    ]
     material_balances = [
         int(sample.metadata["material_balance_current"])
         for sample in samples
         if "material_balance_current" in sample.metadata
     ]
     values = [float(sample.value) for sample in samples]
+    action_kinds = Counter("tune" if sample.action_kind == 1 else "move" for sample in samples)
     summary: Dict[str, Any] = {
         "sources": dict(sources),
         "phases": dict(phases),
         "scenarios": dict(scenarios),
         "low_material": low_material,
+        "action_kinds": dict(action_kinds),
     }
     if legal_counts:
         summary["legal_count"] = numeric_summary(legal_counts)
+    if legal_tuning_counts:
+        summary["legal_tuning_count"] = numeric_summary(legal_tuning_counts)
     if material_balances:
         summary["material_balance_current"] = numeric_summary(material_balances)
     if values:
@@ -206,7 +221,9 @@ def train_samples(
                 "samples": len(samples),
                 "seconds": round(time.perf_counter() - started_at, 3),
                 "loss": round(losses["loss"], 6),
+                "kind": round(losses["kind"], 6),
                 "policy": round(losses["policy"], 6),
+                "tuning": round(losses["tuning"], 6),
                 "value": round(losses["value"], 6),
             }
         )
@@ -224,20 +241,40 @@ def run_session_eval(
 ) -> None:
     started_at = time.perf_counter()
     games = len(initial_states) if initial_states is not None else args.eval_games
-    records = session_model_selfplay_records(
-        engine,
-        model,
-        games=games,
-        max_plies=args.max_plies,
-        seed=args.seed + 10_000 + iteration,
-        temperature=args.eval_temperature,
-        device=device,
-        batch_size=args.rollout_batch_size,
-        record_samples=False,
-        collect_metrics=args.eval_pressure,
-        initial_states=initial_states,
-        input_view=args.input_view,
-    )
+    if args.full_policy:
+        from .selfplay import selfplay_records
+        records = selfplay_records(
+            engine,
+            games=games,
+            max_plies=args.max_plies,
+            seed=args.seed + 10_000 + iteration,
+            policy="model",
+            model=model,
+            temperature=args.eval_temperature,
+            device=device,
+            cap_value=args.cap_value,
+            collect_metrics=args.eval_pressure,
+            record_samples=False,
+            input_view=args.input_view,
+            full_policy=True,
+            max_tuning_actions=args.max_tuning_actions,
+            initial_states=initial_states,
+        )
+    else:
+        records = session_model_selfplay_records(
+            engine,
+            model,
+            games=games,
+            max_plies=args.max_plies,
+            seed=args.seed + 10_000 + iteration,
+            temperature=args.eval_temperature,
+            device=device,
+            batch_size=args.rollout_batch_size,
+            record_samples=False,
+            collect_metrics=args.eval_pressure,
+            initial_states=initial_states,
+            input_view=args.input_view,
+        )
     logger.write(
         {
             "event": phase,
@@ -246,6 +283,31 @@ def run_session_eval(
             "summary": aggregate(records),
         }
     )
+
+
+def save_checkpoint(
+    model: PolicyValueNet,
+    optimizer: torch.optim.Optimizer,
+    args: argparse.Namespace,
+    logger: JsonlLogger,
+    iteration: int,
+) -> None:
+    checkpoint_path = args.run_dir / ("checkpoint.pt" if iteration == args.iterations else f"checkpoint-iter-{iteration}.pt")
+    torch.save(
+        {
+            "model": model.state_dict(),
+            "optimizer": optimizer.state_dict(),
+            "hidden_size": args.hidden_size,
+            "board_channels": board_channels_for_view(args.input_view),
+            "side_size": SIDE_SIZE,
+            "model_arch": args.model_arch,
+            "input_view": args.input_view,
+            "iteration": iteration,
+            "config": serializable_config(args),
+        },
+        checkpoint_path,
+    )
+    logger.write({"event": "saved", "iteration": iteration, "checkpoint": str(checkpoint_path)})
 
 
 def main() -> None:
@@ -330,8 +392,76 @@ def main() -> None:
             logger,
         )
 
+    if args.heuristic_bootstrap_games > 0:
+        started_at = time.perf_counter()
+        records = heuristic_bootstrap_records(
+            engine,
+            games=args.heuristic_bootstrap_games,
+            max_plies=args.max_plies,
+            seed=args.seed + 25_000,
+            cap_value=args.cap_value,
+            input_view=args.input_view,
+            collect_metrics=False,
+        )
+        samples = [sample for record in records for sample in record.samples]
+        logger.write(
+            {
+                "event": "generate",
+                "phase": "heuristic_bootstrap",
+                "iteration": 0,
+                "seconds": round(time.perf_counter() - started_at, 3),
+                "summary": generation_summary(records, samples),
+            }
+        )
+        weighted_samples = replay_weight_samples(samples, source_weights, phase_weights)
+        if weighted_samples is not samples:
+            logger.write(
+                {
+                    "event": "augment",
+                    "phase": "heuristic_bootstrap",
+                    "iteration": 0,
+                    "raw_samples": len(samples),
+                    "training_samples": len(weighted_samples),
+                    "summary": sample_metadata_summary(weighted_samples),
+                }
+            )
+        train_samples(
+            model,
+            optimizer,
+            weighted_samples,
+            device,
+            args.batch_size,
+            args.epochs,
+            "heuristic_bootstrap",
+            0,
+            logger,
+        )
+
     for iteration in range(1, args.iterations + 1):
         iteration_samples: List[Sample] = []
+        if args.heuristic_bootstrap_per_iteration > 0:
+            started_at = time.perf_counter()
+            records = heuristic_bootstrap_records(
+                engine,
+                games=args.heuristic_bootstrap_per_iteration,
+                max_plies=args.max_plies,
+                seed=args.seed + 35_000 + iteration,
+                cap_value=args.cap_value,
+                input_view=args.input_view,
+                collect_metrics=False,
+            )
+            bootstrap_samples = [sample for record in records for sample in record.samples]
+            iteration_samples.extend(bootstrap_samples)
+            logger.write(
+                {
+                    "event": "generate",
+                    "phase": "heuristic_bootstrap_iteration",
+                    "iteration": iteration,
+                    "seconds": round(time.perf_counter() - started_at, 3),
+                    "summary": generation_summary(records, bootstrap_samples),
+                }
+            )
+
         if args.random_games_per_iteration > 0:
             started_at = time.perf_counter()
             random_samples, random_summary = rust_random_training_samples(
@@ -358,19 +488,37 @@ def main() -> None:
         profile: Dict[str, float] = {}
         if args.model_games > 0:
             started_at = time.perf_counter()
-            records = session_model_selfplay_records(
-                engine,
-                model,
-                games=args.model_games,
-                max_plies=args.max_plies,
-                seed=args.seed + iteration,
-                temperature=args.temperature,
-                device=device,
-                cap_value=args.cap_value,
-                batch_size=args.rollout_batch_size,
-                profile=profile,
-                input_view=args.input_view,
-            )
+            if args.full_policy:
+                from .selfplay import selfplay_records
+                records = selfplay_records(
+                    engine,
+                    games=args.model_games,
+                    max_plies=args.max_plies,
+                    seed=args.seed + iteration,
+                    policy="model",
+                    model=model,
+                    temperature=args.temperature,
+                    device=device,
+                    cap_value=args.cap_value,
+                    collect_metrics=False,
+                    input_view=args.input_view,
+                    full_policy=True,
+                    max_tuning_actions=args.max_tuning_actions,
+                )
+            else:
+                records = session_model_selfplay_records(
+                    engine,
+                    model,
+                    games=args.model_games,
+                    max_plies=args.max_plies,
+                    seed=args.seed + iteration,
+                    temperature=args.temperature,
+                    device=device,
+                    cap_value=args.cap_value,
+                    batch_size=args.rollout_batch_size,
+                    profile=profile,
+                    input_view=args.input_view,
+                )
             model_samples = [sample for record in records for sample in record.samples]
             iteration_samples.extend(model_samples)
             logger.write(
@@ -384,6 +532,36 @@ def main() -> None:
                 }
             )
 
+        if args.scenario_bootstrap_per_iteration > 0:
+            scenario_states = build_scenario_states(
+                engine,
+                scenarios,
+                games=args.scenario_bootstrap_per_iteration,
+                seed=args.seed + 65_000 + iteration,
+            )
+            started_at = time.perf_counter()
+            records = heuristic_bootstrap_records(
+                engine,
+                games=args.scenario_bootstrap_per_iteration,
+                max_plies=args.max_plies,
+                seed=args.seed + 66_000 + iteration,
+                cap_value=args.cap_value,
+                input_view=args.input_view,
+                initial_states=scenario_states,
+                collect_metrics=False,
+            )
+            bootstrap_samples = [sample for record in records for sample in record.samples]
+            iteration_samples.extend(bootstrap_samples)
+            logger.write(
+                {
+                    "event": "generate",
+                    "phase": "scenario_heuristic_bootstrap",
+                    "iteration": iteration,
+                    "seconds": round(time.perf_counter() - started_at, 3),
+                    "summary": generation_summary(records, bootstrap_samples),
+                }
+            )
+
         if args.scenario_games_per_iteration > 0:
             scenario_states = build_scenario_states(
                 engine,
@@ -393,20 +571,39 @@ def main() -> None:
             )
             scenario_profile: Dict[str, float] = {}
             started_at = time.perf_counter()
-            scenario_records = session_model_selfplay_records(
-                engine,
-                model,
-                games=args.scenario_games_per_iteration,
-                max_plies=args.max_plies,
-                seed=args.seed + 80_000 + iteration,
-                temperature=args.temperature,
-                device=device,
-                cap_value=args.cap_value,
-                batch_size=args.rollout_batch_size,
-                profile=scenario_profile,
-                initial_states=scenario_states,
-                input_view=args.input_view,
-            )
+            if args.full_policy:
+                from .selfplay import selfplay_records
+                scenario_records = selfplay_records(
+                    engine,
+                    games=args.scenario_games_per_iteration,
+                    max_plies=args.max_plies,
+                    seed=args.seed + 80_000 + iteration,
+                    policy="model",
+                    model=model,
+                    temperature=args.temperature,
+                    device=device,
+                    cap_value=args.cap_value,
+                    collect_metrics=False,
+                    input_view=args.input_view,
+                    full_policy=True,
+                    max_tuning_actions=args.max_tuning_actions,
+                    initial_states=scenario_states,
+                )
+            else:
+                scenario_records = session_model_selfplay_records(
+                    engine,
+                    model,
+                    games=args.scenario_games_per_iteration,
+                    max_plies=args.max_plies,
+                    seed=args.seed + 80_000 + iteration,
+                    temperature=args.temperature,
+                    device=device,
+                    cap_value=args.cap_value,
+                    batch_size=args.rollout_batch_size,
+                    profile=scenario_profile,
+                    initial_states=scenario_states,
+                    input_view=args.input_view,
+                )
             scenario_samples = [sample for record in scenario_records for sample in record.samples]
             iteration_samples.extend(scenario_samples)
             logger.write(
@@ -461,22 +658,11 @@ def main() -> None:
                     phase="scenario_eval",
                     initial_states=scenario_eval_states,
                 )
+        if args.save_every > 0 and iteration % args.save_every == 0:
+            save_checkpoint(model, optimizer, args, logger, iteration)
 
-    checkpoint_path = args.run_dir / "checkpoint.pt"
-    torch.save(
-        {
-            "model": model.state_dict(),
-            "optimizer": optimizer.state_dict(),
-            "hidden_size": args.hidden_size,
-            "board_channels": board_channels_for_view(args.input_view),
-            "side_size": SIDE_SIZE,
-            "model_arch": args.model_arch,
-            "input_view": args.input_view,
-            "config": serializable_config(args),
-        },
-        checkpoint_path,
-    )
-    logger.write({"event": "saved", "checkpoint": str(checkpoint_path)})
+    if args.iterations == 0 or args.save_every <= 0 or args.iterations % args.save_every != 0:
+        save_checkpoint(model, optimizer, args, logger, args.iterations)
     engine.close()
 
 

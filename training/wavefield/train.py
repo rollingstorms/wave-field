@@ -9,6 +9,7 @@ import torch
 import torch.nn.functional as F
 
 from .engine import RustEngine
+from .encoding import TUNING_ACTION_SIZE
 from .model import PolicyValueNet, masked_policy_logits
 from .selfplay import (
     CapValueMode,
@@ -55,11 +56,20 @@ def resolve_device(name: str) -> torch.device:
 
 
 def samples_to_tensors(samples: List[Sample], device: torch.device) -> Dict[str, torch.Tensor]:
+    tuning_masks = [
+        sample.legal_tuning_mask
+        if sample.legal_tuning_mask is not None
+        else np.zeros((TUNING_ACTION_SIZE,), dtype=np.float32)
+        for sample in samples
+    ]
     return {
         "board": torch.tensor(np.stack([sample.board for sample in samples]), dtype=torch.float32, device=device),
         "side": torch.tensor(np.stack([sample.side for sample in samples]), dtype=torch.float32, device=device),
         "legal_mask": torch.tensor(np.stack([sample.legal_mask for sample in samples]), dtype=torch.float32, device=device),
         "actions": torch.tensor([sample.action_index for sample in samples], dtype=torch.long, device=device),
+        "action_kinds": torch.tensor([sample.action_kind for sample in samples], dtype=torch.long, device=device),
+        "legal_tuning_mask": torch.tensor(np.stack(tuning_masks), dtype=torch.float32, device=device),
+        "tuning_actions": torch.tensor([sample.tuning_action_index for sample in samples], dtype=torch.long, device=device),
         "values": torch.tensor([sample.value for sample in samples], dtype=torch.float32, device=device),
     }
 
@@ -73,14 +83,34 @@ def train_epoch(
     model.train()
     sample_count = tensors["actions"].shape[0]
     order = torch.randperm(sample_count, device=tensors["actions"].device)
-    totals = {"loss": 0.0, "policy": 0.0, "value": 0.0}
+    totals = {"loss": 0.0, "kind": 0.0, "policy": 0.0, "tuning": 0.0, "value": 0.0}
 
     for start in range(0, sample_count, batch_size):
         batch = order[start:start + batch_size]
-        logits, predicted_values = model(tensors["board"][batch], tensors["side"][batch])
-        policy_loss = F.cross_entropy(masked_policy_logits(logits, tensors["legal_mask"][batch]), tensors["actions"][batch])
+        kind_logits, move_logits, tuning_logits = model.full_policy(tensors["board"][batch], tensors["side"][batch])
+        _legacy_logits, predicted_values = model(tensors["board"][batch], tensors["side"][batch])
+        action_kinds = tensors["action_kinds"][batch]
+        kind_loss = F.cross_entropy(kind_logits, action_kinds)
+
+        move_rows = action_kinds == 0
+        if bool(move_rows.any()):
+            policy_loss = F.cross_entropy(
+                masked_policy_logits(move_logits[move_rows], tensors["legal_mask"][batch][move_rows]),
+                tensors["actions"][batch][move_rows],
+            )
+        else:
+            policy_loss = move_logits.sum() * 0.0
+
+        tuning_rows = action_kinds == 1
+        if bool(tuning_rows.any()):
+            tuning_loss = F.cross_entropy(
+                masked_policy_logits(tuning_logits[tuning_rows], tensors["legal_tuning_mask"][batch][tuning_rows]),
+                tensors["tuning_actions"][batch][tuning_rows],
+            )
+        else:
+            tuning_loss = tuning_logits.sum() * 0.0
         value_loss = F.mse_loss(predicted_values, tensors["values"][batch])
-        loss = policy_loss + value_loss
+        loss = kind_loss + policy_loss + tuning_loss + value_loss
 
         optimizer.zero_grad()
         loss.backward()
@@ -88,7 +118,9 @@ def train_epoch(
 
         weight = batch.shape[0] / sample_count
         totals["loss"] += loss.item() * weight
+        totals["kind"] += kind_loss.item() * weight
         totals["policy"] += policy_loss.item() * weight
+        totals["tuning"] += tuning_loss.item() * weight
         totals["value"] += value_loss.item() * weight
 
     return totals
@@ -98,7 +130,7 @@ def load_checkpoint(path: Path, model: PolicyValueNet, optimizer: torch.optim.Op
     if not path.exists():
         return {"iterations": 0, "samples": 0}
     checkpoint = torch.load(path, map_location="cpu", weights_only=False)
-    model.load_state_dict(checkpoint["model"])
+    model.load_state_dict(checkpoint["model"], strict=False)
     if "optimizer" in checkpoint:
         optimizer.load_state_dict(checkpoint["optimizer"])
     return checkpoint
@@ -184,7 +216,8 @@ def main() -> None:
             losses = train_epoch(model, optimizer, tensors, batch_size=args.batch_size)
             print(
                 f"iteration={start_iteration + iteration} epoch={epoch} "
-                f"loss={losses['loss']:.4f} policy={losses['policy']:.4f} value={losses['value']:.4f}"
+                f"loss={losses['loss']:.4f} kind={losses['kind']:.4f} "
+                f"policy={losses['policy']:.4f} tuning={losses['tuning']:.4f} value={losses['value']:.4f}"
             )
 
     args.checkpoint.parent.mkdir(parents=True, exist_ok=True)

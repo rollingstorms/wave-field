@@ -249,6 +249,23 @@ describe("stability and victory", () => {
     expect(started.message).toContain("no legal rescue found");
   });
 
+  it("a player with no legal move loses at turn start", () => {
+    const state = createInitialState();
+    state.currentPlayer = "blue";
+    state.pieces = Array.from({ length: 49 }, (_, index) => ({
+      id: index === 24 ? "blue-king" : `blue-pawn-${index}`,
+      owner: "blue" as const,
+      type: index === 24 ? "king" as const : "pawn" as const,
+      position: { x: index % 7, y: Math.floor(index / 7) },
+      unstable: false,
+    }));
+
+    const started = beginTurn(state);
+
+    expect(started.status).toBe("red-won");
+    expect(started.message).toContain("Blue has no legal move");
+  });
+
   it("allows the current player to resign while in check", () => {
     const state = createInitialState();
     state.currentPlayer = "red";

@@ -23,6 +23,16 @@ struct RolloutSession {
     max_plies: u64,
 }
 
+fn no_move_loss(mut state: GameState) -> GameState {
+    state.status = match state.current_player {
+        Player::Red => GameStatus::BlueWon,
+        Player::Blue => GameStatus::RedWon,
+    };
+    state.selected_piece_id = None;
+    state.message = format!("{} has no legal move", state.current_player.name());
+    state
+}
+
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct CreateRolloutSessionResult {
@@ -290,6 +300,7 @@ impl RolloutSessionStore {
                 profile.legal_indexes_ms += started_at.elapsed().as_secs_f64() * 1000.0;
             }
             if legal_action_indexes.is_empty() {
+                session.states[game_index] = no_move_loss(session.states[game_index].clone());
                 session.active[game_index] = false;
                 session.legal_action_cache[game_index] = None;
                 continue;

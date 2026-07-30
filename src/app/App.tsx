@@ -11,12 +11,31 @@ import { cloneDefinitions, DEFAULT_DEFINITIONS } from "../field/componentDefinit
 import { ALL_ENERGY_CHANNELS } from "../field/cmykEnergy";
 import type { EnergyChannelState } from "../field/cmykEnergy";
 import { evaluateField, evaluateTypeFields } from "../field/evaluateField";
+import { playHeuristicTurn } from "../game/ai";
 import { createInitialState } from "../game/initialState";
+import { isNeuralPolicy, policyLabel, requestNeuralTurn } from "../game/neuralAi";
+import type { AiPolicy } from "../game/neuralAi";
 import { gameReducer } from "../game/reducer";
-import type { BasisDefinition, PieceType, Position } from "../game/types";
+import type { BasisDefinition, PieceType, Player, PlayerComponents, Position } from "../game/types";
 
-const arenaEnabled = globalThis.location?.pathname.replace(/\/$/, "").endsWith("/arena")
-  || (import.meta.env.DEV && import.meta.env.MODE === "arena");
+const routePath = globalThis.location?.pathname.replace(/\/$/, "") ?? "";
+const localNeuralArenaEnabled = import.meta.env.DEV
+  && (routePath.endsWith("/local-arena") || import.meta.env.MODE === "arena");
+const arenaEnabled = routePath.endsWith("/arena") || localNeuralArenaEnabled;
+type SidePolicy = AiPolicy | "human";
+type AiStats = Record<Player, { turns: number; tuneActions: number; lastTurnTunes: number }>;
+const pieceTypes: PieceType[] = ["pawn", "rook", "spy", "king"];
+
+const emptyAiStats = (): AiStats => ({
+  blue: { turns: 0, tuneActions: 0, lastTurnTunes: 0 },
+  red: { turns: 0, tuneActions: 0, lastTurnTunes: 0 },
+});
+
+function componentChangeCount(before: PlayerComponents, after: PlayerComponents): number {
+  return pieceTypes.reduce((total, pieceType) => (
+    total + before[pieceType].filter((coefficient, index) => coefficient !== after[pieceType][index]).length
+  ), 0);
+}
 
 export function App() {
   const [state, dispatch] = useReducer(gameReducer, undefined, createInitialState);
@@ -27,32 +46,110 @@ export function App() {
   const [energyView, setEnergyView] = useState(false);
   const [energyChannels, setEnergyChannels] = useState<EnergyChannelState>({ ...ALL_ENERGY_CHANNELS });
   const [showRules, setShowRules] = useState(false);
-  const [aiMode, setAiMode] = useState<"off" | "red" | "duel">(() => arenaEnabled ? "duel" : "red");
+  const [sidePolicies, setSidePolicies] = useState<Record<Player, SidePolicy>>(() => arenaEnabled
+    ? { blue: "heuristic", red: "heuristic" }
+    : { blue: "human", red: "heuristic" });
   const [duelRunning, setDuelRunning] = useState(false);
   const [duelSpeedMs, setDuelSpeedMs] = useState(450);
   const [duelMaxTurns, setDuelMaxTurns] = useState(80);
   const [aiThinking, setAiThinking] = useState(false);
+  const [aiStatus, setAiStatus] = useState<string | null>(null);
+  const [aiStats, setAiStats] = useState<AiStats>(emptyAiStats);
   const [hintSearching, setHintSearching] = useState(false);
   const [editorSelection, setEditorSelection] = useState<{ pieceType: PieceType; componentIndex: number }>({ pieceType: "rook", componentIndex: 0 });
   const field = useMemo(() => evaluateField(state), [state]);
   const typeFields = useMemo(() => evaluateTypeFields(state), [state]);
-  const capReached = arenaEnabled && aiMode === "duel" && state.turnNumber >= duelMaxTurns;
+  const bothAutomated = sidePolicies.blue !== "human" && sidePolicies.red !== "human";
+  const capReached = arenaEnabled && bothAutomated && state.turnNumber >= duelMaxTurns;
+  const currentPolicy = sidePolicies[state.currentPlayer];
   const aiTurn = !energyView
     && state.status === "playing"
-    && ((aiMode === "red" && state.currentPlayer === "red") || (arenaEnabled && aiMode === "duel" && duelRunning && !capReached));
+    && currentPolicy !== "human"
+    && !capReached
+    && (!bothAutomated || duelRunning);
+
+  function setSidePolicy(player: Player, policy: SidePolicy) {
+    setSidePolicies((policies) => ({ ...policies, [player]: policy }));
+    setDuelRunning(false);
+    setAiStatus(null);
+  }
+
+  async function playAutomatedTurn(policy: AiPolicy, immediate = false) {
+    if (state.status !== "playing" || capReached || energyView) return;
+    setAiThinking(true);
+    setAiStatus(`${policyLabel(policy)} thinking`);
+    const run = async () => {
+      if (policy === "heuristic") {
+        const player = state.currentPlayer;
+        const variety = bothAutomated ? 0.55 : 0;
+        const preview = playHeuristicTurn(state, player, { seed: duelSeed, variety });
+        const tuneCount = componentChangeCount(state.components[player], preview.components[player]);
+        setAiStats((stats) => ({
+          ...stats,
+          [player]: {
+            turns: stats[player].turns + 1,
+            tuneActions: stats[player].tuneActions + tuneCount,
+            lastTurnTunes: tuneCount,
+          },
+        }));
+        dispatch({ type: "ai-turn", player, seed: duelSeed, variety });
+        return;
+      }
+      if (!isNeuralPolicy(policy)) return;
+      if (!localNeuralArenaEnabled) {
+        setAiStatus("Neural models are available only in the local arena");
+        return;
+      }
+      const actions = await requestNeuralTurn(state, policy);
+      const tuneCount = actions.filter((action) => action.type === "tune").length;
+      setAiStats((stats) => ({
+        ...stats,
+        [state.currentPlayer]: {
+          turns: stats[state.currentPlayer].turns + 1,
+          tuneActions: stats[state.currentPlayer].tuneActions + tuneCount,
+          lastTurnTunes: tuneCount,
+        },
+      }));
+      for (const action of actions) {
+        if (action.type === "tune") {
+          dispatch({
+            type: "tune",
+            pieceType: action.pieceType,
+            componentIndex: action.componentIndex,
+            value: action.value,
+          });
+        } else {
+          dispatch({ type: "move", pieceId: action.pieceId, destination: action.destination });
+        }
+      }
+    };
+    try {
+      if (!immediate) await new Promise((resolve) => globalThis.setTimeout(resolve, bothAutomated ? duelSpeedMs : 450));
+      await run();
+      setAiStatus(null);
+    } catch (error) {
+      setDuelRunning(false);
+      setAiStatus(error instanceof Error ? error.message : "Neural model request failed");
+    } finally {
+      setAiThinking(false);
+    }
+  }
 
   useEffect(() => {
     if (!aiTurn) {
       setAiThinking(false);
       return;
     }
-    setAiThinking(true);
+    let cancelled = false;
+    const automatedPolicy = currentPolicy;
     const timer = globalThis.setTimeout(() => {
-      setAiThinking(false);
-      dispatch({ type: "ai-turn", player: state.currentPlayer, seed: duelSeed, variety: arenaEnabled && aiMode === "duel" ? 0.55 : 0 });
-    }, arenaEnabled && aiMode === "duel" ? duelSpeedMs : 450);
-    return () => globalThis.clearTimeout(timer);
-  }, [aiMode, aiTurn, duelSeed, duelSpeedMs, state.currentPlayer, state.turnNumber]);
+      if (!cancelled) void playAutomatedTurn(automatedPolicy, true);
+    }, bothAutomated ? duelSpeedMs : 450);
+    return () => {
+      cancelled = true;
+      globalThis.clearTimeout(timer);
+    };
+  }, [aiTurn, bothAutomated, currentPolicy, duelSeed, duelSpeedMs, state.currentPlayer, state.turnNumber]);
 
   useEffect(() => {
     if (state.status !== "playing" || capReached) setDuelRunning(false);
@@ -71,10 +168,7 @@ export function App() {
   }
 
   function undo() {
-    if (aiMode !== "off" && state.history.at(-1)?.currentPlayer === "red") {
-      setAiMode("off");
-      setDuelRunning(false);
-    }
+    setDuelRunning(false);
     dispatch({ type: "undo" });
   }
 
@@ -90,6 +184,8 @@ export function App() {
   function restartGame() {
     setDuelRunning(false);
     setAiThinking(false);
+    setAiStatus(null);
+    setAiStats(emptyAiStats());
     setDuelSeed(Math.floor(Math.random() * 1_000_000_000));
     dispatch({ type: "restart", keepDefinitions: true });
   }
@@ -110,7 +206,7 @@ export function App() {
           continuousField={continuousField}
           showTypeSums={showTypeSums}
           energyView={energyView}
-          aiEnabled={aiMode !== "off"}
+          aiEnabled={sidePolicies.blue !== "human" || sidePolicies.red !== "human"}
           onUndo={undo}
           onRestart={restartGame}
           onToggleDeveloper={() => setDeveloperMode((value) => !value)}
@@ -128,10 +224,11 @@ export function App() {
             setEnergyView((value) => !value);
           }}
           onToggleAi={() => {
-            setAiMode((value) => {
-              if (!arenaEnabled) return value === "off" ? "red" : "off";
-              return value === "off" ? "red" : value === "red" ? "duel" : "off";
-            });
+            setSidePolicies((policies) => (
+              policies.blue === "human" && policies.red === "human"
+                ? { blue: "human", red: "heuristic" }
+                : { blue: "human", red: "human" }
+            ));
             setDuelRunning(false);
           }}
           onShowRules={() => setShowRules(true)}
@@ -146,7 +243,7 @@ export function App() {
           showTypeSums={showTypeSums}
           energyView={energyView}
           energyChannels={energyChannels}
-          locked={aiTurn || energyView || (arenaEnabled && aiMode === "duel")}
+          locked={aiTurn || energyView || currentPolicy !== "human"}
           onSelect={(pieceId) => dispatch({ type: "select", pieceId })}
           onMove={(pieceId: string, destination: Position) => dispatch({ type: "move", pieceId, destination })}
           onResign={() => dispatch({ type: "resign" })}
@@ -159,23 +256,25 @@ export function App() {
             <AiDuelPanel
               state={state}
               field={field}
-              aiMode={aiMode}
+              neuralEnabled={localNeuralArenaEnabled}
+              sidePolicies={sidePolicies}
               duelRunning={duelRunning}
+              aiStatus={aiStatus}
+              aiStats={aiStats}
               speedMs={duelSpeedMs}
               maxTurns={duelMaxTurns}
-              onSetAiMode={(mode) => {
-                setAiMode(mode);
-                setDuelRunning(false);
-              }}
+              onSetSidePolicy={setSidePolicy}
               onToggleRunning={() => setDuelRunning((value) => !value)}
-              onStep={() => dispatch({ type: "ai-turn", player: state.currentPlayer, seed: duelSeed, variety: aiMode === "duel" ? 0.55 : 0 })}
+              onStep={() => {
+                if (currentPolicy !== "human") void playAutomatedTurn(currentPolicy, true);
+              }}
               onSetSpeed={setDuelSpeedMs}
               onSetMaxTurns={setDuelMaxTurns}
             />
           )}
           <ComponentControls
             state={state}
-            locked={aiTurn || (arenaEnabled && aiMode === "duel")}
+            locked={aiTurn || currentPolicy !== "human"}
             onTune={(pieceType, componentIndex, value) => dispatch({ type: "tune", pieceType, componentIndex, value })}
             onRandomize={() => dispatch({ type: "randomize-tuning" })}
             onReset={() => dispatch({ type: "reset-tuning" })}

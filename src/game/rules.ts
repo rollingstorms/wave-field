@@ -154,6 +154,17 @@ export function findClosestPlayableConfiguration(player: Player, state: GameStat
   return null;
 }
 
+function hasPlayableMoveInCurrentConfiguration(player: Player, state: GameState, field: number[][]): boolean {
+  const pieces = state.pieces.filter((piece) => piece.owner === player);
+  for (const piece of pieces) {
+    for (const destination of getLegalMoves(piece.id, state, field)) {
+      const resolved = resolveOwnTurnConsequences(player, state, movePiece(state, piece.id, destination));
+      if (!isKingUnprotected(player, resolved, evaluateField(resolved))) return true;
+    }
+  }
+  return false;
+}
+
 export function beginTurn(state: GameState, options: RuleOptions = {}): GameState {
   const analyzeCheckmate = options.analyzeCheckmate ?? true;
   const rustState = rustBeginTurn(state, analyzeCheckmate);
@@ -180,6 +191,17 @@ export function beginTurn(state: GameState, options: RuleOptions = {}): GameStat
     };
   }
   const unstable = getUnstablePieces(state.currentPlayer, resolved, field).filter((piece) => piece.type !== "king");
+  if (analyzeCheckmate && unstable.length === 0 && !hasPlayableMoveInCurrentConfiguration(state.currentPlayer, resolved, field)) {
+    const playable = findClosestPlayableConfiguration(state.currentPlayer, resolved);
+    if (!playable) {
+      return {
+        ...resolved,
+        status: winStatus(opponent(state.currentPlayer)),
+        selectedPieceId: null,
+        message: `${playerName(state.currentPlayer)} has no legal move`,
+      };
+    }
+  }
   if (unstable.length > 0) {
     return { ...resolved, message: `${playerName(state.currentPlayer)} must rescue an unstable ${pieceNameLower(unstable[0].type)}` };
   }

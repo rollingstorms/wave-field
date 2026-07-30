@@ -21,6 +21,13 @@ class Action(TypedDict):
     destination: Position
 
 
+class TuningAction(TypedDict):
+    type: str
+    pieceType: str
+    componentIndex: int
+    value: int
+
+
 def load_initial_state(path: Path = INITIAL_STATE_PATH) -> Dict[str, Any]:
     return json.loads(path.read_text())
 
@@ -163,6 +170,23 @@ class RustEngine:
         )
         if not result["ok"]:
             raise ValueError(result.get("reason") or "Rust engine rejected action")
+        return result["state"]
+
+    def apply_tuning(
+        self,
+        state: Dict[str, Any],
+        action: TuningAction,
+    ) -> Dict[str, Any]:
+        result = self.request(
+            "applyTuning",
+            state,
+            player=state["currentPlayer"],
+            pieceType=action["pieceType"],
+            componentIndex=action["componentIndex"],
+            value=action["value"],
+        )
+        if not result["ok"]:
+            raise ValueError(result.get("reason") or "Rust engine rejected tuning")
         return result["state"]
 
     def play_heuristic_turn(
