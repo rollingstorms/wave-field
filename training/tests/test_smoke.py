@@ -109,6 +109,10 @@ class TrainingSmokeTest(unittest.TestCase):
                 np.testing.assert_allclose(session_sample.legal_mask, legacy_sample.legal_mask)
                 self.assertEqual(session_sample.action_index, legacy_sample.action_index)
                 self.assertEqual(session_sample.player, legacy_sample.player)
+        summary = aggregate(session)
+        self.assertEqual(summary["games"], 2)
+        self.assertIn("rescue_rate", summary)
+        self.assertIn("losses_by_player", summary)
 
     def test_rust_training_batch_generates_encoded_samples(self) -> None:
         batch = self.engine.generate_random_training_batch(load_initial_state(), games=1, max_plies=2, seed=31)

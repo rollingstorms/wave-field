@@ -1,5 +1,5 @@
 use crate::{
-    Field, GameState, GameStatus, Player, apply_move, evaluate_field,
+    Field, GameState, GameStatus, PieceType, Player, apply_move, evaluate_field,
     playable_training_action_indexes_with_field, training_action_to_move,
     training_legal_action_indexes, training_piece_slot, training_side,
 };
@@ -18,6 +18,8 @@ struct RolloutSession {
     plies: Vec<u64>,
     active: Vec<bool>,
     legal_action_cache: Vec<Option<Vec<usize>>>,
+    metrics: Vec<RolloutGameMetrics>,
+    collect_pressure: bool,
     max_plies: u64,
 }
 
@@ -91,6 +93,7 @@ pub struct FinishedRolloutGame {
     pub game_index: usize,
     pub plies: u64,
     pub state: GameState,
+    pub metrics: RolloutGameMetrics,
 }
 
 #[derive(Serialize)]
@@ -105,6 +108,103 @@ fn player_key(player: Player) -> &'static str {
         Player::Red => "red",
         Player::Blue => "blue",
     }
+}
+
+fn piece_type_key(piece_type: PieceType) -> &'static str {
+    match piece_type {
+        PieceType::Pawn => "pawn",
+        PieceType::Rook => "rook",
+        PieceType::Spy => "spy",
+        PieceType::King => "king",
+    }
+}
+
+#[derive(Clone, Default, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct RolloutGameMetrics {
+    pub first_loss_player: Option<String>,
+    pub first_loss_piece_type: Option<String>,
+    pub losses_by_player: HashMap<String, u64>,
+    pub losses_by_piece_type: HashMap<String, u64>,
+    pub rescue_opportunities: u64,
+    pub rescues: u64,
+    pub pressure_sum: HashMap<String, u64>,
+    pub pressure_samples: u64,
+}
+
+fn unstable_ids_for_player(state: &GameState, player: Player) -> HashSet<String> {
+    state
+        .pieces
+        .iter()
+        .filter(|piece| piece.owner == player && piece.unstable)
+        .map(|piece| piece.id.clone())
+        .collect()
+}
+
+fn piece_map(state: &GameState) -> HashMap<String, (Player, PieceType)> {
+    state
+        .pieces
+        .iter()
+        .map(|piece| (piece.id.clone(), (piece.owner, piece.piece_type)))
+        .collect()
+}
+
+fn update_metrics(before: &GameState, after: &GameState, metrics: &mut RolloutGameMetrics) {
+    let player = before.current_player;
+    let before_unstable = unstable_ids_for_player(before, player);
+    if !before_unstable.is_empty() {
+        metrics.rescue_opportunities += 1;
+    }
+
+    let before_pieces = piece_map(before);
+    let after_pieces = piece_map(after);
+    let lost_ids = before_pieces
+        .keys()
+        .filter(|piece_id| !after_pieces.contains_key(*piece_id))
+        .cloned()
+        .collect::<Vec<_>>();
+
+    for piece_id in &lost_ids {
+        let (owner, piece_type) = before_pieces[piece_id];
+        let owner_key = player_key(owner).to_owned();
+        let piece_type_key = piece_type_key(piece_type).to_owned();
+        *metrics
+            .losses_by_player
+            .entry(owner_key.clone())
+            .or_insert(0) += 1;
+        *metrics
+            .losses_by_piece_type
+            .entry(piece_type_key.clone())
+            .or_insert(0) += 1;
+        if metrics.first_loss_player.is_none() {
+            metrics.first_loss_player = Some(owner_key);
+            metrics.first_loss_piece_type = Some(piece_type_key);
+        }
+    }
+
+    if !before_unstable.is_empty() {
+        let lost = lost_ids.into_iter().collect::<HashSet<_>>();
+        let after_unstable = unstable_ids_for_player(after, player);
+        if before_unstable.is_disjoint(&lost) && before_unstable.is_disjoint(&after_unstable) {
+            metrics.rescues += 1;
+        }
+    }
+}
+
+fn pressure_count(state: &GameState, player: Player) -> u64 {
+    let mut probe = state.clone();
+    probe.current_player = player;
+    let field = evaluate_field(&probe);
+    playable_training_action_indexes_with_field(&probe, &field).len() as u64
+}
+
+fn update_pressure(state: &GameState, metrics: &mut RolloutGameMetrics) {
+    for player in [Player::Red, Player::Blue] {
+        let key = player_key(player).to_owned();
+        let count = pressure_count(state, player);
+        *metrics.pressure_sum.entry(key).or_insert(0) += count;
+    }
+    metrics.pressure_samples += 1;
 }
 
 fn compact_pieces(state: &GameState) -> Vec<RolloutPiece> {
@@ -128,7 +228,12 @@ fn flattened_field(field: &Field) -> Vec<f32> {
 }
 
 impl RolloutSessionStore {
-    pub fn create(&mut self, states: Vec<GameState>, max_plies: u64) -> CreateRolloutSessionResult {
+    pub fn create(
+        &mut self,
+        states: Vec<GameState>,
+        max_plies: u64,
+        collect_pressure: bool,
+    ) -> CreateRolloutSessionResult {
         let session_id = self.next_id;
         self.next_id += 1;
         let games = states.len();
@@ -143,6 +248,8 @@ impl RolloutSessionStore {
                 plies: vec![0; games],
                 active,
                 legal_action_cache: vec![None; games],
+                metrics: vec![RolloutGameMetrics::default(); games],
+                collect_pressure,
                 max_plies,
             },
         );
@@ -263,17 +370,21 @@ impl RolloutSessionStore {
             let Some((piece_id, destination)) = training_action_to_move(action.action_index) else {
                 return Err(format!("invalid rollout action: {}", action.action_index));
             };
-            let result = apply_move(
-                &piece_id,
-                destination,
-                session.states[action.game_index].clone(),
-                false,
-            );
+            let before = session.states[action.game_index].clone();
+            if session.collect_pressure {
+                update_pressure(&before, &mut session.metrics[action.game_index]);
+            }
+            let result = apply_move(&piece_id, destination, before.clone(), false);
             if !result.ok {
                 return Err(result.reason.unwrap_or_else(|| {
                     format!("rollout action rejected for game {}", action.game_index)
                 }));
             }
+            update_metrics(
+                &before,
+                &result.state,
+                &mut session.metrics[action.game_index],
+            );
             session.states[action.game_index] = result.state;
             session.plies[action.game_index] += 1;
             applied += 1;
@@ -307,6 +418,7 @@ impl RolloutSessionStore {
                     game_index,
                     plies: session.plies[game_index],
                     state,
+                    metrics: session.metrics[game_index].clone(),
                 })
                 .collect(),
         })

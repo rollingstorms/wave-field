@@ -59,6 +59,38 @@ The evaluator reports winner counts, mean plies, capped games, first-loss
 outcomes, piece-loss frequency, rescue rate, pressure, underdog wins, and wins
 by final piece count.
 
+Model eval can use the Rust session rollout path for larger runs:
+
+```bash
+PYTHONPATH=training python3 -m wavefield.eval \
+  --policy model --session --games 200 --max-plies 120 \
+  --checkpoint training/checkpoints/policy_value.pt --json
+```
+
+Session eval collects losses, rescues, final pieces, and exact pressure by
+default. Add `--no-pressure` when you need a cheaper bulk check and can accept
+zeroed pressure fields.
+
+## Logged Experiments
+
+Use `wavefield.experiment` when you want a repeatable training run with JSONL
+events, checkpointing, sample metadata summaries, and periodic session eval:
+
+```bash
+PYTHONPATH=training python3 -m wavefield.experiment \
+  --run-dir training/runs/dev-smoke \
+  --pretrain-random-games 100 \
+  --model-games 100 \
+  --iterations 3 \
+  --epochs 3 \
+  --eval-every 1 \
+  --eval-games 50
+```
+
+Each run writes `events.jsonl` and `checkpoint.pt` under `--run-dir`. Generated
+samples include metadata such as source, phase, ply, and legal action count
+when that information is available.
+
 ## Head-to-Head Matches
 
 ```bash

@@ -41,6 +41,7 @@ class Sample:
     action_index: int
     player: str
     value: float = 0.0
+    metadata: Dict[str, Any] = field(default_factory=dict)
 
 
 @dataclass
@@ -175,6 +176,10 @@ def _sample_from_action(
         legal_mask=mask,
         action_index=action_index(action),
         player=state["currentPlayer"],
+        metadata={
+            "source": "python_rollout",
+            "legal_count": len(actions),
+        },
     )
 
 
@@ -209,13 +214,17 @@ def select_model_action(
 
     sample = None
     if record_sample:
-        sample = Sample(
-            board=board,
-            side=side,
-            legal_mask=mask,
-            action_index=selected_index,
-            player=state["currentPlayer"],
-        )
+            sample = Sample(
+                board=board,
+                side=side,
+                legal_mask=mask,
+                action_index=selected_index,
+                player=state["currentPlayer"],
+                metadata={
+                    "source": "python_model_rollout",
+                    "legal_count": len(actions),
+                },
+            )
 
     return selected, sample
 
@@ -259,6 +268,10 @@ def select_model_actions_batched(
                 legal_mask=mask,
                 action_index=int(selected_index),
                 player=state["currentPlayer"],
+                metadata={
+                    "source": "python_batched_model_rollout",
+                    "legal_count": len(actions),
+                },
             )
         selections.append((action, sample))
 
@@ -429,6 +442,10 @@ def rust_random_training_samples(
                 action_index=int(raw["actionIndex"]),
                 player=raw["player"],
                 value=float(raw["value"]),
+                metadata={
+                    "source": "rust_random",
+                    "legal_count": len(raw["legalActionIndexes"]),
+                },
             )
         )
     return samples, batch["summary"]
@@ -599,7 +616,22 @@ def _sample_from_rollout_position(position: Dict[str, Any]) -> Sample:
         legal_mask=legal_mask,
         action_index=-1,
         player=position["player"],
+        metadata={
+            "source": "rust_session_model",
+            "game_index": int(position["gameIndex"]),
+            "ply": int(position["ply"]),
+            "phase": _phase_for_ply(int(position["ply"])),
+            "legal_count": len(position["legalActionIndexes"]),
+        },
     )
+
+
+def _phase_for_ply(ply: int) -> str:
+    if ply < 20:
+        return "opening"
+    if ply < 80:
+        return "midgame"
+    return "endgame"
 
 
 def session_model_selfplay_records(
@@ -613,6 +645,7 @@ def session_model_selfplay_records(
     cap_value: CapValueMode = "material",
     batch_size: int = 32,
     record_samples: bool = True,
+    collect_metrics: bool = False,
     profile: Profile | None = None,
 ) -> List[GameRecord]:
     if games <= 0:
@@ -627,6 +660,7 @@ def session_model_selfplay_records(
     session_id = engine.create_rollout_session(
         [load_initial_state() for _ in range(games)],
         max_plies=max_plies,
+        collect_pressure=collect_metrics,
     )
     _profile_add(profile, "create_session_seconds", time.perf_counter() - create_started_at)
     sample_lists: List[List[Sample]] = [[] for _ in range(games)]
@@ -730,10 +764,28 @@ def session_model_selfplay_records(
     for game in sorted(finished["games"], key=lambda item: int(item["gameIndex"])):
         game_index = int(game["gameIndex"])
         state = game["state"]
+        metrics = game.get("metrics", {})
         stats = GameStats(
             plies=int(game["plies"]),
             status=state["status"],
             winner=_winner(state["status"]),
+            first_loss_player=metrics.get("firstLossPlayer"),
+            first_loss_piece_type=metrics.get("firstLossPieceType"),
+            losses_by_player={
+                "red": int(metrics.get("lossesByPlayer", {}).get("red", 0)),
+                "blue": int(metrics.get("lossesByPlayer", {}).get("blue", 0)),
+            },
+            losses_by_piece_type={
+                piece_type: int(count)
+                for piece_type, count in metrics.get("lossesByPieceType", {}).items()
+            },
+            rescue_opportunities=int(metrics.get("rescueOpportunities", 0)),
+            rescues=int(metrics.get("rescues", 0)),
+            pressure_sum={
+                "red": int(metrics.get("pressureSum", {}).get("red", 0)),
+                "blue": int(metrics.get("pressureSum", {}).get("blue", 0)),
+            },
+            pressure_samples=int(metrics.get("pressureSamples", 0)),
             final_piece_counts=_piece_counts(state),
         )
         _assign_values(sample_lists[game_index], state, cap_value)

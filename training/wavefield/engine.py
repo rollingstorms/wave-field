@@ -229,8 +229,14 @@ class RustEngine:
         self,
         states: List[Dict[str, Any]],
         max_plies: int,
+        collect_pressure: bool = False,
     ) -> int:
-        result = self.request("createRolloutSession", states=states, maxPlies=max_plies)
+        result = self.request(
+            "createRolloutSession",
+            states=states,
+            maxPlies=max_plies,
+            collectPressure=collect_pressure,
+        )
         return int(result["sessionId"])
 
     def get_rollout_batch(self, session_id: int, profile: bool = False) -> Dict[str, Any]:

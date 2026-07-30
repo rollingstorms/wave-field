@@ -10,7 +10,7 @@ import torch
 
 from .engine import RustEngine
 from .model import PolicyValueNet
-from .selfplay import PolicyMode, selfplay_records
+from .selfplay import PolicyMode, selfplay_records, session_model_selfplay_records
 from .train import resolve_device
 
 
@@ -24,6 +24,9 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--hidden-size", type=int, default=128)
     parser.add_argument("--temperature", type=float, default=1.0)
     parser.add_argument("--device", default="auto")
+    parser.add_argument("--session", action="store_true", help="Use fast Rust session rollout for model eval.")
+    parser.add_argument("--no-pressure", action="store_true", help="Skip exact pressure during session eval for faster bulk runs.")
+    parser.add_argument("--rollout-batch-size", type=int, default=128)
     parser.add_argument("--json", action="store_true")
     return parser.parse_args()
 
@@ -119,16 +122,33 @@ def main() -> None:
     policy: PolicyMode = args.policy
     model = load_model(args.checkpoint, args.hidden_size, device) if policy == "model" else None
 
-    records = selfplay_records(
-        engine,
-        games=args.games,
-        max_plies=args.max_plies,
-        seed=args.seed,
-        policy=policy,
-        model=model,
-        temperature=args.temperature,
-        device=device,
-    )
+    if args.session:
+        if policy != "model":
+            raise ValueError("--session eval currently supports --policy model")
+        assert model is not None
+        records = session_model_selfplay_records(
+            engine,
+            model,
+            games=args.games,
+            max_plies=args.max_plies,
+            seed=args.seed,
+            temperature=args.temperature,
+            device=device,
+            batch_size=args.rollout_batch_size,
+            record_samples=False,
+            collect_metrics=not args.no_pressure,
+        )
+    else:
+        records = selfplay_records(
+            engine,
+            games=args.games,
+            max_plies=args.max_plies,
+            seed=args.seed,
+            policy=policy,
+            model=model,
+            temperature=args.temperature,
+            device=device,
+        )
     summary = aggregate(records)
     if args.json:
         print(json.dumps(summary, indent=2, sort_keys=True))

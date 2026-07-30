@@ -179,7 +179,12 @@ fn handle_rollout_request(
             let states: Vec<GameState> =
                 serde_json::from_value(request["states"].clone()).expect("valid rollout states");
             let max_plies = request["maxPlies"].as_u64().unwrap_or(160);
-            serde_json::to_value(rollout_sessions.create(states, max_plies)).unwrap()
+            serde_json::to_value(rollout_sessions.create(
+                states,
+                max_plies,
+                request["collectPressure"].as_bool().unwrap_or(false),
+            ))
+            .unwrap()
         }
         "getRolloutBatch" => {
             let session_id = request["sessionId"].as_u64().expect("rollout sessionId");
