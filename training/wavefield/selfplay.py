@@ -1,8 +1,9 @@
 from __future__ import annotations
 
 import random
+import time
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, Literal, Optional, Sequence, Tuple
+from typing import Any, Dict, List, Literal, MutableMapping, Optional, Sequence, Tuple
 
 import numpy as np
 import torch
@@ -83,6 +84,19 @@ class GameRecord:
     samples: List[Sample]
     stats: GameStats
     final_state: Dict[str, Any]
+
+
+Profile = MutableMapping[str, float]
+
+
+def _profile_add(profile: Profile | None, key: str, value: float) -> None:
+    if profile is not None:
+        profile[key] = profile.get(key, 0.0) + value
+
+
+def _profile_increment(profile: Profile | None, key: str, value: int = 1) -> None:
+    if profile is not None:
+        profile[key] = profile.get(key, 0.0) + float(value)
 
 
 def result_value(status: str, player: str) -> float:
@@ -446,6 +460,7 @@ def batched_model_selfplay_records(
     cap_value: CapValueMode = "material",
     batch_size: int = 32,
     record_samples: bool = True,
+    profile: Profile | None = None,
 ) -> List[GameRecord]:
     if games <= 0:
         return []
@@ -455,8 +470,10 @@ def batched_model_selfplay_records(
     sample_lists: List[List[Sample]] = [[] for _ in range(games)]
     stats = [GameStats() for _ in range(games)]
     active = set(range(games))
+    _profile_increment(profile, "games", games)
 
     torch.manual_seed(seed)
+    started_at = time.perf_counter()
 
     for ply in range(max_plies):
         active_indexes = [index for index in sorted(active) if states[index]["status"] == "playing"]
@@ -472,18 +489,23 @@ def batched_model_selfplay_records(
 
             for game_index in batch_indexes:
                 state = states[game_index]
+                legal_started_at = time.perf_counter()
                 actions = engine.legal_actions(state)
+                _profile_add(profile, "legal_actions_seconds", time.perf_counter() - legal_started_at)
                 if not actions:
                     active.discard(game_index)
                     continue
                 encoded_indexes.append(game_index)
                 batch_states.append(state)
                 batch_actions.append(actions)
+                encode_started_at = time.perf_counter()
                 encoded.append(encode_state(state, engine, actions))
+                _profile_add(profile, "encode_seconds", time.perf_counter() - encode_started_at)
 
             if not batch_states:
                 continue
 
+            inference_started_at = time.perf_counter()
             selections = select_model_actions_batched(
                 model,
                 batch_states,
@@ -493,13 +515,19 @@ def batched_model_selfplay_records(
                 device=device,
                 record_samples=record_samples,
             )
+            _profile_add(profile, "inference_seconds", time.perf_counter() - inference_started_at)
+            _profile_increment(profile, "batches")
+            _profile_increment(profile, "positions", len(batch_states))
 
             for game_index, (action, sample) in zip(encoded_indexes, selections):
                 before = states[game_index]
                 before_pieces = _piece_map(before)
+                apply_started_at = time.perf_counter()
                 next_state = engine.apply_action(before, action, analyze_checkmate=False)
+                _profile_add(profile, "apply_seconds", time.perf_counter() - apply_started_at)
                 if sample is not None:
                     sample_lists[game_index].append(sample)
+                    _profile_increment(profile, "samples")
 
                 after_pieces = _piece_map(next_state)
                 lost_ids = [piece_id for piece_id in before_pieces if piece_id not in after_pieces]
@@ -520,6 +548,7 @@ def batched_model_selfplay_records(
                 if next_state["status"] != "playing":
                     active.discard(game_index)
 
+    _profile_add(profile, "total_seconds", time.perf_counter() - started_at)
     records = []
     for game_index, state in enumerate(states):
         stats[game_index].status = state["status"]
@@ -527,4 +556,141 @@ def batched_model_selfplay_records(
         stats[game_index].final_piece_counts = _piece_counts(state)
         _assign_values(sample_lists[game_index], state, cap_value)
         records.append(GameRecord(samples=sample_lists[game_index], stats=stats[game_index], final_state=state))
+    return records
+
+
+def _sample_from_rollout_position(position: Dict[str, Any]) -> Sample:
+    legal_mask = np.zeros((ACTION_SIZE,), dtype=np.float32)
+    legal_mask[np.asarray(position["legalActionIndexes"], dtype=np.int64)] = 1.0
+    return Sample(
+        board=np.asarray(position["board"], dtype=np.float32).reshape(
+            BOARD_CHANNELS,
+            BOARD_SIZE,
+            BOARD_SIZE,
+        ),
+        side=np.asarray(position["side"], dtype=np.float32),
+        legal_mask=legal_mask,
+        action_index=-1,
+        player=position["player"],
+    )
+
+
+def session_model_selfplay_records(
+    engine: RustEngine,
+    model: PolicyValueNet,
+    games: int,
+    max_plies: int = 160,
+    seed: int = 0,
+    temperature: float = 1.0,
+    device: torch.device | str = "cpu",
+    cap_value: CapValueMode = "material",
+    batch_size: int = 32,
+    record_samples: bool = True,
+    profile: Profile | None = None,
+) -> List[GameRecord]:
+    if games <= 0:
+        return []
+
+    model.eval()
+    torch.manual_seed(seed)
+    _profile_increment(profile, "games", games)
+    started_at = time.perf_counter()
+
+    create_started_at = time.perf_counter()
+    session_id = engine.create_rollout_session(
+        [load_initial_state() for _ in range(games)],
+        max_plies=max_plies,
+    )
+    _profile_add(profile, "create_session_seconds", time.perf_counter() - create_started_at)
+    sample_lists: List[List[Sample]] = [[] for _ in range(games)]
+
+    try:
+        while True:
+            get_batch_started_at = time.perf_counter()
+            rollout_batch = engine.get_rollout_batch(session_id)
+            _profile_add(profile, "get_batch_seconds", time.perf_counter() - get_batch_started_at)
+            positions = rollout_batch["positions"]
+            if not positions:
+                break
+
+            for start in range(0, len(positions), batch_size):
+                chunk = positions[start:start + batch_size]
+                tensor_started_at = time.perf_counter()
+                samples = [_sample_from_rollout_position(position) for position in chunk]
+                boards = torch.tensor(
+                    np.stack([sample.board for sample in samples]),
+                    dtype=torch.float32,
+                    device=device,
+                )
+                sides = torch.tensor(
+                    np.stack([sample.side for sample in samples]),
+                    dtype=torch.float32,
+                    device=device,
+                )
+                masks = torch.tensor(
+                    np.stack([sample.legal_mask for sample in samples]),
+                    dtype=torch.float32,
+                    device=device,
+                )
+                _profile_add(profile, "tensor_prep_seconds", time.perf_counter() - tensor_started_at)
+
+                inference_started_at = time.perf_counter()
+                with torch.no_grad():
+                    logits, _values = model(boards, sides)
+                    masked = masked_policy_logits(logits, masks)
+                    if temperature <= 0:
+                        selected_indexes = masked.argmax(dim=1).tolist()
+                    else:
+                        probs = torch.softmax(masked / temperature, dim=1)
+                        selected_indexes = torch.multinomial(probs, 1).squeeze(1).tolist()
+                _profile_add(profile, "inference_seconds", time.perf_counter() - inference_started_at)
+                _profile_increment(profile, "batches")
+                _profile_increment(profile, "positions", len(chunk))
+
+                selection_started_at = time.perf_counter()
+                actions: List[Dict[str, int]] = []
+                for position, sample, selected_index in zip(chunk, samples, selected_indexes):
+                    legal_indexes = {int(index) for index in position["legalActionIndexes"]}
+                    if int(selected_index) not in legal_indexes:
+                        selected_index = int(position["legalActionIndexes"][0])
+                    sample.action_index = int(selected_index)
+                    game_index = int(position["gameIndex"])
+                    if record_samples:
+                        sample_lists[game_index].append(sample)
+                        _profile_increment(profile, "samples")
+                    actions.append(
+                        {
+                            "gameIndex": game_index,
+                            "actionIndex": int(selected_index),
+                        }
+                    )
+                _profile_add(profile, "selection_seconds", time.perf_counter() - selection_started_at)
+
+                apply_started_at = time.perf_counter()
+                engine.apply_rollout_actions(session_id, actions)
+                _profile_add(profile, "apply_batch_seconds", time.perf_counter() - apply_started_at)
+
+        finish_started_at = time.perf_counter()
+        finished = engine.finish_rollout_session(session_id)
+        _profile_add(profile, "finish_session_seconds", time.perf_counter() - finish_started_at)
+    except Exception:
+        try:
+            engine.finish_rollout_session(session_id)
+        except Exception:
+            pass
+        raise
+
+    _profile_add(profile, "total_seconds", time.perf_counter() - started_at)
+    records = []
+    for game in sorted(finished["games"], key=lambda item: int(item["gameIndex"])):
+        game_index = int(game["gameIndex"])
+        state = game["state"]
+        stats = GameStats(
+            plies=int(game["plies"]),
+            status=state["status"],
+            winner=_winner(state["status"]),
+            final_piece_counts=_piece_counts(state),
+        )
+        _assign_values(sample_lists[game_index], state, cap_value)
+        records.append(GameRecord(samples=sample_lists[game_index], stats=stats, final_state=state))
     return records

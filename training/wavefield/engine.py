@@ -38,8 +38,10 @@ class RustEngine:
             check=True,
         )
 
-    def request(self, method: str, state: Dict[str, Any], **params: Any) -> Any:
-        payload = {"method": method, "state": state, **params}
+    def request(self, method: str, state: Optional[Dict[str, Any]] = None, **params: Any) -> Any:
+        payload = {"method": method, **params}
+        if state is not None:
+            payload["state"] = state
         if self.persistent:
             return self._persistent_request(payload)
         return self._one_shot_request(payload)
@@ -222,3 +224,20 @@ class RustEngine:
             seed=seed,
             materialForCapped=material_for_capped,
         )
+
+    def create_rollout_session(
+        self,
+        states: List[Dict[str, Any]],
+        max_plies: int,
+    ) -> int:
+        result = self.request("createRolloutSession", states=states, maxPlies=max_plies)
+        return int(result["sessionId"])
+
+    def get_rollout_batch(self, session_id: int) -> Dict[str, Any]:
+        return self.request("getRolloutBatch", sessionId=session_id)
+
+    def apply_rollout_actions(self, session_id: int, actions: List[Dict[str, int]]) -> Dict[str, Any]:
+        return self.request("applyRolloutActions", sessionId=session_id, actions=actions)
+
+    def finish_rollout_session(self, session_id: int) -> Dict[str, Any]:
+        return self.request("finishRolloutSession", sessionId=session_id)

@@ -2,20 +2,27 @@ use std::io::{self, BufRead};
 
 use serde_json::json;
 use wave_field_engine::{
-    AiTurnOptions, GameState, PieceType, Player, Position, apply_closest_playable_hint, apply_move,
-    apply_tuning, begin_turn, evaluate_field, generate_random_training_batch, get_legal_moves,
-    get_playable_moves, is_king_unprotected, play_heuristic_turn, profile_random_games,
-    profile_random_training_batch, randomize_tuning, reset_tuning, resign_in_check,
-    simulate_ai_games, simulate_random_games, simulate_random_lean_games, unstable_pieces,
+    AiTurnOptions, GameState, PieceType, Player, Position, RolloutAction, RolloutSessionStore,
+    apply_closest_playable_hint, apply_move, apply_tuning, begin_turn, evaluate_field,
+    generate_random_training_batch, get_legal_moves, get_playable_moves, is_king_unprotected,
+    play_heuristic_turn, profile_random_games, profile_random_training_batch, randomize_tuning,
+    reset_tuning, resign_in_check, simulate_ai_games, simulate_random_games,
+    simulate_random_lean_games, unstable_pieces,
 };
 
 fn main() {
+    let mut rollout_sessions = RolloutSessionStore::default();
     for line in io::stdin().lock().lines() {
         let line = line.expect("read request");
         let request: serde_json::Value = serde_json::from_str(&line).expect("valid request JSON");
+        let method = request["method"].as_str().expect("method");
+        if let Some(result) = handle_rollout_request(method, &request, &mut rollout_sessions) {
+            println!("{}", serde_json::to_string(&result).unwrap());
+            continue;
+        }
         let state: GameState =
             serde_json::from_value(request["state"].clone()).expect("valid state");
-        let result = match request["method"].as_str().expect("method") {
+        let result = match method {
             "evaluateField" => serde_json::to_value(evaluate_field(&state)).unwrap(),
             "legalMoves" => {
                 let field = evaluate_field(&state);
@@ -160,4 +167,36 @@ fn main() {
         };
         println!("{}", serde_json::to_string(&result).unwrap());
     }
+}
+
+fn handle_rollout_request(
+    method: &str,
+    request: &serde_json::Value,
+    rollout_sessions: &mut RolloutSessionStore,
+) -> Option<serde_json::Value> {
+    let result = match method {
+        "createRolloutSession" => {
+            let states: Vec<GameState> =
+                serde_json::from_value(request["states"].clone()).expect("valid rollout states");
+            let max_plies = request["maxPlies"].as_u64().unwrap_or(160);
+            serde_json::to_value(rollout_sessions.create(states, max_plies)).unwrap()
+        }
+        "getRolloutBatch" => {
+            let session_id = request["sessionId"].as_u64().expect("rollout sessionId");
+            serde_json::to_value(rollout_sessions.batch(session_id).unwrap()).unwrap()
+        }
+        "applyRolloutActions" => {
+            let session_id = request["sessionId"].as_u64().expect("rollout sessionId");
+            let actions: Vec<RolloutAction> =
+                serde_json::from_value(request["actions"].clone()).expect("valid rollout actions");
+            serde_json::to_value(rollout_sessions.apply_actions(session_id, actions).unwrap())
+                .unwrap()
+        }
+        "finishRolloutSession" => {
+            let session_id = request["sessionId"].as_u64().expect("rollout sessionId");
+            serde_json::to_value(rollout_sessions.finish(session_id).unwrap()).unwrap()
+        }
+        _ => return None,
+    };
+    Some(result)
 }
