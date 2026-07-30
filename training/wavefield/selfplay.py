@@ -141,6 +141,24 @@ def _piece_counts(state: Dict[str, Any]) -> Dict[str, int]:
     return counts
 
 
+def _piece_type_counts_from_slots(pieces: Sequence[Dict[str, Any]]) -> Dict[str, int]:
+    counts = {piece_type: 0 for piece_type in PIECE_TYPES}
+    for piece in pieces:
+        piece_id = PIECE_IDS[int(piece["slot"])]
+        _owner, piece_type, *_rest = piece_id.split("-")
+        counts[piece_type] += 1
+    return counts
+
+
+def _owner_counts_from_slots(pieces: Sequence[Dict[str, Any]]) -> Dict[str, int]:
+    counts = {"red": 0, "blue": 0}
+    for piece in pieces:
+        piece_id = PIECE_IDS[int(piece["slot"])]
+        owner, _piece_type, *_rest = piece_id.split("-")
+        counts[owner] += 1
+    return counts
+
+
 def _unstable_ids_for_player(state: Dict[str, Any], player: str) -> set[str]:
     return {
         piece["id"]
@@ -418,9 +436,11 @@ def rust_random_training_samples(
     max_plies: int = 160,
     seed: int = 0,
     cap_value: CapValueMode = "material",
+    initial_state: Dict[str, Any] | None = None,
+    metadata: Dict[str, Any] | None = None,
 ) -> tuple[List[Sample], Dict[str, Any]]:
     batch = engine.generate_random_training_batch(
-        load_initial_state(),
+        initial_state or load_initial_state(),
         games=games,
         max_plies=max_plies,
         seed=seed,
@@ -445,6 +465,7 @@ def rust_random_training_samples(
                 metadata={
                     "source": "rust_random",
                     "legal_count": len(raw["legalActionIndexes"]),
+                    **(metadata or {}),
                 },
             )
         )
@@ -595,6 +616,8 @@ def _sample_from_rollout_position(position: Dict[str, Any]) -> Sample:
     legal_mask = np.zeros((ACTION_SIZE,), dtype=np.float32)
     legal_mask[np.asarray(position["legalActionIndexes"], dtype=np.int64)] = 1.0
     board = np.zeros((BOARD_CHANNELS, BOARD_SIZE, BOARD_SIZE), dtype=np.float32)
+    owner_counts = _owner_counts_from_slots(position["pieces"])
+    piece_type_counts = _piece_type_counts_from_slots(position["pieces"])
     for piece in position["pieces"]:
         piece_id = PIECE_IDS[int(piece["slot"])]
         owner, piece_type, *_rest = piece_id.split("-")
@@ -608,20 +631,31 @@ def _sample_from_rollout_position(position: Dict[str, Any]) -> Sample:
     field = np.asarray(position["field"], dtype=np.float32).reshape(BOARD_SIZE, BOARD_SIZE)
     board[FIELD_SIGNED_CHANNEL] = np.clip(field / 8.0, -1.0, 1.0)
     board[FIELD_MAGNITUDE_CHANNEL] = np.clip(np.abs(field) / 8.0, 0.0, 1.0)
-    board[CURRENT_PLAYER_CHANNEL].fill(1.0 if position["player"] == "red" else -1.0)
+    player = position["player"]
+    opponent = "blue" if player == "red" else "red"
+    total_pieces = owner_counts["red"] + owner_counts["blue"]
+    board[CURRENT_PLAYER_CHANNEL].fill(1.0 if player == "red" else -1.0)
 
     return Sample(
         board=board,
         side=np.asarray(position["side"], dtype=np.float32),
         legal_mask=legal_mask,
         action_index=-1,
-        player=position["player"],
+        player=player,
         metadata={
             "source": "rust_session_model",
             "game_index": int(position["gameIndex"]),
             "ply": int(position["ply"]),
             "phase": _phase_for_ply(int(position["ply"])),
             "legal_count": len(position["legalActionIndexes"]),
+            "red_pieces": owner_counts["red"],
+            "blue_pieces": owner_counts["blue"],
+            "current_player_pieces": owner_counts[player],
+            "opponent_pieces": owner_counts[opponent],
+            "material_balance_current": owner_counts[player] - owner_counts[opponent],
+            "total_pieces": total_pieces,
+            "low_material": total_pieces <= 8,
+            "piece_type_counts": piece_type_counts,
         },
     )
 
@@ -647,9 +681,12 @@ def session_model_selfplay_records(
     record_samples: bool = True,
     collect_metrics: bool = False,
     profile: Profile | None = None,
+    initial_states: List[Dict[str, Any]] | None = None,
 ) -> List[GameRecord]:
     if games <= 0:
         return []
+    if initial_states is not None and len(initial_states) != games:
+        raise ValueError("initial_states length must match games")
 
     model.eval()
     torch.manual_seed(seed)
@@ -657,8 +694,13 @@ def session_model_selfplay_records(
     started_at = time.perf_counter()
 
     create_started_at = time.perf_counter()
+    rollout_states = initial_states or [load_initial_state() for _ in range(games)]
+    scenario_by_game = [
+        str(state.get("metadata", {}).get("scenario", "initial"))
+        for state in rollout_states
+    ]
     session_id = engine.create_rollout_session(
-        [load_initial_state() for _ in range(games)],
+        rollout_states,
         max_plies=max_plies,
         collect_pressure=collect_metrics,
     )
@@ -732,6 +774,7 @@ def session_model_selfplay_records(
                         selected_index = int(position["legalActionIndexes"][0])
                     sample.action_index = int(selected_index)
                     game_index = int(position["gameIndex"])
+                    sample.metadata["scenario"] = scenario_by_game[game_index]
                     if record_samples:
                         sample_lists[game_index].append(sample)
                         _profile_increment(profile, "samples")
