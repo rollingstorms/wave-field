@@ -18,6 +18,7 @@ from wavefield.eval import aggregate
 from wavefield.experiment import parse_weights, replay_weight_samples, sample_metadata_summary
 from wavefield.model import PolicyValueNet, masked_policy_logits
 from wavefield.scenarios import DEFAULT_SCENARIOS, build_scenario_states
+from wavefield.serve_model import ModelMoveServer
 from wavefield.selfplay import (
     Sample,
     batched_model_selfplay_records,
@@ -233,6 +234,20 @@ class TrainingSmokeTest(unittest.TestCase):
         self.assertEqual(summary["phases"], {"endgame": 6})
         self.assertEqual(summary["low_material"], 6)
         self.assertEqual(summary["legal_count"]["mean"], 4.0)
+
+    def test_local_model_server_plans_tuning_actions(self) -> None:
+        server = ModelMoveServer.__new__(ModelMoveServer)
+        server.engine = self.engine
+        state = load_initial_state()
+        player = state["currentPlayer"]
+        state["components"][player]["rook"] = [-1, -1]
+        state["activationOrders"][player]["rook"] = [0, 1]
+
+        actions = server._heuristic_tuning_actions(state)
+
+        self.assertGreater(len(actions), 0)
+        self.assertTrue(all(action["type"] == "tune" for action in actions))
+        self.assertTrue(all(action["value"] in (-1, 1) for action in actions))
 
 
 if __name__ == "__main__":

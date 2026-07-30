@@ -4,11 +4,11 @@ import argparse
 import json
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
-from typing import Any, Dict
+from typing import Any, Dict, List
 
 import torch
 
-from .engine import RustEngine
+from .engine import RustEngine, TuningAction
 from .eval import load_model
 from .selfplay import select_model_action
 from .train import resolve_device
@@ -36,13 +36,46 @@ class ModelMoveServer:
             self.device,
         )
 
+    def _heuristic_tuning_actions(self, state: Dict[str, Any]) -> List[TuningAction]:
+        heuristic_state = self.engine.play_heuristic_turn(
+            state,
+            player=state["currentPlayer"],
+            seed=0,
+            variety=0.0,
+            time_budget_ms=20,
+        )
+        player = state["currentPlayer"]
+        current = state["components"][player]
+        target = heuristic_state["components"][player]
+        tuning_actions: List[TuningAction] = []
+        probe = state
+        for piece_type in ("pawn", "rook", "spy", "king"):
+            for component_index, target_value in enumerate(target[piece_type]):
+                current_value = probe["components"][player][piece_type][component_index]
+                if current_value == target_value or target_value == 0:
+                    continue
+                action: TuningAction = {
+                    "type": "tune",
+                    "pieceType": piece_type,
+                    "componentIndex": component_index,
+                    "value": int(target_value),
+                }
+                probe = self.engine.apply_tuning(probe, action)
+                tuning_actions.append(action)
+        return tuning_actions
+
     def move(self, state: Dict[str, Any], temperature: float | None = None) -> Dict[str, Any]:
-        actions = self.engine.legal_actions(state)
+        tuning_actions = self._heuristic_tuning_actions(state)
+        tuned_state = state
+        for action in tuning_actions:
+            tuned_state = self.engine.apply_tuning(tuned_state, action)
+
+        actions = self.engine.legal_actions(tuned_state)
         if not actions:
             raise ValueError("No legal neural moves are available.")
         action, _sample = select_model_action(
             self.model,
-            state,
+            tuned_state,
             self.engine,
             actions,
             temperature=self.args.temperature if temperature is None else temperature,
@@ -50,9 +83,12 @@ class ModelMoveServer:
             record_sample=False,
             input_view=self.input_view,
         )
+        move_action = {"type": "move", **action}
         return {
             "ok": True,
             "action": action,
+            "actions": [*tuning_actions, move_action],
+            "tuningActions": len(tuning_actions),
             "legalActions": len(actions),
             "inputView": self.input_view,
             "checkpoint": str(self.args.checkpoint),

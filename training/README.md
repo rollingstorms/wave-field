@@ -170,6 +170,11 @@ Open `/arena`, then choose `Human`, `Heuristic`, `Neural residual`, or
 automatically when the AI side is to move. AI-vs-AI uses the arena
 Run/Pause/Step controls.
 
+Current checkpoints are movement policies. The local server wraps them with
+heuristic tuning first, then asks the model to choose the move from the tuned
+position, so neural sides can still reshape the field while watching arena
+games. Learned tuning heads are the next modeling step.
+
 ## Benchmark
 
 ```bash

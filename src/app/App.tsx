@@ -12,7 +12,7 @@ import { ALL_ENERGY_CHANNELS } from "../field/cmykEnergy";
 import type { EnergyChannelState } from "../field/cmykEnergy";
 import { evaluateField, evaluateTypeFields } from "../field/evaluateField";
 import { createInitialState } from "../game/initialState";
-import { isNeuralPolicy, policyLabel, requestNeuralMove } from "../game/neuralAi";
+import { isNeuralPolicy, policyLabel, requestNeuralTurn } from "../game/neuralAi";
 import type { AiPolicy } from "../game/neuralAi";
 import { gameReducer } from "../game/reducer";
 import type { BasisDefinition, PieceType, Player, Position } from "../game/types";
@@ -67,8 +67,19 @@ export function App() {
         return;
       }
       if (!isNeuralPolicy(policy)) return;
-      const action = await requestNeuralMove(state, policy);
-      dispatch({ type: "move", pieceId: action.pieceId, destination: action.destination });
+      const actions = await requestNeuralTurn(state, policy);
+      for (const action of actions) {
+        if (action.type === "tune") {
+          dispatch({
+            type: "tune",
+            pieceType: action.pieceType,
+            componentIndex: action.componentIndex,
+            value: action.value,
+          });
+        } else {
+          dispatch({ type: "move", pieceId: action.pieceId, destination: action.destination });
+        }
+      }
     };
     try {
       if (!immediate) await new Promise((resolve) => globalThis.setTimeout(resolve, bothAutomated ? duelSpeedMs : 450));
