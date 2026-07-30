@@ -40,14 +40,20 @@ def main() -> None:
         "rust_random_training_batch",
         lambda: engine.generate_random_training_batch(state, args.games, args.max_plies, args.seed),
     )
+    rust_training_profile = timed(
+        "rust_random_training_profile",
+        lambda: engine.profile_random_training_batch(state, args.games, args.max_plies, args.seed),
+    )
     python = timed(
         "python_random_with_encoding",
         lambda: selfplay_records(engine, args.games, args.max_plies, args.seed, policy="random"),
     )
 
-    for item in (rust, rust_training, python):
+    for item in (rust, rust_training, rust_training_profile, python):
         games_per_second = args.games / item["seconds"] if item["seconds"] else 0.0
         print(f"{item['label']} seconds={item['seconds']:.3f} games_per_second={games_per_second:.2f}")
+        if item["label"] == "rust_random_training_profile":
+            print(item["result"])
 
 
 if __name__ == "__main__":

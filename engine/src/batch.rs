@@ -140,6 +140,40 @@ pub struct TrainingBatch {
 }
 
 #[derive(Default)]
+struct TrainingProfileTotals {
+    legal_scan_ns: u128,
+    candidate_apply_ns: u128,
+    candidate_generation_ns: u128,
+    sample_encoding_ns: u128,
+    value_assignment_ns: u128,
+    total_candidates: u64,
+    attempted_candidates: u64,
+    candidate_turns: u64,
+    encoded_samples: u64,
+    legal_action_indexes: u64,
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct TrainingProfileSummary {
+    pub batch: TrainingBatchSummary,
+    pub legal_scan_ms: f64,
+    pub candidate_apply_ms: f64,
+    pub candidate_generation_ms: f64,
+    pub sample_encoding_ms: f64,
+    pub value_assignment_ms: f64,
+    pub unprofiled_ms: f64,
+    pub avg_candidate_generation_ms_per_ply: f64,
+    pub avg_legal_scan_ms_per_ply: f64,
+    pub avg_candidate_apply_ms_per_candidate: f64,
+    pub avg_sample_encoding_ms_per_sample: f64,
+    pub avg_value_assignment_ms_per_game: f64,
+    pub avg_candidates_per_ply: f64,
+    pub avg_attempted_candidates_per_ply: f64,
+    pub avg_legal_indexes_per_sample: f64,
+}
+
+#[derive(Default)]
 struct GameMetrics {
     first_loss_owner: Option<Player>,
     first_loss_ply: Option<u64>,
@@ -320,6 +354,41 @@ fn playable_training_candidates(state: &GameState) -> Vec<(String, Position, Gam
     candidates
 }
 
+fn playable_training_candidates_profiled(
+    state: &GameState,
+    profile: &mut TrainingProfileTotals,
+) -> Vec<(String, Position, GameState)> {
+    let started_at = Instant::now();
+    let legal_started_at = Instant::now();
+    let field = evaluate_field(state);
+    let mut legal_moves = Vec::new();
+    for piece in state
+        .pieces
+        .iter()
+        .filter(|piece| piece.owner == state.current_player)
+    {
+        for destination in get_legal_moves(&piece.id, state, &field) {
+            legal_moves.push((piece.id.clone(), destination));
+        }
+    }
+    profile.legal_scan_ns += legal_started_at.elapsed().as_nanos();
+
+    let mut candidates = Vec::new();
+    profile.attempted_candidates += legal_moves.len() as u64;
+    for (piece_id, destination) in legal_moves {
+        let apply_started_at = Instant::now();
+        let result = apply_training_move(&piece_id, destination, state.clone());
+        profile.candidate_apply_ns += apply_started_at.elapsed().as_nanos();
+        if result.ok {
+            candidates.push((piece_id, destination, result.state));
+        }
+    }
+    profile.candidate_generation_ns += started_at.elapsed().as_nanos();
+    profile.candidate_turns += 1;
+    profile.total_candidates += candidates.len() as u64;
+    candidates
+}
+
 fn encode_training_sample(
     state: &GameState,
     candidates: &[(String, Position, GameState)],
@@ -339,6 +408,20 @@ fn encode_training_sample(
         player: player_key(state.current_player).to_owned(),
         value: 0.0,
     }
+}
+
+fn encode_training_sample_profiled(
+    state: &GameState,
+    candidates: &[(String, Position, GameState)],
+    action_index: usize,
+    profile: &mut TrainingProfileTotals,
+) -> TrainingBatchSample {
+    let started_at = Instant::now();
+    let sample = encode_training_sample(state, candidates, action_index);
+    profile.sample_encoding_ns += started_at.elapsed().as_nanos();
+    profile.encoded_samples += 1;
+    profile.legal_action_indexes += sample.legal_action_indexes.len() as u64;
+    sample
 }
 
 fn piece_count(state: &GameState, player: Player) -> u64 {
@@ -825,6 +908,24 @@ pub fn generate_random_training_batch(
     seed: u32,
     material_for_capped: bool,
 ) -> TrainingBatch {
+    generate_random_training_batch_inner(
+        initial_state,
+        games,
+        max_plies,
+        seed,
+        material_for_capped,
+        None,
+    )
+}
+
+fn generate_random_training_batch_inner(
+    initial_state: &GameState,
+    games: u64,
+    max_plies: u64,
+    seed: u32,
+    material_for_capped: bool,
+    mut profile: Option<&mut TrainingProfileTotals>,
+) -> TrainingBatch {
     let started_at = Instant::now();
     let mut samples = Vec::new();
     let mut red_wins = 0;
@@ -839,18 +940,28 @@ pub fn generate_random_training_batch(
         let mut plies = 0;
 
         while state.status == GameStatus::Playing && plies < max_plies {
-            let candidates = playable_training_candidates(&state);
+            let candidates = match profile.as_deref_mut() {
+                Some(profile) => playable_training_candidates_profiled(&state, profile),
+                None => playable_training_candidates(&state),
+            };
             if candidates.is_empty() {
                 state = no_move_loss_training(state);
                 break;
             }
 
             let selected = (random_unit(&mut rng) as usize) % candidates.len();
-            samples.push(encode_training_sample(&state, &candidates, selected));
+            let sample = match profile.as_deref_mut() {
+                Some(profile) => {
+                    encode_training_sample_profiled(&state, &candidates, selected, profile)
+                }
+                None => encode_training_sample(&state, &candidates, selected),
+            };
+            samples.push(sample);
             state = candidates[selected].2.clone();
             plies += 1;
         }
 
+        let value_started_at = Instant::now();
         for sample in &mut samples[game_sample_start..] {
             let player = if sample.player == "red" {
                 Player::Red
@@ -858,6 +969,9 @@ pub fn generate_random_training_batch(
                 Player::Blue
             };
             sample.value = result_value_for_state(&state, player, material_for_capped);
+        }
+        if let Some(profile) = profile.as_deref_mut() {
+            profile.value_assignment_ns += value_started_at.elapsed().as_nanos();
         }
 
         total_plies += plies;
@@ -890,6 +1004,68 @@ pub fn generate_random_training_batch(
             samples_per_second,
         },
         samples,
+    }
+}
+
+pub fn profile_random_training_batch(
+    initial_state: &GameState,
+    games: u64,
+    max_plies: u64,
+    seed: u32,
+    material_for_capped: bool,
+) -> TrainingProfileSummary {
+    let mut profile = TrainingProfileTotals::default();
+    let batch = generate_random_training_batch_inner(
+        initial_state,
+        games,
+        max_plies,
+        seed,
+        material_for_capped,
+        Some(&mut profile),
+    );
+    let elapsed_ms = batch.summary.elapsed_ms as f64;
+    let measured_ms = (profile.candidate_generation_ns
+        + profile.sample_encoding_ns
+        + profile.value_assignment_ns) as f64
+        / 1_000_000.0;
+
+    TrainingProfileSummary {
+        legal_scan_ms: profile.legal_scan_ns as f64 / 1_000_000.0,
+        candidate_apply_ms: profile.candidate_apply_ns as f64 / 1_000_000.0,
+        candidate_generation_ms: profile.candidate_generation_ns as f64 / 1_000_000.0,
+        sample_encoding_ms: profile.sample_encoding_ns as f64 / 1_000_000.0,
+        value_assignment_ms: profile.value_assignment_ns as f64 / 1_000_000.0,
+        unprofiled_ms: (elapsed_ms - measured_ms).max(0.0),
+        avg_candidate_generation_ms_per_ply: ratio(
+            profile.candidate_generation_ns as f64 / 1_000_000.0,
+            profile.candidate_turns,
+        ),
+        avg_legal_scan_ms_per_ply: ratio(
+            profile.legal_scan_ns as f64 / 1_000_000.0,
+            profile.candidate_turns,
+        ),
+        avg_candidate_apply_ms_per_candidate: ratio(
+            profile.candidate_apply_ns as f64 / 1_000_000.0,
+            profile.attempted_candidates,
+        ),
+        avg_sample_encoding_ms_per_sample: ratio(
+            profile.sample_encoding_ns as f64 / 1_000_000.0,
+            profile.encoded_samples,
+        ),
+        avg_value_assignment_ms_per_game: ratio(
+            profile.value_assignment_ns as f64 / 1_000_000.0,
+            games,
+        ),
+        avg_candidates_per_ply: ratio(profile.total_candidates as f64, profile.candidate_turns),
+        avg_attempted_candidates_per_ply: ratio(
+            profile.attempted_candidates as f64,
+            profile.candidate_turns,
+        ),
+        avg_legal_indexes_per_sample: ratio(
+            profile.legal_action_indexes as f64,
+            profile.encoded_samples,
+        ),
+        batch: batch.summary,
     }
 }
 

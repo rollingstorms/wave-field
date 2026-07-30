@@ -5,8 +5,8 @@ use wave_field_engine::{
     AiTurnOptions, GameState, PieceType, Player, Position, apply_closest_playable_hint, apply_move,
     apply_tuning, begin_turn, evaluate_field, generate_random_training_batch, get_legal_moves,
     get_playable_moves, is_king_unprotected, play_heuristic_turn, profile_random_games,
-    randomize_tuning, reset_tuning, resign_in_check, simulate_ai_games, simulate_random_games,
-    simulate_random_lean_games, unstable_pieces,
+    profile_random_training_batch, randomize_tuning, reset_tuning, resign_in_check,
+    simulate_ai_games, simulate_random_games, simulate_random_lean_games, unstable_pieces,
 };
 
 fn main() {
@@ -141,6 +141,14 @@ fn main() {
             ))
             .unwrap(),
             "generateRandomTrainingBatch" => serde_json::to_value(generate_random_training_batch(
+                &state,
+                request["games"].as_u64().unwrap_or(100),
+                request["maxPlies"].as_u64().unwrap_or(300),
+                request["seed"].as_u64().unwrap_or(0) as u32,
+                request["materialForCapped"].as_bool().unwrap_or(true),
+            ))
+            .unwrap(),
+            "profileRandomTrainingBatch" => serde_json::to_value(profile_random_training_batch(
                 &state,
                 request["games"].as_u64().unwrap_or(100),
                 request["maxPlies"].as_u64().unwrap_or(300),

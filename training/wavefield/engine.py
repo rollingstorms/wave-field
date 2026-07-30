@@ -205,3 +205,20 @@ class RustEngine:
             seed=seed,
             materialForCapped=material_for_capped,
         )
+
+    def profile_random_training_batch(
+        self,
+        state: Dict[str, Any],
+        games: int,
+        max_plies: int,
+        seed: int = 0,
+        material_for_capped: bool = True,
+    ) -> Any:
+        return self.request(
+            "profileRandomTrainingBatch",
+            state,
+            games=games,
+            maxPlies=max_plies,
+            seed=seed,
+            materialForCapped=material_for_capped,
+        )
