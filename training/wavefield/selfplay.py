@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import random
 import time
+import copy
 from dataclasses import dataclass, field
 from typing import Any, Dict, List, Literal, MutableMapping, Optional, Sequence, Tuple
 
@@ -66,6 +67,10 @@ class GameStats:
     rescues: int = 0
     pressure_sum: Dict[str, int] = field(default_factory=lambda: {"red": 0, "blue": 0})
     pressure_samples: int = 0
+    ai_turns_by_player: Dict[str, int] = field(default_factory=lambda: {"red": 0, "blue": 0})
+    tune_turns_by_player: Dict[str, int] = field(default_factory=lambda: {"red": 0, "blue": 0})
+    tune_actions_by_player: Dict[str, int] = field(default_factory=lambda: {"red": 0, "blue": 0})
+    effective_tune_changes_by_player: Dict[str, int] = field(default_factory=lambda: {"red": 0, "blue": 0})
     min_winner_pieces: Optional[int] = None
     max_loser_pieces: Optional[int] = None
     final_piece_counts: Dict[str, int] = field(default_factory=lambda: {"red": 0, "blue": 0})
@@ -98,6 +103,10 @@ class GameStats:
             "rescues": self.rescues,
             "rescue_rate": self.rescue_rate,
             "avg_pressure": avg_pressure,
+            "ai_turns_by_player": self.ai_turns_by_player,
+            "tune_turns_by_player": self.tune_turns_by_player,
+            "tune_actions_by_player": self.tune_actions_by_player,
+            "effective_tune_changes_by_player": self.effective_tune_changes_by_player,
             "min_winner_pieces": self.min_winner_pieces,
             "max_loser_pieces": self.max_loser_pieces,
             "final_piece_counts": self.final_piece_counts,
@@ -137,6 +146,15 @@ def _winner(status: str) -> Optional[str]:
     if status == "blue-won":
         return "blue"
     return None
+
+
+def _no_move_loss(state: Dict[str, Any]) -> Dict[str, Any]:
+    winner = "red" if state["currentPlayer"] == "blue" else "blue"
+    next_state = copy.deepcopy(state)
+    next_state["status"] = f"{winner}-won"
+    next_state["selectedPieceId"] = None
+    next_state["message"] = f"{state['currentPlayer'].capitalize()} has no legal move"
+    return next_state
 
 
 def _piece_map(state: Dict[str, Any]) -> Dict[str, Dict[str, Any]]:
@@ -180,6 +198,25 @@ def _material_value(state: Dict[str, Any], player: str) -> float:
     counts = _piece_counts(state)
     opponent = "blue" if player == "red" else "red"
     return max(-1.0, min(1.0, (counts[player] - counts[opponent]) / 6.0))
+
+
+def _component_change_count(before: Dict[str, Any], after: Dict[str, Any], player: str) -> int:
+    before_components = before["components"][player]
+    after_components = after["components"][player]
+    return sum(
+        1
+        for piece_type in PIECE_TYPES
+        for left, right in zip(before_components[piece_type], after_components[piece_type])
+        if left != right
+    )
+
+
+def _update_tuning_stats(stats: GameStats, player: str, tune_actions: int, effective_changes: int) -> None:
+    stats.ai_turns_by_player[player] += 1
+    stats.tune_actions_by_player[player] += tune_actions
+    stats.effective_tune_changes_by_player[player] += effective_changes
+    if tune_actions > 0:
+        stats.tune_turns_by_player[player] += 1
 
 
 def _assign_values(samples: List[Sample], state: Dict[str, Any], cap_value: CapValueMode) -> None:
@@ -300,6 +337,175 @@ def _sample_from_model_move_action(
     return sample
 
 
+def _heuristic_tuning_samples(
+    state: Dict[str, Any],
+    target_state: Dict[str, Any],
+    engine: RustEngine,
+    input_view: InputView = "base",
+) -> Tuple[Dict[str, Any], List[Sample]]:
+    player = state["currentPlayer"]
+    probe = state
+    samples: List[Sample] = []
+    target_components = target_state["components"][player]
+    for piece_type in PIECE_TYPES:
+        for component_index, target_value in enumerate(target_components[piece_type]):
+            if target_value == 0 or probe["components"][player][piece_type][component_index] == target_value:
+                continue
+            action: TuningAction = {
+                "type": "tune",
+                "pieceType": piece_type,
+                "componentIndex": component_index,
+                "value": int(target_value),
+            }
+            tune_actions = legal_tuning_actions(probe)
+            legal_indexes = {tuning_action_index(candidate) for candidate in tune_actions}
+            if tuning_action_index(action) not in legal_indexes:
+                continue
+            move_actions = engine.legal_actions(probe)
+            if move_actions:
+                sample = _sample_from_tuning_action(
+                    probe,
+                    engine,
+                    move_actions,
+                    tune_actions,
+                    action,
+                    input_view=input_view,
+                )
+                sample.metadata["source"] = "heuristic_bootstrap"
+                samples.append(sample)
+            probe = engine.apply_tuning(probe, action)
+    return probe, samples
+
+
+def _heuristic_move_action(before: Dict[str, Any], after: Dict[str, Any], player: str) -> Action | None:
+    after_by_id = _piece_map(after)
+    for piece in before["pieces"]:
+        if piece["owner"] != player or piece["id"] not in after_by_id:
+            continue
+        after_piece = after_by_id[piece["id"]]
+        if after_piece["position"] != piece["position"]:
+            return {"pieceId": piece["id"], "destination": after_piece["position"]}
+    return None
+
+
+def heuristic_bootstrap_game(
+    engine: RustEngine,
+    max_plies: int = 160,
+    seed: int | None = None,
+    initial_state: Dict[str, Any] | None = None,
+    cap_value: CapValueMode = "material",
+    input_view: InputView = "base",
+    heuristic_variety: float = 0.55,
+    heuristic_time_budget_ms: int = 10,
+    collect_metrics: bool = True,
+) -> GameRecord:
+    state = initial_state or load_initial_state()
+    samples: List[Sample] = []
+    stats = GameStats()
+
+    for ply in range(max_plies):
+        if state["status"] != "playing":
+            break
+        current_player = state["currentPlayer"]
+        before_pieces = _piece_map(state)
+        before_unstable = _unstable_ids_for_player(state, current_player)
+        before_counts = _piece_counts(state)
+        if collect_metrics:
+            for player in ("red", "blue"):
+                stats.pressure_sum[player] += len(engine.player_actions(state, player))
+            stats.pressure_samples += 1
+            if before_unstable:
+                stats.rescue_opportunities += 1
+
+        heuristic_state = engine.play_heuristic_turn(
+            state,
+            player=current_player,
+            seed=(seed or 0) + ply,
+            variety=heuristic_variety,
+            time_budget_ms=heuristic_time_budget_ms,
+        )
+        tuned_state, tune_samples = _heuristic_tuning_samples(
+            state,
+            heuristic_state,
+            engine,
+            input_view=input_view,
+        )
+        samples.extend(tune_samples)
+        move_action = _heuristic_move_action(tuned_state, heuristic_state, current_player)
+        if move_action is not None:
+            move_actions = engine.legal_actions(tuned_state)
+            legal_indexes = {action_index(action) for action in move_actions}
+            if action_index(move_action) in legal_indexes:
+                sample = _sample_from_model_move_action(tuned_state, engine, move_actions, move_action, input_view=input_view)
+                sample.metadata["source"] = "heuristic_bootstrap"
+                samples.append(sample)
+
+        _update_tuning_stats(
+            stats,
+            current_player,
+            len(tune_samples),
+            _component_change_count(state, heuristic_state, current_player),
+        )
+
+        after_pieces = _piece_map(heuristic_state)
+        lost_ids = [piece_id for piece_id in before_pieces if piece_id not in after_pieces]
+        for piece_id in lost_ids:
+            lost_piece = before_pieces[piece_id]
+            owner = lost_piece["owner"]
+            piece_type = lost_piece["type"]
+            stats.losses_by_player[owner] += 1
+            stats.losses_by_piece_type[piece_type] = stats.losses_by_piece_type.get(piece_type, 0) + 1
+            if stats.first_loss_player is None:
+                stats.first_loss_player = owner
+                stats.first_loss_piece_type = piece_type
+
+        if collect_metrics and before_unstable:
+            after_unstable = _unstable_ids_for_player(heuristic_state, current_player)
+            if before_unstable.isdisjoint(set(lost_ids)) and before_unstable.isdisjoint(after_unstable):
+                stats.rescues += 1
+
+        winner = _winner(heuristic_state["status"])
+        if winner is not None:
+            loser = "blue" if winner == "red" else "red"
+            stats.min_winner_pieces = min(before_counts[winner], _piece_counts(heuristic_state)[winner])
+            stats.max_loser_pieces = max(before_counts[loser], _piece_counts(heuristic_state)[loser])
+
+        stats.plies = ply + 1
+        state = heuristic_state
+
+    stats.status = state["status"]
+    stats.winner = _winner(state["status"])
+    stats.final_piece_counts = _piece_counts(state)
+    _assign_values(samples, state, cap_value)
+    return GameRecord(samples=samples, stats=stats, final_state=state)
+
+
+def heuristic_bootstrap_records(
+    engine: RustEngine,
+    games: int,
+    max_plies: int = 160,
+    seed: int = 0,
+    cap_value: CapValueMode = "material",
+    input_view: InputView = "base",
+    initial_states: List[Dict[str, Any]] | None = None,
+    collect_metrics: bool = True,
+) -> List[GameRecord]:
+    if initial_states is not None and len(initial_states) != games:
+        raise ValueError("initial_states length must match games")
+    return [
+        heuristic_bootstrap_game(
+            engine,
+            max_plies=max_plies,
+            seed=seed + game,
+            initial_state=initial_states[game] if initial_states is not None else None,
+            cap_value=cap_value,
+            input_view=input_view,
+            collect_metrics=collect_metrics,
+        )
+        for game in range(games)
+    ]
+
+
 def _select_index(masked: torch.Tensor, temperature: float) -> int:
     if temperature <= 0:
         return int(masked.argmax().item())
@@ -316,7 +522,7 @@ def select_model_full_turn(
     record_samples: bool = True,
     input_view: InputView = "base",
     max_tuning_actions: int = 3,
-) -> Tuple[Dict[str, Any], List[Sample]]:
+) -> Tuple[Dict[str, Any], List[Sample], int]:
     samples: List[Sample] = []
     tuned_state = state
     tune_count = 0
@@ -324,8 +530,9 @@ def select_model_full_turn(
     while True:
         move_actions = engine.legal_actions(tuned_state)
         tune_actions = legal_tuning_actions(tuned_state)
-        if not move_actions:
-            return tuned_state, samples
+        can_tune = bool(tune_actions) and tune_count < max_tuning_actions
+        if not move_actions and not can_tune:
+            return tuned_state, samples, tune_count
 
         board, side, move_mask = encode_state(tuned_state, engine, move_actions, input_view=input_view)
         board_tensor = torch.tensor(board, dtype=torch.float32, device=device).unsqueeze(0)
@@ -336,8 +543,7 @@ def select_model_full_turn(
 
         with torch.no_grad():
             kind_logits, move_logits, tune_logits = model.full_policy(board_tensor, side_tensor)
-            can_tune = bool(tune_actions) and tune_count < max_tuning_actions
-            kind_mask = torch.tensor([[1.0, 1.0 if can_tune else 0.0]], dtype=torch.float32, device=device)
+            kind_mask = torch.tensor([[1.0 if move_actions else 0.0, 1.0 if can_tune else 0.0]], dtype=torch.float32, device=device)
             kind = _select_index(masked_policy_logits(kind_logits, kind_mask).squeeze(0), temperature)
 
             if kind == 1 and can_tune:
@@ -372,7 +578,7 @@ def select_model_full_turn(
                 sample = _sample_from_model_move_action(tuned_state, engine, move_actions, move_action, input_view=input_view)
                 sample.action_index = selected_index
                 samples.append(sample)
-            return engine.apply_action(tuned_state, move_action, analyze_checkmate=False), samples
+            return engine.apply_action(tuned_state, move_action, analyze_checkmate=False), samples, tune_count
 
 
 def select_model_actions_batched(
@@ -458,7 +664,9 @@ def play_game(
             break
 
         actions = engine.legal_actions(state)
-        if not actions:
+        if not actions and not full_policy:
+            state = _no_move_loss(state)
+            stats.plies = ply + 1
             break
 
         current_player = state["currentPlayer"]
@@ -476,7 +684,7 @@ def play_game(
         if policy == "model":
             assert model is not None
             if full_policy:
-                next_state, turn_samples = select_model_full_turn(
+                next_state, turn_samples, tune_actions = select_model_full_turn(
                     model,
                     state,
                     engine,
@@ -486,7 +694,15 @@ def play_game(
                     input_view=input_view,
                     max_tuning_actions=max_tuning_actions,
                 )
+                if next_state["status"] == "playing" and not engine.legal_actions(next_state):
+                    next_state = _no_move_loss(next_state)
                 samples.extend(turn_samples)
+                _update_tuning_stats(
+                    stats,
+                    current_player,
+                    tune_actions,
+                    _component_change_count(state, next_state, current_player),
+                )
             else:
                 action, sample = select_model_action(
                     model,
@@ -501,6 +717,7 @@ def play_game(
                 if sample is not None:
                     samples.append(sample)
                 next_state = engine.apply_action(state, action, analyze_checkmate=False)
+                _update_tuning_stats(stats, current_player, 0, 0)
         elif policy == "heuristic":
             next_state = engine.play_heuristic_turn(
                 state,
@@ -509,11 +726,14 @@ def play_game(
                 variety=heuristic_variety,
                 time_budget_ms=heuristic_time_budget_ms,
             )
+            tune_changes = _component_change_count(state, next_state, current_player)
+            _update_tuning_stats(stats, current_player, tune_changes, tune_changes)
         else:
             action = rng.choice(actions)
             if record_samples:
                 samples.append(_sample_from_action(state, engine, actions, action, input_view=input_view))
             next_state = engine.apply_action(state, action, analyze_checkmate=False)
+            _update_tuning_stats(stats, current_player, 0, 0)
 
         after_pieces = _piece_map(next_state)
         lost_ids = [piece_id for piece_id in before_pieces if piece_id not in after_pieces]
@@ -702,6 +922,8 @@ def batched_model_selfplay_records(
                 actions = engine.legal_actions(state)
                 _profile_add(profile, "legal_actions_seconds", time.perf_counter() - legal_started_at)
                 if not actions:
+                    states[game_index] = _no_move_loss(state)
+                    stats[game_index].plies = ply + 1
                     active.discard(game_index)
                     continue
                 encoded_indexes.append(game_index)

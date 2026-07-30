@@ -68,3 +68,34 @@ fn training_safety_matches_normal_move_acceptance_for_initial_moves() {
         }
     }
 }
+
+#[test]
+fn begin_turn_declares_loss_when_player_has_no_legal_move() {
+    let mut state = fixture();
+    state.current_player = Player::Blue;
+    state.pieces = (0..49)
+        .map(|index| Piece {
+            id: if index == 24 {
+                "blue-king".to_owned()
+            } else {
+                format!("blue-pawn-{index}")
+            },
+            owner: Player::Blue,
+            piece_type: if index == 24 {
+                PieceType::King
+            } else {
+                PieceType::Pawn
+            },
+            position: Position {
+                x: index % 7,
+                y: index / 7,
+            },
+            unstable: false,
+        })
+        .collect();
+
+    let started = begin_turn(state, true);
+
+    assert_eq!(started.status, GameStatus::RedWon);
+    assert!(started.message.contains("Blue has no legal move"));
+}
