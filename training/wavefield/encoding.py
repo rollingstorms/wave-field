@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Any, Dict, Iterable, List, Tuple
+from typing import Any, Dict, Iterable, List, Literal, Tuple
 
 import numpy as np
 
@@ -32,10 +32,21 @@ FIELD_SIGNED_CHANNEL = OCCUPANCY_CHANNELS + 2
 FIELD_MAGNITUDE_CHANNEL = OCCUPANCY_CHANNELS + 3
 CURRENT_PLAYER_CHANNEL = OCCUPANCY_CHANNELS + 4
 BOARD_CHANNELS = OCCUPANCY_CHANNELS + 5
+PIECE_IDENTITY_CHANNELS = len(PIECE_IDS)
+RICH_BOARD_CHANNELS = BOARD_CHANNELS + PIECE_IDENTITY_CHANNELS
+InputView = Literal["base", "piece_identity"]
 
 TUNING_SIZE_PER_PLAYER = sum({"pawn": 1, "rook": 2, "spy": 3, "king": 3}.values())
 SIDE_SIZE = TUNING_SIZE_PER_PLAYER * len(PLAYERS) + 1
 ACTION_SIZE = len(PIECE_IDS) * BOARD_SIZE * BOARD_SIZE
+
+
+def board_channels_for_view(input_view: InputView = "base") -> int:
+    if input_view == "base":
+        return BOARD_CHANNELS
+    if input_view == "piece_identity":
+        return RICH_BOARD_CHANNELS
+    raise ValueError(f"Unknown input view '{input_view}'")
 
 
 def piece_slot(piece_id: str) -> int:
@@ -80,12 +91,15 @@ def encode_state(
     state: Dict[str, Any],
     engine: RustEngine,
     legal_actions: Iterable[Action] | None = None,
+    input_view: InputView = "base",
 ) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
-    board = np.zeros((BOARD_CHANNELS, BOARD_SIZE, BOARD_SIZE), dtype=np.float32)
+    board = np.zeros((board_channels_for_view(input_view), BOARD_SIZE, BOARD_SIZE), dtype=np.float32)
     for piece in state["pieces"]:
         x = piece["position"]["x"]
         y = piece["position"]["y"]
         board[_occupancy_channel(piece["owner"], piece["type"]), y, x] = 1.0
+        if input_view == "piece_identity":
+            board[BOARD_CHANNELS + piece_slot(piece["id"]), y, x] = 1.0
         if piece.get("unstable", False):
             unstable_channel = RED_UNSTABLE_CHANNEL if piece["owner"] == "red" else BLUE_UNSTABLE_CHANNEL
             board[unstable_channel, y, x] = 1.0

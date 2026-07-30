@@ -20,7 +20,9 @@ from .encoding import (
     PIECE_TYPES,
     PLAYERS,
     RED_UNSTABLE_CHANNEL,
+    InputView,
     action_index,
+    board_channels_for_view,
     decode_action,
     encode_state,
 )
@@ -141,6 +143,24 @@ def _piece_counts(state: Dict[str, Any]) -> Dict[str, int]:
     return counts
 
 
+def _piece_type_counts_from_slots(pieces: Sequence[Dict[str, Any]]) -> Dict[str, int]:
+    counts = {piece_type: 0 for piece_type in PIECE_TYPES}
+    for piece in pieces:
+        piece_id = PIECE_IDS[int(piece["slot"])]
+        _owner, piece_type, *_rest = piece_id.split("-")
+        counts[piece_type] += 1
+    return counts
+
+
+def _owner_counts_from_slots(pieces: Sequence[Dict[str, Any]]) -> Dict[str, int]:
+    counts = {"red": 0, "blue": 0}
+    for piece in pieces:
+        piece_id = PIECE_IDS[int(piece["slot"])]
+        owner, _piece_type, *_rest = piece_id.split("-")
+        counts[owner] += 1
+    return counts
+
+
 def _unstable_ids_for_player(state: Dict[str, Any], player: str) -> set[str]:
     return {
         piece["id"]
@@ -168,8 +188,9 @@ def _sample_from_action(
     engine: RustEngine,
     actions: List[Action],
     action: Action,
+    input_view: InputView = "base",
 ) -> Sample:
-    board, side, mask = encode_state(state, engine, actions)
+    board, side, mask = encode_state(state, engine, actions, input_view=input_view)
     return Sample(
         board=board,
         side=side,
@@ -191,8 +212,9 @@ def select_model_action(
     temperature: float = 1.0,
     device: torch.device | str = "cpu",
     record_sample: bool = True,
+    input_view: InputView = "base",
 ) -> Tuple[Action, Sample | None]:
-    board, side, mask = encode_state(state, engine, actions)
+    board, side, mask = encode_state(state, engine, actions, input_view=input_view)
     board_tensor = torch.tensor(board, dtype=torch.float32, device=device).unsqueeze(0)
     side_tensor = torch.tensor(side, dtype=torch.float32, device=device).unsqueeze(0)
     mask_tensor = torch.tensor(mask, dtype=torch.float32, device=device).unsqueeze(0)
@@ -292,6 +314,7 @@ def play_game(
     record_samples: bool = True,
     heuristic_variety: float = 0.55,
     heuristic_time_budget_ms: int = 10,
+    input_view: InputView = "base",
 ) -> GameRecord:
     if policy == "model" and model is None:
         raise ValueError("model policy requires a model")
@@ -334,6 +357,7 @@ def play_game(
                 temperature=temperature,
                 device=device,
                 record_sample=record_samples,
+                input_view=input_view,
             )
             if sample is not None:
                 samples.append(sample)
@@ -349,7 +373,7 @@ def play_game(
         else:
             action = rng.choice(actions)
             if record_samples:
-                samples.append(_sample_from_action(state, engine, actions, action))
+                samples.append(_sample_from_action(state, engine, actions, action, input_view=input_view))
             next_state = engine.apply_action(state, action, analyze_checkmate=False)
 
         after_pieces = _piece_map(next_state)
@@ -418,9 +442,11 @@ def rust_random_training_samples(
     max_plies: int = 160,
     seed: int = 0,
     cap_value: CapValueMode = "material",
+    initial_state: Dict[str, Any] | None = None,
+    metadata: Dict[str, Any] | None = None,
 ) -> tuple[List[Sample], Dict[str, Any]]:
     batch = engine.generate_random_training_batch(
-        load_initial_state(),
+        initial_state or load_initial_state(),
         games=games,
         max_plies=max_plies,
         seed=seed,
@@ -445,6 +471,7 @@ def rust_random_training_samples(
                 metadata={
                     "source": "rust_random",
                     "legal_count": len(raw["legalActionIndexes"]),
+                    **(metadata or {}),
                 },
             )
         )
@@ -463,6 +490,7 @@ def selfplay_records(
     cap_value: CapValueMode = "material",
     collect_metrics: bool = True,
     record_samples: bool = True,
+    input_view: InputView = "base",
 ) -> List[GameRecord]:
     return [
         play_game(
@@ -476,6 +504,7 @@ def selfplay_records(
             cap_value=cap_value,
             collect_metrics=collect_metrics,
             record_samples=record_samples,
+            input_view=input_view,
         )
         for game in range(games)
     ]
@@ -493,6 +522,7 @@ def batched_model_selfplay_records(
     batch_size: int = 32,
     record_samples: bool = True,
     profile: Profile | None = None,
+    input_view: InputView = "base",
 ) -> List[GameRecord]:
     if games <= 0:
         return []
@@ -531,7 +561,7 @@ def batched_model_selfplay_records(
                 batch_states.append(state)
                 batch_actions.append(actions)
                 encode_started_at = time.perf_counter()
-                encoded.append(encode_state(state, engine, actions))
+                encoded.append(encode_state(state, engine, actions, input_view=input_view))
                 _profile_add(profile, "encode_seconds", time.perf_counter() - encode_started_at)
 
             if not batch_states:
@@ -591,16 +621,20 @@ def batched_model_selfplay_records(
     return records
 
 
-def _sample_from_rollout_position(position: Dict[str, Any]) -> Sample:
+def _sample_from_rollout_position(position: Dict[str, Any], input_view: InputView = "base") -> Sample:
     legal_mask = np.zeros((ACTION_SIZE,), dtype=np.float32)
     legal_mask[np.asarray(position["legalActionIndexes"], dtype=np.int64)] = 1.0
-    board = np.zeros((BOARD_CHANNELS, BOARD_SIZE, BOARD_SIZE), dtype=np.float32)
+    board = np.zeros((board_channels_for_view(input_view), BOARD_SIZE, BOARD_SIZE), dtype=np.float32)
+    owner_counts = _owner_counts_from_slots(position["pieces"])
+    piece_type_counts = _piece_type_counts_from_slots(position["pieces"])
     for piece in position["pieces"]:
         piece_id = PIECE_IDS[int(piece["slot"])]
         owner, piece_type, *_rest = piece_id.split("-")
         x = int(piece["x"])
         y = int(piece["y"])
         board[PLAYERS.index(owner) * len(PIECE_TYPES) + PIECE_TYPES.index(piece_type), y, x] = 1.0
+        if input_view == "piece_identity":
+            board[BOARD_CHANNELS + int(piece["slot"]), y, x] = 1.0
         if bool(piece["unstable"]):
             unstable_channel = RED_UNSTABLE_CHANNEL if owner == "red" else BLUE_UNSTABLE_CHANNEL
             board[unstable_channel, y, x] = 1.0
@@ -608,20 +642,31 @@ def _sample_from_rollout_position(position: Dict[str, Any]) -> Sample:
     field = np.asarray(position["field"], dtype=np.float32).reshape(BOARD_SIZE, BOARD_SIZE)
     board[FIELD_SIGNED_CHANNEL] = np.clip(field / 8.0, -1.0, 1.0)
     board[FIELD_MAGNITUDE_CHANNEL] = np.clip(np.abs(field) / 8.0, 0.0, 1.0)
-    board[CURRENT_PLAYER_CHANNEL].fill(1.0 if position["player"] == "red" else -1.0)
+    player = position["player"]
+    opponent = "blue" if player == "red" else "red"
+    total_pieces = owner_counts["red"] + owner_counts["blue"]
+    board[CURRENT_PLAYER_CHANNEL].fill(1.0 if player == "red" else -1.0)
 
     return Sample(
         board=board,
         side=np.asarray(position["side"], dtype=np.float32),
         legal_mask=legal_mask,
         action_index=-1,
-        player=position["player"],
+        player=player,
         metadata={
             "source": "rust_session_model",
             "game_index": int(position["gameIndex"]),
             "ply": int(position["ply"]),
             "phase": _phase_for_ply(int(position["ply"])),
             "legal_count": len(position["legalActionIndexes"]),
+            "red_pieces": owner_counts["red"],
+            "blue_pieces": owner_counts["blue"],
+            "current_player_pieces": owner_counts[player],
+            "opponent_pieces": owner_counts[opponent],
+            "material_balance_current": owner_counts[player] - owner_counts[opponent],
+            "total_pieces": total_pieces,
+            "low_material": total_pieces <= 8,
+            "piece_type_counts": piece_type_counts,
         },
     )
 
@@ -647,9 +692,13 @@ def session_model_selfplay_records(
     record_samples: bool = True,
     collect_metrics: bool = False,
     profile: Profile | None = None,
+    initial_states: List[Dict[str, Any]] | None = None,
+    input_view: InputView = "base",
 ) -> List[GameRecord]:
     if games <= 0:
         return []
+    if initial_states is not None and len(initial_states) != games:
+        raise ValueError("initial_states length must match games")
 
     model.eval()
     torch.manual_seed(seed)
@@ -657,8 +706,13 @@ def session_model_selfplay_records(
     started_at = time.perf_counter()
 
     create_started_at = time.perf_counter()
+    rollout_states = initial_states or [load_initial_state() for _ in range(games)]
+    scenario_by_game = [
+        str(state.get("metadata", {}).get("scenario", "initial"))
+        for state in rollout_states
+    ]
     session_id = engine.create_rollout_session(
-        [load_initial_state() for _ in range(games)],
+        rollout_states,
         max_plies=max_plies,
         collect_pressure=collect_metrics,
     )
@@ -694,7 +748,7 @@ def session_model_selfplay_records(
             for start in range(0, len(positions), batch_size):
                 chunk = positions[start:start + batch_size]
                 tensor_started_at = time.perf_counter()
-                samples = [_sample_from_rollout_position(position) for position in chunk]
+                samples = [_sample_from_rollout_position(position, input_view=input_view) for position in chunk]
                 boards = torch.tensor(
                     np.stack([sample.board for sample in samples]),
                     dtype=torch.float32,
@@ -732,6 +786,7 @@ def session_model_selfplay_records(
                         selected_index = int(position["legalActionIndexes"][0])
                     sample.action_index = int(selected_index)
                     game_index = int(position["gameIndex"])
+                    sample.metadata["scenario"] = scenario_by_game[game_index]
                     if record_samples:
                         sample_lists[game_index].append(sample)
                         _profile_increment(profile, "samples")

@@ -8,6 +8,7 @@ from typing import Any, Dict, List
 
 import torch
 
+from .encoding import SIDE_SIZE, board_channels_for_view
 from .engine import RustEngine
 from .model import PolicyValueNet
 from .selfplay import PolicyMode, selfplay_records, session_model_selfplay_records
@@ -22,6 +23,8 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--policy", choices=("random", "model", "heuristic"), default="random")
     parser.add_argument("--checkpoint", type=Path, default=Path("training/checkpoints/policy_value.pt"))
     parser.add_argument("--hidden-size", type=int, default=128)
+    parser.add_argument("--model-arch", choices=("conv", "residual", "transformer"), default=None)
+    parser.add_argument("--input-view", choices=("base", "piece_identity"), default=None)
     parser.add_argument("--temperature", type=float, default=1.0)
     parser.add_argument("--device", default="auto")
     parser.add_argument("--session", action="store_true", help="Use fast Rust session rollout for model eval.")
@@ -31,12 +34,26 @@ def parse_args() -> argparse.Namespace:
     return parser.parse_args()
 
 
-def load_model(path: Path, hidden_size: int, device: torch.device) -> PolicyValueNet:
-    model = PolicyValueNet(hidden_size=hidden_size).to(device)
-    checkpoint = torch.load(path, map_location=device)
+def load_model(
+    path: Path,
+    hidden_size: int,
+    device: torch.device,
+    model_arch: str | None = None,
+    input_view: str | None = None,
+) -> tuple[PolicyValueNet, str]:
+    checkpoint = torch.load(path, map_location=device, weights_only=False)
+    resolved_arch = model_arch or checkpoint.get("model_arch", "conv")
+    resolved_view = input_view or checkpoint.get("input_view", "base")
+    resolved_hidden = int(checkpoint.get("hidden_size", hidden_size))
+    model = PolicyValueNet(
+        hidden_size=resolved_hidden,
+        board_channels=board_channels_for_view(resolved_view),
+        side_size=SIDE_SIZE,
+        architecture=resolved_arch,
+    ).to(device)
     model.load_state_dict(checkpoint["model"])
     model.eval()
-    return model
+    return model, resolved_view
 
 
 def aggregate(records: List[Any]) -> Dict[str, Any]:
@@ -120,7 +137,17 @@ def main() -> None:
     device = resolve_device(args.device)
     engine = RustEngine()
     policy: PolicyMode = args.policy
-    model = load_model(args.checkpoint, args.hidden_size, device) if policy == "model" else None
+    input_view = args.input_view or "base"
+    if policy == "model":
+        model, input_view = load_model(
+            args.checkpoint,
+            args.hidden_size,
+            device,
+            model_arch=args.model_arch,
+            input_view=args.input_view,
+        )
+    else:
+        model = None
 
     if args.session:
         if policy != "model":
@@ -137,6 +164,7 @@ def main() -> None:
             batch_size=args.rollout_batch_size,
             record_samples=False,
             collect_metrics=not args.no_pressure,
+            input_view=input_view,
         )
     else:
         records = selfplay_records(
@@ -148,6 +176,7 @@ def main() -> None:
             model=model,
             temperature=args.temperature,
             device=device,
+            input_view=input_view,
         )
     summary = aggregate(records)
     if args.json:

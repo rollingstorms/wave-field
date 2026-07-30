@@ -91,6 +91,42 @@ Each run writes `events.jsonl` and `checkpoint.pt` under `--run-dir`. Generated
 samples include metadata such as source, phase, ply, and legal action count
 when that information is available.
 
+The experiment runner can also mix fresh Rust random games into every
+model-self-play iteration and replay-weight parts of the batch. This is the
+current curriculum/augmentation MVP: it does not transform boards, but it can
+increase exposure to specific data sources or phases while preserving legal
+positions exactly as produced by the engine.
+
+```bash
+PYTHONPATH=training python3 -m wavefield.experiment \
+  --run-dir training/runs/curriculum-smoke \
+  --pretrain-random-games 100 \
+  --random-games-per-iteration 50 \
+  --model-games 100 \
+  --scenario-games-per-iteration 20 \
+  --iterations 5 \
+  --phase-weights opening=1,midgame=1,endgame=2 \
+  --source-weights rust_random=1,rust_session_model=2
+```
+
+Session model samples include material metadata when available: current-player
+material balance, total pieces, low-material tags, and piece-type counts.
+Experiment logs report both raw sample counts and replay-weighted training
+sample counts so we can see what the model actually trained on.
+
+Scenario games start from named non-initial states and join the same training
+batch. The first scenario set is `opening,midgame,low_material,rescue`.
+Use `--scenario-eval-games` to run a matching targeted eval suite after normal
+eval checkpoints.
+
+For input/model experiments, the default remains `--input-view base`
+`--model-arch conv`. The first richer view is `--input-view piece_identity`,
+which appends one board plane per piece slot. Pair it with
+`--model-arch residual` for the small residual CNN baseline, or
+`--model-arch transformer` for the compact board-token transformer. Rust random
+training batches currently emit only the base view, so rich-view runs should use
+model/session and scenario-session data until the Rust encoder grows that mode.
+
 ## Head-to-Head Matches
 
 ```bash

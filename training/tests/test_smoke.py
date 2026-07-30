@@ -5,11 +5,21 @@ import unittest
 import numpy as np
 import torch
 
-from wavefield.encoding import ACTION_SIZE, BOARD_CHANNELS, SIDE_SIZE, decode_action, encode_state
+from wavefield.encoding import (
+    ACTION_SIZE,
+    BOARD_CHANNELS,
+    RICH_BOARD_CHANNELS,
+    SIDE_SIZE,
+    decode_action,
+    encode_state,
+)
 from wavefield.engine import RustEngine, load_initial_state
 from wavefield.eval import aggregate
+from wavefield.experiment import parse_weights, replay_weight_samples, sample_metadata_summary
 from wavefield.model import PolicyValueNet, masked_policy_logits
+from wavefield.scenarios import DEFAULT_SCENARIOS, build_scenario_states
 from wavefield.selfplay import (
+    Sample,
     batched_model_selfplay_records,
     play_game,
     random_selfplay_game,
@@ -34,6 +44,49 @@ class TrainingSmokeTest(unittest.TestCase):
         self.assertGreater(int(legal_mask.sum()), 0)
 
         model = PolicyValueNet(hidden_size=32)
+        logits, value = model(
+            torch.tensor(board).unsqueeze(0),
+            torch.tensor(side).unsqueeze(0),
+        )
+        masked = masked_policy_logits(logits, torch.tensor(legal_mask).unsqueeze(0))
+        self.assertEqual(logits.shape, (1, ACTION_SIZE))
+        self.assertEqual(value.shape, (1,))
+        self.assertTrue(torch.isfinite(masked.max()))
+
+    def test_piece_identity_view_and_residual_forward_pass(self) -> None:
+        state = load_initial_state()
+        actions = self.engine.legal_actions(state)
+        board, side, legal_mask = encode_state(state, self.engine, actions, input_view="piece_identity")
+
+        self.assertEqual(board.shape, (RICH_BOARD_CHANNELS, 7, 7))
+        self.assertEqual(int(board[BOARD_CHANNELS:].sum()), len(state["pieces"]))
+
+        model = PolicyValueNet(
+            hidden_size=32,
+            board_channels=RICH_BOARD_CHANNELS,
+            side_size=SIDE_SIZE,
+            architecture="residual",
+        )
+        logits, value = model(
+            torch.tensor(board).unsqueeze(0),
+            torch.tensor(side).unsqueeze(0),
+        )
+        masked = masked_policy_logits(logits, torch.tensor(legal_mask).unsqueeze(0))
+        self.assertEqual(logits.shape, (1, ACTION_SIZE))
+        self.assertEqual(value.shape, (1,))
+        self.assertTrue(torch.isfinite(masked.max()))
+
+    def test_piece_identity_view_and_transformer_forward_pass(self) -> None:
+        state = load_initial_state()
+        actions = self.engine.legal_actions(state)
+        board, side, legal_mask = encode_state(state, self.engine, actions, input_view="piece_identity")
+
+        model = PolicyValueNet(
+            hidden_size=32,
+            board_channels=RICH_BOARD_CHANNELS,
+            side_size=SIDE_SIZE,
+            architecture="transformer",
+        )
         logits, value = model(
             torch.tensor(board).unsqueeze(0),
             torch.tensor(side).unsqueeze(0),
@@ -114,6 +167,32 @@ class TrainingSmokeTest(unittest.TestCase):
         self.assertIn("rescue_rate", summary)
         self.assertIn("losses_by_player", summary)
 
+    def test_scenarios_are_playable_and_tag_session_samples(self) -> None:
+        states = build_scenario_states(self.engine, DEFAULT_SCENARIOS, games=len(DEFAULT_SCENARIOS), seed=47)
+        for state in states:
+            self.assertEqual(state["status"], "playing")
+            self.assertGreater(len(self.engine.legal_actions(state)), 0)
+            self.assertIn("scenario", state["metadata"])
+
+        model = PolicyValueNet(hidden_size=32)
+        records = session_model_selfplay_records(
+            self.engine,
+            model,
+            games=len(states),
+            max_plies=2,
+            seed=53,
+            temperature=0.0,
+            batch_size=len(states),
+            initial_states=states,
+        )
+        tagged = [
+            sample.metadata.get("scenario")
+            for record in records
+            for sample in record.samples
+        ]
+        self.assertTrue(tagged)
+        self.assertTrue(set(tagged).issubset(set(DEFAULT_SCENARIOS)))
+
     def test_rust_training_batch_generates_encoded_samples(self) -> None:
         batch = self.engine.generate_random_training_batch(load_initial_state(), games=1, max_plies=2, seed=31)
         self.assertEqual(batch["summary"]["games"], 1)
@@ -124,6 +203,36 @@ class TrainingSmokeTest(unittest.TestCase):
         self.assertGreater(len(sample["legalActionIndexes"]), 0)
         self.assertGreaterEqual(sample["actionIndex"], 0)
         self.assertLess(sample["actionIndex"], ACTION_SIZE)
+
+    def test_experiment_replay_weights_and_metadata_summary(self) -> None:
+        sample = Sample(
+            board=np.zeros((BOARD_CHANNELS, 7, 7), dtype=np.float32),
+            side=np.zeros((SIDE_SIZE,), dtype=np.float32),
+            legal_mask=np.zeros((ACTION_SIZE,), dtype=np.float32),
+            action_index=0,
+            player="red",
+            value=0.5,
+            metadata={
+                "source": "rust_session_model",
+                "phase": "endgame",
+                "legal_count": 4,
+                "material_balance_current": -2,
+                "low_material": True,
+            },
+        )
+
+        weighted = replay_weight_samples(
+            [sample],
+            source_weights=parse_weights("rust_session_model=2"),
+            phase_weights=parse_weights("endgame=3"),
+        )
+        summary = sample_metadata_summary(weighted)
+
+        self.assertEqual(len(weighted), 6)
+        self.assertEqual(summary["sources"], {"rust_session_model": 6})
+        self.assertEqual(summary["phases"], {"endgame": 6})
+        self.assertEqual(summary["low_material"], 6)
+        self.assertEqual(summary["legal_count"]["mean"], 4.0)
 
 
 if __name__ == "__main__":
