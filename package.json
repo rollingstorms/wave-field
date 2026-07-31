@@ -9,6 +9,8 @@
     "engine:bench": "node scripts/bench-rust-engine.mjs",
     "dev": "npm run engine:build && vite --host 127.0.0.1",
     "arena": "npm run engine:build && vite --host 127.0.0.1 --mode arena",
+    "analyze:mechanics": "node scripts/analyze-mechanics.mjs",
+    "analyze:heuristic": "node scripts/eval-heuristic-configs.mjs",
     "build": "tsc && vite build && node scripts/copy-arena-entry.mjs",
     "test": "cargo build --manifest-path engine/Cargo.toml && vitest run",
     "test:watch": "cargo build --manifest-path engine/Cargo.toml && vitest"
