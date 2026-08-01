@@ -18,7 +18,7 @@ import { applyMove, getPlayableMoves } from "../game/rules";
 import { PIECE_DISPLAY_NAMES, PIECE_INITIALS } from "../game/pieceLabels";
 import type { GameState, Position } from "../game/types";
 import { markInstability } from "../game/victory";
-import { Piece } from "./Piece";
+import { Piece, PieceShape } from "./Piece";
 import { Square } from "./Square";
 
 interface BoardProps {
@@ -330,7 +330,7 @@ export function Board({ state, field, typeFields, continuousField, showTypeSums,
         <div className="energy-toolbar" aria-label="CMYK energy channels">
           <strong>CMYK ENERGY</strong>
           <div className="energy-channel-controls">
-            {ENERGY_CHANNELS.map(({ pieceType, letter, channel }) => (
+            {ENERGY_CHANNELS.map(({ pieceType, channel }) => (
               <button
                 type="button"
                 key={pieceType}
@@ -340,7 +340,9 @@ export function Board({ state, field, typeFields, continuousField, showTypeSums,
                 aria-pressed={energyChannels[pieceType]}
                 onClick={() => onToggleEnergyChannel(pieceType)}
               >
-                {letter}
+                <svg className="energy-piece-shape" viewBox="0 0 64 64" aria-hidden="true">
+                  <PieceShape type={pieceType} />
+                </svg>
               </button>
             ))}
           </div>
@@ -395,7 +397,7 @@ export function Board({ state, field, typeFields, continuousField, showTypeSums,
               const influence = Math.abs(influenceValue);
               const energy = energyGrid[y][x];
               const energySummary = energyView
-                ? ` CMYK energy: ${ENERGY_CHANNELS.map(({ pieceType, letter }) => `${letter} ${Math.round(energy.ratios[pieceType] * 100)} percent`).join(", ")}.`
+                ? ` CMYK energy: ${ENERGY_CHANNELS.map(({ pieceType }) => `${PIECE_DISPLAY_NAMES[pieceType]} ${Math.round(energy.ratios[pieceType] * 100)} percent`).join(", ")}.`
                 : "";
               const fieldMagnitudePercent = maximumFieldMagnitude > 0
                 ? Math.round((Math.abs(displayField[y][x]) / maximumFieldMagnitude) * 100)
@@ -448,9 +450,13 @@ export function Board({ state, field, typeFields, continuousField, showTypeSums,
           <strong>SQUARE {FILE_LABELS[energySelection.x]}{BOARD_SIZE - energySelection.y}</strong>
           <span>Intensity {Math.round(selectedEnergy.intensity * 100)}%</span>
           <div>
-            {ENERGY_CHANNELS.map(({ pieceType, letter, channel }) => (
+            {ENERGY_CHANNELS.map(({ pieceType, channel }) => (
               <span className={!energyChannels[pieceType] ? "disabled" : ""} key={pieceType}>
-                <i className={channel}>{letter}</i>
+                <i className={channel}>
+                  <svg className="energy-piece-shape" viewBox="0 0 64 64" aria-hidden="true">
+                    <PieceShape type={pieceType} />
+                  </svg>
+                </i>
                 <b>{Math.round(selectedEnergy.ratios[pieceType] * 100)}%</b>
                 <small>{selectedEnergy.raw[pieceType] >= 0 ? "+" : ""}{selectedEnergy.raw[pieceType].toFixed(2)}</small>
               </span>

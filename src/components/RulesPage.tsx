@@ -1,4 +1,3 @@
-import { Fragment } from "react";
 import { ArrowLeft, Bot, CircleDot, CircleHelp, Crown, Grid2X2, Palette, RotateCcw, Sparkles, Undo2, Waves, Wrench } from "lucide-react";
 import { evaluateField } from "../field/evaluateField";
 import { projectFieldValue } from "../field/projection";
@@ -8,7 +7,6 @@ import { PIECE_DISPLAY_NAMES, PIECE_INITIALS, PIECE_TYPES, pieceName, pieceNameP
 import { applyMove, getPlayableMoves } from "../game/rules";
 import type { Piece as PieceModel, PieceType, Player } from "../game/types";
 import { Piece } from "./Piece";
-import { WaveThumbnail } from "./WaveThumbnail";
 
 interface RulesPageProps {
   onBack: () => void;
@@ -19,47 +17,14 @@ const playerLabel: Record<Player, string> = {
   blue: "Blue",
 };
 
-const pieceDetails: Record<PieceType, { components: string; energy: string; active: string; home: string; default: string; movement: string; note: string }> = {
-  pawn: {
-    components: "1",
-    energy: "1",
-    active: "1",
-    home: "0",
-    default: "+",
-    movement: "Any distance in one direction",
-    note: "Simple pressure piece. It contributes no energy to its own square.",
-  },
-  rook: {
-    components: "2",
-    energy: "2",
-    active: "2",
-    home: "0",
-    default: "+ +",
-    movement: "Any distance in one direction",
-    note: "Broad field shaper. It contributes no energy to its own square.",
-  },
-  spy: {
-    components: "3",
-    energy: "2",
-    active: "1",
-    home: "0.5",
-    default: "+ 0 0",
-    movement: "Any distance in one direction, ignoring territory",
-    note: "The Triangle Hat can cross hostile territory, but it is unstable there after a turn resolves.",
-  },
-  king: {
-    components: "3",
-    energy: "2",
-    active: "2",
-    home: "0",
-    default: "0 + +",
-    movement: "Any distance in one direction",
-    note: "The Big Hat contributes no energy to its own square. An unstable Big Hat is trapped and must be rescued.",
-  },
+const pieceQuickNotes: Record<PieceType, string> = {
+  pawn: "Checkerboard energy.",
+  rook: "Two energies that overlap.",
+  spy: "Switch between three masks, and can move to hostile territory.",
+  king: "Must always end in stable territory.",
 };
 
 const setupPieces = createInitialPieces();
-const previewState = createInitialState();
 const selectedMovementPieceId = "rules-blue-spy";
 
 function createMovementDemoState() {
@@ -68,18 +33,18 @@ function createMovementDemoState() {
   state.selectedPieceId = selectedMovementPieceId;
   state.pieces = [
     { id: "rules-blue-king", owner: "blue", type: "king", position: { x: 0, y: 0 }, unstable: false },
-    { id: selectedMovementPieceId, owner: "blue", type: "spy", position: { x: 1, y: 0 }, unstable: false },
+    { id: selectedMovementPieceId, owner: "blue", type: "spy", position: { x: 1, y: 1 }, unstable: false },
     { id: "rules-blue-pawn", owner: "blue", type: "pawn", position: { x: 3, y: 3 }, unstable: true },
     { id: "rules-red-pawn", owner: "red", type: "pawn", position: { x: 0, y: 1 }, unstable: false },
     { id: "rules-red-rook", owner: "red", type: "rook", position: { x: 3, y: 4 }, unstable: false },
     { id: "rules-red-king", owner: "red", type: "king", position: { x: 6, y: 6 }, unstable: false },
   ];
   state.components.blue.king = [0, 0, 0];
-  state.components.blue.spy = [-1, 0, 0];
+  state.components.blue.spy = [1, 0, 0];
   state.components.blue.pawn = [0];
-  state.components.red.pawn = [-1];
-  state.components.red.rook = [1, 0];
-  state.components.red.king = [0, 0, 0];
+  state.components.red.pawn = [0];
+  state.components.red.rook = [0, 0];
+  state.components.red.king = [0, 1, 1];
   return state;
 }
 
@@ -227,13 +192,7 @@ export function RulesPage({ onBack }: RulesPageProps) {
               <div className="piece-rule" key={type}>
                 <span className="mini-piece-slot"><MiniPiece owner="blue" type={type} /></span>
                 <strong>{pieceName(type)}</strong>
-                <small>
-                  {type === "pawn" && "Checkerboard pattern, active 1"}
-                  {type === "rook" && "Two overlapping patterns, active 2"}
-                  {type === "spy" && "Three masks, active 1"}
-                  {type === "king" && "Three patterns, active 2"}
-                  {`, home ${pieceDetails[type].home}`}
-                </small>
+                <small>{pieceQuickNotes[type]}</small>
               </div>
             ))}
           </div>
@@ -265,64 +224,6 @@ export function RulesPage({ onBack }: RulesPageProps) {
           <h2>Trapped Big Hats</h2>
           <p>Your Big Hat must end every move on friendly or Neutral territory. A Big Hat on hostile territory is unstable and trapped. Rescue can come from tuning, moving the Big Hat, or moving another piece whose wave changes the Big Hat's square. Hint applies the nearest rescuing profile.</p>
         </article>
-      </section>
-
-      <section className="rules-panel piece-reference">
-        <h2>Piece Reference</h2>
-        <div className="piece-reference-grid">
-          <strong>Piece</strong>
-          <strong>Wave components</strong>
-          <strong>Energy</strong>
-          <strong>Active</strong>
-          <strong>Home</strong>
-          <strong>Default</strong>
-          <strong>Movement</strong>
-          {PIECE_TYPES.map((type) => (
-            <Fragment key={type}>
-              <span className="piece-reference-name">
-                <span className="mini-piece-slot"><MiniPiece owner="blue" type={type} /></span>
-                {pieceName(type)}
-              </span>
-              <span>{pieceDetails[type].components}</span>
-              <span>{pieceDetails[type].energy}</span>
-              <span>{pieceDetails[type].active}</span>
-              <span>{pieceDetails[type].home}</span>
-              <span><code>{pieceDetails[type].default}</code></span>
-              <span>{pieceDetails[type].movement}</span>
-            </Fragment>
-          ))}
-        </div>
-        <div className="piece-notes">
-          {PIECE_TYPES.map((type) => (
-            <p key={`${type}-note`}><strong>{pieceName(type)}:</strong> {pieceDetails[type].note}</p>
-          ))}
-        </div>
-      </section>
-
-      <section className="rules-panel wave-patterns">
-        <div>
-          <h2>Wave Patterns</h2>
-          <p>
-            These thumbnails show the default Blue contribution shape for one piece placed
-            in the center. Each pattern extends from the piece's origin and may mix positive
-            and negative energy; tuning changes which patterns are active and which polarity
-            they use.
-          </p>
-        </div>
-        <div className="wave-pattern-grid">
-          {PIECE_TYPES.map((type) => (
-            <div className="wave-pattern-card" key={type}>
-              <WaveThumbnail state={previewState} player="blue" pieceType={type} />
-              <strong>{pieceName(type)}</strong>
-              <small>
-                {type === "pawn" && "Checkerboard pressure"}
-                {type === "rook" && "C1 + + 0, C2 - 0 +"}
-                {type === "spy" && "Single active mask by default"}
-                {type === "king" && "Two active patterns"}
-              </small>
-            </div>
-          ))}
-        </div>
       </section>
 
       <section className="rules-split">

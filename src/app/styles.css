@@ -267,6 +267,8 @@ h1 {
   height: 34px;
   min-height: 34px;
   padding: 0;
+  display: grid;
+  place-items: center;
   border-color: rgba(17, 19, 19, 0.5);
   color: #090b0b;
   font-weight: 700;
@@ -287,6 +289,16 @@ h1 {
 .energy-channel-controls button:not(.active) {
   opacity: 0.3;
   filter: grayscale(1);
+}
+
+.energy-piece-shape {
+  width: 24px;
+  height: 24px;
+  color: currentColor;
+}
+
+.energy-piece-shape path {
+  fill: currentColor;
 }
 
 .energy-square {
@@ -347,6 +359,11 @@ h1 {
   color: #090b0b;
   font-style: normal;
   font-weight: 700;
+}
+
+.energy-readout i .energy-piece-shape {
+  width: 18px;
+  height: 18px;
 }
 
 .energy-readout b {
@@ -1570,6 +1587,10 @@ select, .editor-bar button, .secondary, .import-button {
   color: var(--influence);
 }
 
+.rules-piece-panel {
+  grid-column: span 2;
+}
+
 .rules-panel ol,
 .rules-split ul {
   margin: 0;
@@ -1590,18 +1611,34 @@ select, .editor-bar button, .secondary, .import-button {
 
 .piece-rules {
   display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 10px;
 }
 
 .piece-rule {
   display: grid;
-  grid-template-columns: 40px minmax(0, auto) minmax(0, 1fr);
-  gap: 10px;
+  grid-template-rows: auto auto minmax(0, 1fr);
+  gap: 8px;
   align-items: center;
+  justify-items: center;
+  min-width: 0;
+  aspect-ratio: 1;
+  padding: 10px;
+  border: 1px solid var(--line);
+  background: #101212;
+  text-align: center;
+}
+
+.piece-rule strong {
+  font-size: 0.9rem;
+  line-height: 1.15;
 }
 
 .piece-rule small {
+  min-width: 0;
   color: var(--muted);
+  font-size: 0.72rem;
+  line-height: 1.25;
 }
 
 .mini-piece-slot {
@@ -1610,98 +1647,6 @@ select, .editor-bar button, .secondary, .import-button {
   width: 40px;
   aspect-ratio: 1;
   background: var(--blue);
-}
-
-.piece-reference {
-  margin-top: 18px;
-  overflow-x: auto;
-}
-
-.piece-reference-grid {
-  display: grid;
-  grid-template-columns: minmax(120px, 1.1fr) minmax(76px, 0.7fr) minmax(64px, 0.55fr) minmax(64px, 0.55fr) minmax(56px, 0.45fr) minmax(76px, 0.7fr) minmax(180px, 1.6fr);
-  gap: 1px;
-  min-width: 840px;
-  margin-top: 14px;
-  background: var(--line);
-  overflow: hidden;
-}
-
-.piece-reference-grid > * {
-  min-width: 0;
-  min-height: 46px;
-  display: flex;
-  align-items: center;
-  padding: 10px;
-  background: #101212;
-  color: var(--muted);
-  line-height: 1.35;
-}
-
-.piece-reference-grid > strong {
-  color: var(--text);
-}
-
-.piece-reference-name {
-  gap: 10px;
-  color: var(--text);
-  font-weight: 700;
-}
-
-.piece-reference-name .mini-piece-slot {
-  width: 32px;
-  flex: 0 0 auto;
-}
-
-.piece-reference code {
-  color: var(--text);
-}
-
-.piece-notes {
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 12px;
-  margin-top: 14px;
-}
-
-.piece-notes p {
-  margin: 0;
-  padding-top: 12px;
-  border-top: 1px solid var(--line);
-}
-
-.piece-notes strong {
-  color: var(--text);
-}
-
-.wave-patterns {
-  display: grid;
-  grid-template-columns: minmax(0, 0.85fr) minmax(0, 1.15fr);
-  gap: 20px;
-  align-items: start;
-  margin-top: 18px;
-}
-
-.wave-pattern-grid {
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 10px;
-}
-
-.wave-pattern-card {
-  display: grid;
-  gap: 8px;
-  justify-items: start;
-}
-
-.wave-pattern-card .wave-thumbnail {
-  width: 100%;
-  max-width: 118px;
-}
-
-.wave-pattern-card small {
-  color: var(--muted);
-  line-height: 1.35;
 }
 
 .rules-split {
@@ -1820,13 +1765,12 @@ select, .editor-bar button, .secondary, .import-button {
   .rules-hero,
   .how-to-panel,
   .rules-grid,
-  .wave-patterns,
   .rules-split,
   .quick-reference dl {
     grid-template-columns: 1fr;
   }
-  .piece-notes {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+  .rules-piece-panel {
+    grid-column: auto;
   }
   .rules-board {
     width: min(420px, 100%);
@@ -1930,25 +1874,14 @@ select, .editor-bar button, .secondary, .import-button {
   .rules-panel {
     padding: 14px;
   }
-  .piece-rule {
-    grid-template-columns: 36px minmax(0, 1fr);
-  }
-  .piece-rule small {
-    grid-column: 2;
+  .piece-rules {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
   .mini-piece-slot {
     width: 36px;
-    grid-row: span 2;
   }
   .territory-rule {
     grid-template-columns: 20px minmax(70px, auto) minmax(0, 1fr);
-  }
-  .piece-reference-grid {
-    min-width: 780px;
-  }
-  .piece-notes,
-  .wave-pattern-grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
   .play-area {
     gap: 10px;
