@@ -1,7 +1,11 @@
 import { Fragment } from "react";
-import { ArrowLeft, CircleDot, Crown, Sparkles, Waves } from "lucide-react";
+import { ArrowLeft, Bot, CircleDot, CircleHelp, Crown, Grid2X2, Palette, RotateCcw, Sparkles, Undo2, Waves, Wrench } from "lucide-react";
+import { evaluateField } from "../field/evaluateField";
+import { projectFieldValue } from "../field/projection";
 import { createInitialPieces, createInitialState } from "../game/initialState";
+import { getLegalMoves } from "../game/movement";
 import { PIECE_DISPLAY_NAMES, PIECE_INITIALS, PIECE_TYPES, pieceName, pieceNamePlural } from "../game/pieceLabels";
+import { applyMove, getPlayableMoves } from "../game/rules";
 import type { Piece as PieceModel, PieceType, Player } from "../game/types";
 import { Piece } from "./Piece";
 import { WaveThumbnail } from "./WaveThumbnail";
@@ -56,6 +60,28 @@ const pieceDetails: Record<PieceType, { components: string; energy: string; acti
 
 const setupPieces = createInitialPieces();
 const previewState = createInitialState();
+const selectedMovementPieceId = "rules-blue-spy";
+
+function createMovementDemoState() {
+  const state = createInitialState();
+  state.currentPlayer = "blue";
+  state.selectedPieceId = selectedMovementPieceId;
+  state.pieces = [
+    { id: "rules-blue-king", owner: "blue", type: "king", position: { x: 0, y: 0 }, unstable: false },
+    { id: selectedMovementPieceId, owner: "blue", type: "spy", position: { x: 1, y: 0 }, unstable: false },
+    { id: "rules-blue-pawn", owner: "blue", type: "pawn", position: { x: 3, y: 3 }, unstable: true },
+    { id: "rules-red-pawn", owner: "red", type: "pawn", position: { x: 0, y: 1 }, unstable: false },
+    { id: "rules-red-rook", owner: "red", type: "rook", position: { x: 3, y: 4 }, unstable: false },
+    { id: "rules-red-king", owner: "red", type: "king", position: { x: 6, y: 6 }, unstable: false },
+  ];
+  state.components.blue.king = [0, 0, 0];
+  state.components.blue.spy = [-1, 0, 0];
+  state.components.blue.pawn = [0];
+  state.components.red.pawn = [-1];
+  state.components.red.rook = [1, 0];
+  state.components.red.king = [0, 0, 0];
+  return state;
+}
 
 function pieceAt(x: number, y: number) {
   return setupPieces.find((piece) => piece.position.x === x && piece.position.y === y);
@@ -84,18 +110,27 @@ function SetupBoard() {
 }
 
 function MovementBoard() {
-  const redCells = new Set(["0,0", "1,0", "2,0", "0,1", "1,1", "4,1", "5,1", "6,1", "0,2", "2,2", "3,2", "5,2", "6,2", "1,3", "5,3", "6,3", "0,4", "1,4", "4,4", "6,4", "0,5", "1,5", "2,5", "6,5", "0,6", "1,6", "5,6", "6,6"]);
-  const blueCells = new Set(["3,0", "4,0", "5,0", "2,1", "3,1", "2,3", "3,3", "4,3", "2,4", "3,4", "2,6", "3,6", "4,6"]);
-  const playable = new Set(["2,2", "3,2", "4,2", "5,2", "3,3", "4,4"]);
-  const risky = new Set(["2,4"]);
-  const kingBlocked = new Set(["5,4"]);
-  const pieces: Array<PieceModel> = [
-    { id: "rules-blue-king", owner: "blue", type: "king", position: { x: 1, y: 2 }, unstable: true },
-    { id: "rules-blue-rook", owner: "blue", type: "rook", position: { x: 2, y: 5 }, unstable: false },
-    { id: "rules-blue-spy", owner: "blue", type: "spy", position: { x: 4, y: 3 }, unstable: false },
-    { id: "rules-red-pawn", owner: "red", type: "pawn", position: { x: 5, y: 5 }, unstable: false },
-    { id: "rules-red-rook", owner: "red", type: "rook", position: { x: 6, y: 2 }, unstable: false },
-  ];
+  const state = createMovementDemoState();
+  const field = evaluateField(state);
+  const playable = new Set(getPlayableMoves(selectedMovementPieceId, state, field).map((move) => `${move.x},${move.y}`));
+  const reachable = getLegalMoves(selectedMovementPieceId, state, field);
+  const ownPieceIds = new Set(state.pieces.filter((piece) => piece.owner === state.currentPlayer).map((piece) => piece.id));
+  const risky = new Set([...playable].filter((key) => {
+    const [x, y] = key.split(",").map(Number);
+    const result = applyMove(selectedMovementPieceId, { x, y }, state);
+    if (!result.ok) return false;
+    const remainingIds = new Set(result.state.pieces.map((piece) => piece.id));
+    return [...ownPieceIds].some((id) => !remainingIds.has(id));
+  }));
+  const kingBlocked = new Set(reachable.flatMap((move) => {
+    const key = `${move.x},${move.y}`;
+    if (playable.has(key)) return [];
+    const result = applyMove(selectedMovementPieceId, move, state);
+    return result.reason?.toLowerCase().includes("big hat unprotected")
+      || result.reason?.toLowerCase().includes("king unprotected")
+      ? [key]
+      : [];
+  }));
 
   return (
     <div className="rules-board movement-demo" aria-label="Example movement markers">
@@ -103,11 +138,11 @@ function MovementBoard() {
         const x = index % 7;
         const y = Math.floor(index / 7);
         const key = `${x},${y}`;
-        const piece = pieces.find((candidate) => candidate.position.x === x && candidate.position.y === y);
-        const territory = redCells.has(key) ? "red" : blueCells.has(key) ? "blue" : "neutral";
+        const piece = state.pieces.find((candidate) => candidate.position.x === x && candidate.position.y === y);
+        const territory = projectFieldValue(field[y][x]);
         return (
           <div className={`rules-board-cell ${territory}`} key={key}>
-            {piece && <Piece piece={piece} selected={piece.id === "rules-blue-rook"} dragging={false} />}
+            {piece && <Piece piece={piece} selected={piece.id === selectedMovementPieceId} dragging={false} />}
             {piece?.unstable && <span className="unstable">!</span>}
             {playable.has(key) && <span className="legal-dot" />}
             {risky.has(key) && (
@@ -120,6 +155,21 @@ function MovementBoard() {
           </div>
         );
       })}
+    </div>
+  );
+}
+
+function ToolbarKey() {
+  return (
+    <div className="toolbar-key" aria-label="Bottom toolbar key">
+      <span><CircleHelp size={18} /> How to play</span>
+      <span><Undo2 size={18} /> Undo</span>
+      <span><RotateCcw size={18} /> Restart</span>
+      <span><Wrench size={18} /> Developer tools</span>
+      <span><Grid2X2 size={18} /> Piece-type sums</span>
+      <span><Palette size={18} /> CMYK energy view</span>
+      <span><Bot size={18} /> AI mode</span>
+      <span><i className="gradient-swatch" aria-hidden="true" /> Continuous field shading</span>
     </div>
   );
 }
@@ -150,31 +200,28 @@ export function RulesPage({ onBack }: RulesPageProps) {
         <SetupBoard />
       </section>
 
-      <section className="rules-grid">
-        <article className="rules-panel">
-          <Waves size={22} />
-          <h2>Territory</h2>
-          <p>Each component pattern can contain both positive and negative cells. Add all piece waves together; the final sign decides who controls the square. Moving a piece relocates its wave origin, so one move can reshape distant territory.</p>
-          <div className="territory-rule">
-            <span className="swatch red" /> <strong>Red</strong> <small>total above 0</small>
-            <span className="swatch neutral" /> <strong>Neutral</strong> <small>total equals 0</small>
-            <span className="swatch blue" /> <strong>Blue</strong> <small>total below 0</small>
-          </div>
-        </article>
-
-        <article className="rules-panel">
-          <CircleDot size={22} />
-          <h2>Your Turn</h2>
+      <section className="rules-panel how-to-panel">
+        <div>
+          <h2>How to Play</h2>
           <ol>
-            <li>Tune any of your piece-type wave controls, or leave them as they are.</li>
-            <li>Move one piece to commit the field and end the turn.</li>
+            <li>Move one piece along a clear horizontal, vertical, or diagonal line.</li>
+            <li>Find a safe square: friendly or Neutral territory keeps your piece stable.</li>
+            <li>Trap the opposing Big Hat by making its square hostile.</li>
+            <li>Rescue unstable pieces before their deadline marker removes them.</li>
+            <li>Adjust the entire field by tuning each piece type's wave controls before you move.</li>
           </ol>
-          <p>Tuning is shared by type, so both of your Towers use the same Tower settings. The + and - controls activate a component in that orientation or flip an active component. At the active limit, choosing another component replaces the least recently pressed one. The dice randomizes a valid profile.</p>
-        </article>
+        </div>
+        <div>
+          <strong>Bottom toolbar</strong>
+          <ToolbarKey />
+        </div>
+      </section>
 
+      <section className="rules-grid">
         <article className="rules-panel rules-piece-panel">
           <Sparkles size={22} />
           <h2>Pieces</h2>
+          <p>A piece's energy is a mixture of positive and negative values across its wave pattern.</p>
           <div className="piece-rules">
             {PIECE_TYPES.map((type) => (
               <div className="piece-rule" key={type}>
@@ -189,6 +236,27 @@ export function RulesPage({ onBack }: RulesPageProps) {
                 </small>
               </div>
             ))}
+          </div>
+        </article>
+
+        <article className="rules-panel">
+          <CircleDot size={22} />
+          <h2>Your Turn</h2>
+          <ol>
+            <li>Tune any of your piece-type wave controls, or leave them as they are.</li>
+            <li>Move one piece to commit the field and end the turn.</li>
+          </ol>
+          <p>Tuning is shared by type, so both of your Towers use the same Tower settings. The + and - controls activate a component in that orientation or flip an active component. At the active limit, choosing another component replaces the least recently pressed one. The dice randomizes a valid profile.</p>
+        </article>
+
+        <article className="rules-panel">
+          <Waves size={22} />
+          <h2>Territory</h2>
+          <p>Each component pattern can contain both positive and negative cells. Add all piece waves together; the final sign decides who controls the square. Moving a piece relocates its wave origin, so one move can reshape distant territory.</p>
+          <div className="territory-rule">
+            <span className="swatch red" /> <strong>Red</strong> <small>total above 0</small>
+            <span className="swatch neutral" /> <strong>Neutral</strong> <small>total equals 0</small>
+            <span className="swatch blue" /> <strong>Blue</strong> <small>total below 0</small>
           </div>
         </article>
 

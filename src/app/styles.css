@@ -1512,6 +1512,53 @@ select, .editor-bar button, .secondary, .import-button {
   margin-top: 26px;
 }
 
+.how-to-panel {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(260px, 0.9fr);
+  gap: 24px;
+  align-items: start;
+  margin-top: 26px;
+}
+
+.how-to-panel ol {
+  margin: 0;
+  padding-left: 22px;
+}
+
+.how-to-panel > div > strong {
+  display: block;
+  margin-bottom: 10px;
+}
+
+.toolbar-key {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.toolbar-key span {
+  min-width: 0;
+  min-height: 38px;
+  display: grid;
+  grid-template-columns: 24px minmax(0, 1fr);
+  gap: 8px;
+  align-items: center;
+  color: var(--muted);
+  font-size: 0.82rem;
+  line-height: 1.25;
+}
+
+.toolbar-key svg {
+  color: var(--text);
+}
+
+.toolbar-key .gradient-swatch {
+  width: 18px;
+  height: 18px;
+  justify-self: center;
+  border: 1px solid var(--line);
+}
+
 .rules-panel {
   border: 1px solid var(--line);
   background: var(--panel);
@@ -1771,6 +1818,7 @@ select, .editor-bar button, .secondary, .import-button {
     grid-template-columns: 1fr;
   }
   .rules-hero,
+  .how-to-panel,
   .rules-grid,
   .wave-patterns,
   .rules-split,
