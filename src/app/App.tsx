@@ -100,7 +100,8 @@ export function App() {
         setAiStatus("Neural models are available only in the local arena");
         return;
       }
-      const actions = await requestNeuralTurn(state, policy);
+      const response = await requestNeuralTurn(state, policy);
+      const actions = response.actions;
       const tuneCount = actions.filter((action) => action.type === "tune").length;
       setAiStats((stats) => ({
         ...stats,
@@ -121,6 +122,9 @@ export function App() {
         } else {
           dispatch({ type: "move", pieceId: action.pieceId, destination: action.destination });
         }
+      }
+      if (response.terminalState) {
+        dispatch({ type: "replace-state", state: response.terminalState });
       }
     };
     try {

@@ -15,6 +15,7 @@ export type GameAction =
   | { type: "randomize-tuning" }
   | { type: "reset-tuning" }
   | { type: "ai-turn"; player?: Player; seed?: number; variety?: number }
+  | { type: "replace-state"; state: GameState }
   | { type: "undo" }
   | { type: "restart"; keepDefinitions?: boolean }
   | { type: "update-default-component"; pieceType: PieceType; componentIndex: number; value: Coefficient }
@@ -77,6 +78,8 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
     }
     case "ai-turn":
       return playHeuristicTurn(state, action.player ?? "red", { seed: action.seed, variety: action.variety });
+    case "replace-state":
+      return action.state;
     case "undo": {
       const previous = state.history.at(-1);
       if (!previous) return { ...state, message: "Nothing to undo" };

@@ -172,6 +172,9 @@ class RustEngine:
             raise ValueError(result.get("reason") or "Rust engine rejected action")
         return result["state"]
 
+    def begin_turn(self, state: Dict[str, Any], analyze_checkmate: bool = True) -> Dict[str, Any]:
+        return self.request("beginTurn", state, analyzeCheckmate=analyze_checkmate)
+
     def apply_tuning(
         self,
         state: Dict[str, Any],

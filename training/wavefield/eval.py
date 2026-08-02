@@ -15,6 +15,9 @@ from .selfplay import PolicyMode, selfplay_records, session_model_selfplay_recor
 from .train import resolve_device
 
 
+PLAYERS = ("red", "blue")
+
+
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Evaluate Wave Field self-play policies.")
     parser.add_argument("--games", type=int, default=10)
@@ -71,6 +74,8 @@ def aggregate(records: List[Any]) -> Dict[str, Any]:
     effective_tune_changes = Counter()
     rescue_opportunities = 0
     rescues = 0
+    plies = [record.stats.plies for record in records]
+    final_margins = []
 
     for record in records:
         stats = record.stats
@@ -97,14 +102,23 @@ def aggregate(records: List[Any]) -> Dict[str, Any]:
             wins_by_piece_count[winner][winner_count] += 1
             if winner_count < loser_count:
                 underdog_wins[winner] += 1
+        final_margins.append(stats.final_piece_counts["red"] - stats.final_piece_counts["blue"])
 
     pressure_samples = sum(record.stats.pressure_samples for record in records)
+    decisive = sum(1 for record in records if record.stats.decisive)
     return {
         "games": len(records),
-        "decisive": sum(1 for record in records if record.stats.decisive),
-        "capped": sum(1 for record in records if not record.stats.decisive),
-        "mean_plies": sum(record.stats.plies for record in records) / len(records) if records else 0.0,
+        "decisive": decisive,
+        "decisive_rate": decisive / len(records) if records else 0.0,
+        "capped": len(records) - decisive,
+        "capped_rate": (len(records) - decisive) / len(records) if records else 0.0,
+        "mean_plies": sum(plies) / len(plies) if plies else 0.0,
+        "ply_distribution": numeric_distribution(plies),
         "wins": dict(winners),
+        "win_rates": {
+            player: winners[player] / len(records) if records else 0.0
+            for player in PLAYERS
+        },
         "first_loss_team_won": dict(first_loss_winner),
         "first_loss_team_lost": dict(first_loss_loser),
         "losses_by_player": dict(losses_by_player),
@@ -117,7 +131,7 @@ def aggregate(records: List[Any]) -> Dict[str, Any]:
         "rescue_rate": rescues / rescue_opportunities if rescue_opportunities else 0.0,
         "avg_pressure": {
             player: pressure_totals[player] / pressure_samples if pressure_samples else 0.0
-            for player in ("red", "blue")
+            for player in PLAYERS
         },
         "tuning": {
             player: {
@@ -129,8 +143,11 @@ def aggregate(records: List[Any]) -> Dict[str, Any]:
                 "effective_changes": effective_tune_changes[player],
                 "effective_changes_per_turn": effective_tune_changes[player] / ai_turns[player] if ai_turns[player] else 0.0,
             }
-            for player in ("red", "blue")
+            for player in PLAYERS
         },
+        "avg_final_material_balance_red": (
+            sum(final_margins) / len(final_margins) if final_margins else 0.0
+        ),
         "underdog_wins": dict(underdog_wins),
         "wins_by_final_piece_count": {
             player: dict(counts) for player, counts in wins_by_piece_count.items()
@@ -138,9 +155,30 @@ def aggregate(records: List[Any]) -> Dict[str, Any]:
     }
 
 
+def numeric_distribution(values: List[int]) -> Dict[str, float]:
+    if not values:
+        return {"min": 0.0, "p50": 0.0, "p90": 0.0, "max": 0.0}
+    ordered = sorted(values)
+
+    def percentile(fraction: float) -> float:
+        index = min(len(ordered) - 1, max(0, round((len(ordered) - 1) * fraction)))
+        return float(ordered[index])
+
+    return {
+        "min": float(ordered[0]),
+        "p50": percentile(0.5),
+        "p90": percentile(0.9),
+        "max": float(ordered[-1]),
+    }
+
+
 def print_summary(summary: Dict[str, Any]) -> None:
     print(f"games={summary['games']} decisive={summary['decisive']} capped={summary['capped']}")
-    print(f"mean_plies={summary['mean_plies']:.2f} wins={summary['wins']}")
+    print(
+        f"mean_plies={summary['mean_plies']:.2f} "
+        f"ply_distribution={summary['ply_distribution']} "
+        f"wins={summary['wins']} win_rates={summary['win_rates']}"
+    )
     print(f"first_loss_team_won={summary['first_loss_team_won']}")
     print(f"first_loss_team_lost={summary['first_loss_team_lost']}")
     print(f"losses_by_player={summary['losses_by_player']}")
@@ -149,6 +187,7 @@ def print_summary(summary: Dict[str, Any]) -> None:
     print(f"rescue_rate={summary['rescue_rate']:.3f} rescues={summary['rescues']}/{summary['rescue_opportunities']}")
     print(f"avg_pressure={summary['avg_pressure']}")
     print(f"tuning={summary['tuning']}")
+    print(f"avg_final_material_balance_red={summary['avg_final_material_balance_red']:.2f}")
     print(f"underdog_wins={summary['underdog_wins']}")
     print(f"wins_by_final_piece_count={summary['wins_by_final_piece_count']}")
 

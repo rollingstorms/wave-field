@@ -17,6 +17,7 @@ from wavefield.encoding import (
 from wavefield.engine import RustEngine, load_initial_state
 from wavefield.eval import aggregate
 from wavefield.experiment import parse_weights, replay_weight_samples, sample_metadata_summary
+from wavefield.match import play_match_game
 from wavefield.model import PolicyValueNet, masked_policy_logits
 from wavefield.scenarios import DEFAULT_SCENARIOS, build_scenario_states
 from wavefield.serve_model import ModelMoveServer
@@ -116,6 +117,24 @@ class TrainingSmokeTest(unittest.TestCase):
         summary = aggregate([record])
         self.assertEqual(summary["games"], 1)
         self.assertIn("avg_pressure", summary)
+        self.assertIn("ply_distribution", summary)
+
+    def test_head_to_head_match_generates_rich_stats(self) -> None:
+        model = PolicyValueNet(hidden_size=32)
+        record = play_match_game(
+            self.engine,
+            policies={"blue": "model", "red": "random"},
+            model=model,
+            device="cpu",
+            max_plies=3,
+            seed=27,
+            temperature=0.0,
+            input_view="base",
+        )
+        summary = aggregate([record])
+        self.assertEqual(summary["games"], 1)
+        self.assertIn("win_rates", summary)
+        self.assertIn("avg_final_material_balance_red", summary)
 
     def test_batched_model_selfplay_generates_samples(self) -> None:
         model = PolicyValueNet(hidden_size=32)

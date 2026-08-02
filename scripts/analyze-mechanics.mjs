@@ -7,15 +7,23 @@ const outfile = "/tmp/wave-field-mechanics-report.mjs";
 await build({
   stdin: {
     contents: `
+      if (!globalThis.structuredClone) {
+        globalThis.structuredClone = (value) => JSON.parse(JSON.stringify(value));
+      }
+
       import {
         candidateDefinitionVariants,
+        complexitySnapshot,
         componentPatternMetrics,
         enumerateProfiles,
         evaluateDefaultComponentSet,
         evaluateHomeEnergySet,
         evaluateWaveScaleSet,
         findComboOutliers,
+        lossMobilityImpacts,
         legalMoveMobilityForProfile,
+        mobilitySummary,
+        moveConsequenceMetrics,
         profileMobilityDiagnostics,
         profilePowerMetrics,
         searchDefaultComponentSets,
@@ -74,6 +82,14 @@ await build({
           "spy=" + homeEnergy.spy,
           "king=" + homeEnergy.king,
         ].join(" ");
+      }
+
+      function pieceLabel(pieceId) {
+        return pieceId.replace("blue-", "B ").replace("red-", "R ").replace(/-/g, " ");
+      }
+
+      function destinationLabel(destination) {
+        return String.fromCharCode(65 + destination.x) + (7 - destination.y);
       }
 
       function ringVariant(pieceType, componentIndex, values) {
@@ -158,6 +174,104 @@ await build({
             "firstStepRange=" + row.minFirstSteps + "-" + row.maxFirstSteps,
           ].join("  "));
         }
+      }
+
+      console.log("\\nCurrent-position complexity snapshot");
+      const snapshot = complexitySnapshot(undefined, 6);
+      const currentMobility = snapshot.mobility;
+      console.log([
+        "mobilityTotal=" + currentMobility.total,
+        "byPlayer=B" + currentMobility.byPlayer.blue + "/R" + currentMobility.byPlayer.red,
+        "byType=pawn:" + currentMobility.byType.pawn + " rook:" + currentMobility.byType.rook + " spy:" + currentMobility.byType.spy + " king:" + currentMobility.byType.king,
+        "avgMargin=" + round(snapshot.averageSafetyMargin),
+        "minMargin=" + round(snapshot.minSafetyMargin),
+        "nearZeroPieces=" + snapshot.nearZeroPieceCount,
+        "unstable=" + snapshot.unstablePieces,
+      ].join("  "));
+      console.log([
+        "fragmentation",
+        "cells=R" + snapshot.fragmentation.redCells + "/B" + snapshot.fragmentation.blueCells + "/N" + snapshot.fragmentation.neutralCells,
+        "regions=R" + snapshot.fragmentation.redRegions + "/B" + snapshot.fragmentation.blueRegions + "/N" + snapshot.fragmentation.neutralRegions,
+        "edges=" + snapshot.fragmentation.signEdges,
+        "largest=" + snapshot.fragmentation.largestRegion,
+      ].join("  "));
+      console.log([
+        "moveConsequences",
+        "count=" + snapshot.moveConsequences.count,
+        "avgSignChanges=" + round(snapshot.moveConsequences.averageSignChanges),
+        "maxSignChanges=" + snapshot.moveConsequences.maxSignChanges,
+        "avgL1=" + round(snapshot.moveConsequences.averageFieldL1Delta),
+        "maxL1=" + round(snapshot.moveConsequences.maxFieldL1Delta),
+        "avgMobSwing=" + round(snapshot.moveConsequences.averageMobilitySwing),
+        "maxMobSwing=" + snapshot.moveConsequences.maxMobilitySwing,
+      ].join("  "));
+
+      console.log("\\nMobility per piece in the current opening");
+      for (const row of [...currentMobility.pieces].sort((left, right) => right.legalMoves - left.legalMoves)) {
+        console.log([
+          pieceLabel(row.pieceId).padEnd(12),
+          "moves=" + String(row.legalMoves).padStart(2),
+          "margin=" + round(row.safetyMargin),
+          row.unstable ? "unstable" : "stable",
+        ].join("  "));
+      }
+
+      console.log("\\nLoss impact diagnostics");
+      for (const row of lossMobilityImpacts().sort((left, right) =>
+        Math.abs(right.totalMobilityDelta) - Math.abs(left.totalMobilityDelta)
+      ).slice(0, 8)) {
+        console.log([
+          pieceLabel(row.removedPieceId).padEnd(12),
+          "totalΔ=" + row.totalMobilityDelta,
+          "ownerΔ=" + row.ownerMobilityDelta,
+          "enemyΔ=" + row.opponentMobilityDelta,
+          "signΔ=" + row.signChanges,
+          "unstableΔ=" + row.unstableDelta,
+          "ownKingΔ=" + round(row.ownKingMarginDelta),
+          "enemyKingΔ=" + round(row.enemyKingMarginDelta),
+        ].join("  "));
+      }
+
+      console.log("\\nMost volatile legal moves from current tuning");
+      for (const row of snapshot.moveConsequences.topVolatileMoves) {
+        console.log([
+          pieceLabel(row.pieceId).padEnd(12),
+          "to=" + destinationLabel(row.destination),
+          "signΔ=" + row.fieldSignChanges,
+          "l1Δ=" + round(row.fieldL1Delta),
+          "ownMobΔ=" + row.actingMobilityDelta,
+          "enemyMobΔ=" + row.enemyMobilityDelta,
+          "unstableΔ=" + row.unstableDelta,
+          "enemyKingΔ=" + round(row.enemyKingMarginDelta),
+        ].join("  "));
+      }
+
+      console.log("\\nTrap-shaped legal moves from current tuning");
+      for (const row of snapshot.moveConsequences.topTrapMoves) {
+        console.log([
+          pieceLabel(row.pieceId).padEnd(12),
+          "to=" + destinationLabel(row.destination),
+          "trap=" + round(row.trapScore),
+          "apparentSafety=" + round(row.apparentSafetyScore),
+          "enemyMobΔ=" + row.enemyMobilityDelta,
+          "enemyKingΔ=" + round(row.enemyKingMarginDelta),
+          "unstableΔ=" + row.unstableDelta,
+          "signΔ=" + row.fieldSignChanges,
+        ].join("  "));
+      }
+
+      console.log("\\nLure-trap legal moves from current tuning");
+      for (const row of snapshot.moveConsequences.topLureTrapMoves) {
+        console.log([
+          pieceLabel(row.pieceId).padEnd(12),
+          "to=" + destinationLabel(row.destination),
+          "lureTrap=" + round(row.lureTrapScore),
+          "apparentSafety=" + round(row.apparentSafetyScore),
+          "enemyMobΔ=" + row.enemyMobilityDelta,
+          "enemyKingΔ=" + round(row.enemyKingMarginDelta),
+          "unstableΔ=" + row.unstableDelta,
+          "signΔ=" + row.fieldSignChanges,
+        ].join("  "));
       }
 
       console.log("\\nWave scale search");

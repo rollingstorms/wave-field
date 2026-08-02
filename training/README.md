@@ -57,7 +57,8 @@ PYTHONPATH=training python3 -m wavefield.eval --policy heuristic --games 25
 
 The evaluator reports winner counts, mean plies, capped games, first-loss
 outcomes, piece-loss frequency, rescue rate, pressure, underdog wins, and wins
-by final piece count.
+by final piece count. It also reports win rates, decisive/capped rates, ply
+distribution, and average final material balance.
 
 Model eval can use the Rust session rollout path for larger runs:
 
@@ -136,6 +137,30 @@ PYTHONPATH=training python3 -m wavefield.match --red heuristic --blue model --ga
 
 Use side-swapped matches when comparing policies so first-player and color bias
 do not get mistaken for model strength.
+
+For a longer checkpoint check, run both colors with a larger cap and JSON output:
+
+```bash
+PYTHONPATH=training python3 -m wavefield.match \
+  --checkpoint training/runs/transformer-rich-20m/checkpoint-iter-52.pt \
+  --model-arch transformer --input-view piece_identity \
+  --red model --blue heuristic --games 100 --max-plies 320 --temperature 0 --json
+
+PYTHONPATH=training python3 -m wavefield.match \
+  --checkpoint training/runs/transformer-rich-20m/checkpoint-iter-52.pt \
+  --model-arch transformer --input-view piece_identity \
+  --red heuristic --blue model --games 100 --max-plies 320 --temperature 0 --json
+```
+
+Logged experiments can evaluate on a longer horizon than training and add
+side-swapped baseline matches at each eval checkpoint. Add these flags to the
+training command for a new run:
+
+```bash
+--eval-games 100 --eval-max-plies 320 \
+  --baseline-eval-games 50 --baseline-eval-max-plies 320 \
+  --baseline-opponents heuristic,random
+```
 
 ## Local Neural Arena
 

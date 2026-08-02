@@ -2,9 +2,11 @@ import { BOARD_SIZE, PIECE_STRENGTH, TUNING_STRENGTH } from "./constants";
 import { evaluateField } from "../field/evaluateField";
 import { createInitialState } from "./initialState";
 import { getLegalMoves } from "./movement";
+import { applyMove, opponent } from "./rules";
 import type { BasisDefinition, Coefficient, ComponentDefinitions, GameState, HomeEnergy, Piece, PieceType, Player, PlayerComponents, Position, WaveScales } from "./types";
 import { evaluateComponentBasis } from "../field/kernels";
 import { evaluatePieceContribution } from "../field/evaluateField";
+import { getUnstablePieces } from "./victory";
 
 const pieceTypes: PieceType[] = ["pawn", "rook", "spy", "king"];
 const coefficients: Exclude<Coefficient, 0>[] = [-1, 1];
@@ -148,6 +150,87 @@ export interface CombinedParameterSearchResult {
   replacements: Array<{ pieceType: PieceType; componentIndex: number; definition: BasisDefinition }>;
 }
 
+export interface PieceMobilityMetric {
+  pieceId: string;
+  owner: Player;
+  pieceType: PieceType;
+  position: Position;
+  legalMoves: number;
+  safetyMargin: number;
+  unstable: boolean;
+}
+
+export interface MobilitySummary {
+  total: number;
+  byPlayer: Record<Player, number>;
+  byType: Record<PieceType, number>;
+  pieces: PieceMobilityMetric[];
+}
+
+export interface LossMobilityImpact {
+  removedPieceId: string;
+  owner: Player;
+  pieceType: PieceType;
+  position: Position;
+  totalMobilityDelta: number;
+  ownerMobilityDelta: number;
+  opponentMobilityDelta: number;
+  signChanges: number;
+  unstableDelta: number;
+  ownKingMarginDelta: number;
+  enemyKingMarginDelta: number;
+}
+
+export interface MoveConsequenceMetric {
+  pieceId: string;
+  pieceType: PieceType;
+  owner: Player;
+  destination: Position;
+  fieldSignChanges: number;
+  fieldL1Delta: number;
+  actingMobilityDelta: number;
+  enemyMobilityDelta: number;
+  unstableDelta: number;
+  actingKingMarginDelta: number;
+  enemyKingMarginDelta: number;
+  apparentSafetyScore: number;
+  trapScore: number;
+  lureTrapScore: number;
+  status: GameState["status"];
+}
+
+export interface FragmentationMetrics {
+  redCells: number;
+  blueCells: number;
+  neutralCells: number;
+  signEdges: number;
+  redRegions: number;
+  blueRegions: number;
+  neutralRegions: number;
+  largestRegion: number;
+}
+
+export interface ComplexitySnapshot {
+  mobility: MobilitySummary;
+  fragmentation: FragmentationMetrics;
+  averageSafetyMargin: number;
+  minSafetyMargin: number;
+  nearZeroPieceCount: number;
+  unstablePieces: number;
+  moveConsequences: {
+    count: number;
+    averageSignChanges: number;
+    maxSignChanges: number;
+    averageFieldL1Delta: number;
+    maxFieldL1Delta: number;
+    averageMobilitySwing: number;
+    maxMobilitySwing: number;
+    topVolatileMoves: MoveConsequenceMetric[];
+    topTrapMoves: MoveConsequenceMetric[];
+    topLureTrapMoves: MoveConsequenceMetric[];
+  };
+}
+
 function positions(): Position[] {
   return Array.from({ length: BOARD_SIZE * BOARD_SIZE }, (_, index) => ({
     x: index % BOARD_SIZE,
@@ -167,6 +250,233 @@ function rayStep(origin: Position, destination: Position): boolean {
 
 function ownerMargin(owner: Player, value: number): number {
   return owner === "red" ? value : -value;
+}
+
+function fieldSign(value: number): -1 | 0 | 1 {
+  if (value > 0) return 1;
+  if (value < 0) return -1;
+  return 0;
+}
+
+function kingMargin(player: Player, state: GameState, field = evaluateField(state)): number {
+  const king = state.pieces.find((piece) => piece.owner === player && piece.type === "king");
+  return king ? ownerMargin(player, field[king.position.y][king.position.x]) : 0;
+}
+
+function unstableCount(state: GameState, field = evaluateField(state)): number {
+  return getUnstablePieces("blue", state, field).length + getUnstablePieces("red", state, field).length;
+}
+
+function fieldDelta(before: number[][], after: number[][]): { signChanges: number; l1Delta: number } {
+  let signChanges = 0;
+  let l1Delta = 0;
+  for (let y = 0; y < BOARD_SIZE; y += 1) {
+    for (let x = 0; x < BOARD_SIZE; x += 1) {
+      if (fieldSign(before[y][x]) !== fieldSign(after[y][x])) signChanges += 1;
+      l1Delta += Math.abs(after[y][x] - before[y][x]);
+    }
+  }
+  return { signChanges, l1Delta };
+}
+
+export function mobilitySummary(state: GameState = createInitialState(), field = evaluateField(state)): MobilitySummary {
+  const pieces = state.pieces.map((piece) => ({
+    pieceId: piece.id,
+    owner: piece.owner,
+    pieceType: piece.type,
+    position: piece.position,
+    legalMoves: getLegalMoves(piece.id, state, field).length,
+    safetyMargin: ownerMargin(piece.owner, field[piece.position.y][piece.position.x]),
+    unstable: ownerMargin(piece.owner, field[piece.position.y][piece.position.x]) < 0,
+  }));
+  const byPlayer = { blue: 0, red: 0 };
+  const byType = { pawn: 0, rook: 0, spy: 0, king: 0 };
+  for (const piece of pieces) {
+    byPlayer[piece.owner] += piece.legalMoves;
+    byType[piece.pieceType] += piece.legalMoves;
+  }
+  return {
+    total: pieces.reduce((total, piece) => total + piece.legalMoves, 0),
+    byPlayer,
+    byType,
+    pieces,
+  };
+}
+
+export function fragmentationMetrics(state: GameState = createInitialState(), field = evaluateField(state)): FragmentationMetrics {
+  const signs = field.map((row) => row.map(fieldSign));
+  let redCells = 0;
+  let blueCells = 0;
+  let neutralCells = 0;
+  let signEdges = 0;
+  for (let y = 0; y < BOARD_SIZE; y += 1) {
+    for (let x = 0; x < BOARD_SIZE; x += 1) {
+      if (signs[y][x] > 0) redCells += 1;
+      else if (signs[y][x] < 0) blueCells += 1;
+      else neutralCells += 1;
+      if (x + 1 < BOARD_SIZE && signs[y][x] !== signs[y][x + 1]) signEdges += 1;
+      if (y + 1 < BOARD_SIZE && signs[y][x] !== signs[y + 1][x]) signEdges += 1;
+    }
+  }
+
+  const seen = Array.from({ length: BOARD_SIZE }, () => Array.from({ length: BOARD_SIZE }, () => false));
+  const regions = { "-1": 0, "0": 0, "1": 0 };
+  let largestRegion = 0;
+  for (let y = 0; y < BOARD_SIZE; y += 1) {
+    for (let x = 0; x < BOARD_SIZE; x += 1) {
+      if (seen[y][x]) continue;
+      const sign = signs[y][x];
+      regions[String(sign) as "-1" | "0" | "1"] += 1;
+      let size = 0;
+      const stack = [{ x, y }];
+      seen[y][x] = true;
+      while (stack.length > 0) {
+        const current = stack.pop()!;
+        size += 1;
+        for (const next of [
+          { x: current.x + 1, y: current.y },
+          { x: current.x - 1, y: current.y },
+          { x: current.x, y: current.y + 1 },
+          { x: current.x, y: current.y - 1 },
+        ]) {
+          if (!inBoundsPosition(next) || seen[next.y][next.x] || signs[next.y][next.x] !== sign) continue;
+          seen[next.y][next.x] = true;
+          stack.push(next);
+        }
+      }
+      largestRegion = Math.max(largestRegion, size);
+    }
+  }
+
+  return {
+    redCells,
+    blueCells,
+    neutralCells,
+    signEdges,
+    redRegions: regions["1"],
+    blueRegions: regions["-1"],
+    neutralRegions: regions["0"],
+    largestRegion,
+  };
+}
+
+function inBoundsPosition(position: Position): boolean {
+  return position.x >= 0 && position.x < BOARD_SIZE && position.y >= 0 && position.y < BOARD_SIZE;
+}
+
+export function lossMobilityImpacts(state: GameState = createInitialState()): LossMobilityImpact[] {
+  const beforeField = evaluateField(state);
+  const beforeMobility = mobilitySummary(state, beforeField);
+  const beforeUnstable = unstableCount(state, beforeField);
+  return state.pieces
+    .filter((piece) => piece.type !== "king")
+    .map((piece) => {
+      const next = { ...state, pieces: state.pieces.filter((candidate) => candidate.id !== piece.id) };
+      const afterField = evaluateField(next);
+      const afterMobility = mobilitySummary(next, afterField);
+      const delta = fieldDelta(beforeField, afterField);
+      const enemy = opponent(piece.owner);
+      return {
+        removedPieceId: piece.id,
+        owner: piece.owner,
+        pieceType: piece.type,
+        position: piece.position,
+        totalMobilityDelta: afterMobility.total - beforeMobility.total,
+        ownerMobilityDelta: afterMobility.byPlayer[piece.owner] - beforeMobility.byPlayer[piece.owner],
+        opponentMobilityDelta: afterMobility.byPlayer[enemy] - beforeMobility.byPlayer[enemy],
+        signChanges: delta.signChanges,
+        unstableDelta: unstableCount(next, afterField) - beforeUnstable,
+        ownKingMarginDelta: kingMargin(piece.owner, next, afterField) - kingMargin(piece.owner, state, beforeField),
+        enemyKingMarginDelta: kingMargin(enemy, next, afterField) - kingMargin(enemy, state, beforeField),
+      };
+    });
+}
+
+export function moveConsequenceMetrics(state: GameState = createInitialState()): MoveConsequenceMetric[] {
+  if (state.status !== "playing") return [];
+  const player = state.currentPlayer;
+  const enemy = opponent(player);
+  const beforeField = evaluateField(state);
+  const beforeMobility = mobilitySummary(state, beforeField);
+  const beforeUnstable = unstableCount(state, beforeField);
+  const beforePlayerKing = kingMargin(player, state, beforeField);
+  const beforeEnemyKing = kingMargin(enemy, state, beforeField);
+  return state.pieces
+    .filter((piece) => piece.owner === player)
+    .flatMap((piece) =>
+      getLegalMoves(piece.id, state, beforeField).flatMap((destination) => {
+        const result = applyMove(piece.id, destination, state, { analyzeCheckmate: false });
+        if (!result.ok) return [];
+        const after = result.state;
+        const afterField = evaluateField(after);
+        const afterMobility = mobilitySummary(after, afterField);
+        const delta = fieldDelta(beforeField, afterField);
+        const actingMobilityDelta = afterMobility.byPlayer[player] - beforeMobility.byPlayer[player];
+        const enemyMobilityDelta = afterMobility.byPlayer[enemy] - beforeMobility.byPlayer[enemy];
+        const unstableDelta = unstableCount(after, afterField) - beforeUnstable;
+        const actingKingMarginDelta = kingMargin(player, after, afterField) - beforePlayerKing;
+        const enemyKingMarginDelta = kingMargin(enemy, after, afterField) - beforeEnemyKing;
+        const apparentSafetyScore = enemyMobilityDelta + Math.max(0, actingMobilityDelta) * 0.5;
+        const trapScore =
+          Math.max(0, enemyMobilityDelta) * 1.5
+          + Math.max(0, -enemyKingMarginDelta) * 8
+          + Math.max(0, unstableDelta) * 12
+          + Math.max(0, -actingMobilityDelta) * 0.75
+          + delta.signChanges * 0.25;
+        const lureTrapScore =
+          Math.max(0, enemyMobilityDelta) * 4
+          + Math.max(0, -enemyKingMarginDelta) * 8
+          + Math.max(0, unstableDelta) * 12
+          + Math.max(0, apparentSafetyScore) * 2;
+        return [{
+          pieceId: piece.id,
+          pieceType: piece.type,
+          owner: piece.owner,
+          destination,
+          fieldSignChanges: delta.signChanges,
+          fieldL1Delta: delta.l1Delta,
+          actingMobilityDelta,
+          enemyMobilityDelta,
+          unstableDelta,
+          actingKingMarginDelta,
+          enemyKingMarginDelta,
+          apparentSafetyScore,
+          trapScore,
+          lureTrapScore,
+          status: after.status,
+        }];
+      }),
+    );
+}
+
+export function complexitySnapshot(state: GameState = createInitialState(), limit = 8): ComplexitySnapshot {
+  const field = evaluateField(state);
+  const mobility = mobilitySummary(state, field);
+  const margins = mobility.pieces.map((piece) => piece.safetyMargin);
+  const moves = moveConsequenceMetrics(state);
+  const mobilitySwings = moves.map((move) => Math.abs(move.actingMobilityDelta) + Math.abs(move.enemyMobilityDelta));
+  return {
+    mobility,
+    fragmentation: fragmentationMetrics(state, field),
+    averageSafetyMargin: margins.reduce((total, value) => total + value, 0) / Math.max(1, margins.length),
+    minSafetyMargin: Math.min(...margins),
+    nearZeroPieceCount: margins.filter((value) => Math.abs(value) < 0.25).length,
+    unstablePieces: mobility.pieces.filter((piece) => piece.unstable).length,
+    moveConsequences: {
+      count: moves.length,
+      averageSignChanges: moves.reduce((total, move) => total + move.fieldSignChanges, 0) / Math.max(1, moves.length),
+      maxSignChanges: Math.max(0, ...moves.map((move) => move.fieldSignChanges)),
+      averageFieldL1Delta: moves.reduce((total, move) => total + move.fieldL1Delta, 0) / Math.max(1, moves.length),
+      maxFieldL1Delta: Math.max(0, ...moves.map((move) => move.fieldL1Delta)),
+      averageMobilitySwing: mobilitySwings.reduce((total, value) => total + value, 0) / Math.max(1, mobilitySwings.length),
+      maxMobilitySwing: Math.max(0, ...mobilitySwings),
+      topVolatileMoves: [...moves].sort((left, right) =>
+        right.fieldSignChanges - left.fieldSignChanges || right.fieldL1Delta - left.fieldL1Delta,
+      ).slice(0, limit),
+      topTrapMoves: [...moves].sort((left, right) => right.trapScore - left.trapScore).slice(0, limit),
+      topLureTrapMoves: [...moves].sort((left, right) => right.lureTrapScore - left.lureTrapScore).slice(0, limit),
+    },
+  };
 }
 
 export function enumerateProfiles(pieceType: PieceType): Coefficient[][] {

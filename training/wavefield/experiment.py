@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import sys
 import time
 from collections import Counter
 from pathlib import Path
@@ -47,10 +48,15 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--max-tuning-actions", type=int, default=3)
     parser.add_argument("--eval-every", type=int, default=1)
     parser.add_argument("--eval-games", type=int, default=25)
+    parser.add_argument("--eval-max-plies", type=int, default=None, help="Override --max-plies for periodic eval.")
     parser.add_argument("--eval-temperature", type=float, default=0.0)
     parser.add_argument("--eval-pressure", action="store_true")
+    parser.add_argument("--baseline-eval-games", type=int, default=0, help="Run side-swapped model-vs-baseline matches during eval.")
+    parser.add_argument("--baseline-eval-max-plies", type=int, default=None, help="Override ply cap for baseline eval matches.")
+    parser.add_argument("--baseline-opponents", default="heuristic", help="Comma-separated policies: heuristic,random.")
     parser.add_argument("--save-every", type=int, default=1)
     parser.add_argument("--cap-value", choices=("zero", "material"), default="material")
+    parser.add_argument("--progress", action="store_true", help="Show compact ANSI progress lines during long runs.")
     parser.add_argument(
         "--phase-weights",
         default="",
@@ -64,13 +70,63 @@ def parse_args() -> argparse.Namespace:
     return parser.parse_args()
 
 
+class TerminalProgress:
+    def __init__(self, enabled: bool, iterations: int) -> None:
+        self.enabled = enabled
+        self.iterations = iterations
+        self.active = False
+
+    def clear(self) -> None:
+        if not self.enabled or not self.active:
+            return
+        sys.stderr.write("\r\033[K")
+        sys.stderr.flush()
+        self.active = False
+
+    def line(self, text: str) -> None:
+        if not self.enabled:
+            return
+        sys.stderr.write(f"\r\033[K{text}")
+        sys.stderr.flush()
+        self.active = True
+
+    def finish(self, text: str) -> None:
+        if not self.enabled:
+            return
+        self.line(text)
+        sys.stderr.write("\n")
+        sys.stderr.flush()
+        self.active = False
+
+    def phase(self, iteration: int, phase: str, detail: str = "") -> None:
+        prefix = f"iter {iteration}/{self.iterations}" if iteration > 0 else "bootstrap"
+        suffix = f" {detail}" if detail else ""
+        self.line(f"{prefix} {phase}{suffix}")
+
+    def epoch(
+        self,
+        iteration: int,
+        phase: str,
+        epoch: int,
+        epochs: int,
+        batch: int,
+        batches: int,
+        totals: Dict[str, float],
+    ) -> None:
+        prefix = f"iter {iteration}/{self.iterations}" if iteration > 0 else "bootstrap"
+        self.line(f"{prefix} {phase} epoch {epoch}/{epochs} batch {batch}/{batches} loss {totals['loss']:.4f}")
+
+
 class JsonlLogger:
-    def __init__(self, path: Path) -> None:
+    def __init__(self, path: Path, progress: TerminalProgress | None = None) -> None:
         self.path = path
+        self.progress = progress
         self.path.parent.mkdir(parents=True, exist_ok=True)
         self.path.write_text("")
 
     def write(self, event: Dict[str, Any]) -> None:
+        if self.progress is not None:
+            self.progress.clear()
         print(json.dumps(event, sort_keys=True), flush=True)
         with self.path.open("a") as handle:
             handle.write(json.dumps(event, sort_keys=True) + "\n")
@@ -196,6 +252,7 @@ def train_samples(
     phase: str,
     iteration: int,
     logger: JsonlLogger,
+    progress: TerminalProgress,
 ) -> None:
     if not samples:
         logger.write(
@@ -211,7 +268,22 @@ def train_samples(
     tensors = samples_to_tensors(samples, device)
     for epoch in range(1, epochs + 1):
         started_at = time.perf_counter()
-        losses = train_epoch(model, optimizer, tensors, batch_size=batch_size)
+        losses = train_epoch(
+            model,
+            optimizer,
+            tensors,
+            batch_size=batch_size,
+            progress=lambda batch, batches, totals: progress.epoch(
+                iteration,
+                phase,
+                epoch,
+                epochs,
+                batch,
+                batches,
+                totals,
+            ),
+        )
+        progress.clear()
         logger.write(
             {
                 "event": "train_epoch",
@@ -236,17 +308,20 @@ def run_session_eval(
     device: torch.device,
     iteration: int,
     logger: JsonlLogger,
+    progress: TerminalProgress,
     phase: str = "eval",
     initial_states: List[Dict[str, Any]] | None = None,
 ) -> None:
     started_at = time.perf_counter()
     games = len(initial_states) if initial_states is not None else args.eval_games
+    max_plies = args.eval_max_plies or args.max_plies
+    progress.phase(iteration, phase, f"{games} games")
     if args.full_policy:
         from .selfplay import selfplay_records
         records = selfplay_records(
             engine,
             games=games,
-            max_plies=args.max_plies,
+            max_plies=max_plies,
             seed=args.seed + 10_000 + iteration,
             policy="model",
             model=model,
@@ -265,7 +340,7 @@ def run_session_eval(
             engine,
             model,
             games=games,
-            max_plies=args.max_plies,
+            max_plies=max_plies,
             seed=args.seed + 10_000 + iteration,
             temperature=args.eval_temperature,
             device=device,
@@ -280,9 +355,78 @@ def run_session_eval(
             "event": phase,
             "iteration": iteration,
             "seconds": round(time.perf_counter() - started_at, 3),
+            "max_plies": max_plies,
             "summary": aggregate(records),
         }
     )
+
+
+def parse_baseline_opponents(raw: str) -> List[str]:
+    opponents = [item.strip() for item in raw.split(",") if item.strip()]
+    invalid = [opponent for opponent in opponents if opponent not in {"heuristic", "random"}]
+    if invalid:
+        raise ValueError(f"Invalid baseline opponent(s): {invalid}. Expected heuristic or random.")
+    return opponents
+
+
+def run_baseline_eval(
+    engine: RustEngine,
+    model: PolicyValueNet,
+    args: argparse.Namespace,
+    device: torch.device,
+    iteration: int,
+    logger: JsonlLogger,
+    progress: TerminalProgress,
+    opponents: List[str],
+) -> None:
+    if args.baseline_eval_games <= 0 or not opponents:
+        return
+
+    from .match import play_match_game
+
+    max_plies = args.baseline_eval_max_plies or args.eval_max_plies or args.max_plies
+    games_per_side = args.baseline_eval_games
+    for opponent in opponents:
+        for model_side in ("blue", "red"):
+            started_at = time.perf_counter()
+            policies = {
+                "blue": "model" if model_side == "blue" else opponent,
+                "red": "model" if model_side == "red" else opponent,
+            }
+            progress.phase(
+                iteration,
+                "baseline_eval",
+                f"model={model_side} vs {opponent} {games_per_side} games",
+            )
+            records = [
+                play_match_game(
+                    engine,
+                    policies=policies,
+                    model=model,
+                    device=device,
+                    max_plies=max_plies,
+                    seed=args.seed + 90_000 + iteration * 1_000 + game,
+                    temperature=args.eval_temperature,
+                    input_view=args.input_view,
+                    full_policy=args.full_policy,
+                    max_tuning_actions=args.max_tuning_actions,
+                    collect_metrics=args.eval_pressure,
+                )
+                for game in range(games_per_side)
+            ]
+            logger.write(
+                {
+                    "event": "baseline_eval",
+                    "iteration": iteration,
+                    "opponent": opponent,
+                    "model_side": model_side,
+                    "policies": policies,
+                    "games_per_side": games_per_side,
+                    "max_plies": max_plies,
+                    "seconds": round(time.perf_counter() - started_at, 3),
+                    "summary": aggregate(records),
+                }
+            )
 
 
 def save_checkpoint(
@@ -316,11 +460,13 @@ def main() -> None:
     source_weights = parse_weights(args.source_weights)
     phase_weights = parse_weights(args.phase_weights)
     scenarios = scenario_names(args.scenarios)
+    baseline_opponents = parse_baseline_opponents(args.baseline_opponents)
     if args.input_view != "base" and (args.pretrain_random_games > 0 or args.random_games_per_iteration > 0):
         raise ValueError("Rust random training batches currently support only --input-view base")
     torch.manual_seed(args.seed)
     args.run_dir.mkdir(parents=True, exist_ok=True)
-    logger = JsonlLogger(args.run_dir / "events.jsonl")
+    progress = TerminalProgress(args.progress, args.iterations)
+    logger = JsonlLogger(args.run_dir / "events.jsonl", progress)
 
     engine = RustEngine()
     model = PolicyValueNet(
@@ -349,6 +495,7 @@ def main() -> None:
 
     if args.pretrain_random_games > 0:
         started_at = time.perf_counter()
+        progress.phase(0, "rust_random", f"{args.pretrain_random_games} games")
         samples, batch_summary = rust_random_training_samples(
             engine,
             games=args.pretrain_random_games,
@@ -390,10 +537,12 @@ def main() -> None:
             "rust_random",
             0,
             logger,
+            progress,
         )
 
     if args.heuristic_bootstrap_games > 0:
         started_at = time.perf_counter()
+        progress.phase(0, "heuristic_bootstrap", f"{args.heuristic_bootstrap_games} games")
         records = heuristic_bootstrap_records(
             engine,
             games=args.heuristic_bootstrap_games,
@@ -435,12 +584,14 @@ def main() -> None:
             "heuristic_bootstrap",
             0,
             logger,
+            progress,
         )
 
     for iteration in range(1, args.iterations + 1):
         iteration_samples: List[Sample] = []
         if args.heuristic_bootstrap_per_iteration > 0:
             started_at = time.perf_counter()
+            progress.phase(iteration, "heuristic_bootstrap_iteration", f"{args.heuristic_bootstrap_per_iteration} games")
             records = heuristic_bootstrap_records(
                 engine,
                 games=args.heuristic_bootstrap_per_iteration,
@@ -464,6 +615,7 @@ def main() -> None:
 
         if args.random_games_per_iteration > 0:
             started_at = time.perf_counter()
+            progress.phase(iteration, "rust_random_iteration", f"{args.random_games_per_iteration} games")
             random_samples, random_summary = rust_random_training_samples(
                 engine,
                 games=args.random_games_per_iteration,
@@ -488,6 +640,7 @@ def main() -> None:
         profile: Dict[str, float] = {}
         if args.model_games > 0:
             started_at = time.perf_counter()
+            progress.phase(iteration, "model_session", f"{args.model_games} games")
             if args.full_policy:
                 from .selfplay import selfplay_records
                 records = selfplay_records(
@@ -533,6 +686,7 @@ def main() -> None:
             )
 
         if args.scenario_bootstrap_per_iteration > 0:
+            progress.phase(iteration, "scenario_build", f"{args.scenario_bootstrap_per_iteration} games")
             scenario_states = build_scenario_states(
                 engine,
                 scenarios,
@@ -540,6 +694,7 @@ def main() -> None:
                 seed=args.seed + 65_000 + iteration,
             )
             started_at = time.perf_counter()
+            progress.phase(iteration, "scenario_heuristic_bootstrap", f"{args.scenario_bootstrap_per_iteration} games")
             records = heuristic_bootstrap_records(
                 engine,
                 games=args.scenario_bootstrap_per_iteration,
@@ -563,6 +718,7 @@ def main() -> None:
             )
 
         if args.scenario_games_per_iteration > 0:
+            progress.phase(iteration, "scenario_build", f"{args.scenario_games_per_iteration} games")
             scenario_states = build_scenario_states(
                 engine,
                 scenarios,
@@ -571,6 +727,7 @@ def main() -> None:
             )
             scenario_profile: Dict[str, float] = {}
             started_at = time.perf_counter()
+            progress.phase(iteration, "scenario_model_session", f"{args.scenario_games_per_iteration} games")
             if args.full_policy:
                 from .selfplay import selfplay_records
                 scenario_records = selfplay_records(
@@ -638,10 +795,13 @@ def main() -> None:
             "curriculum",
             iteration,
             logger,
+            progress,
         )
         if args.eval_every > 0 and iteration % args.eval_every == 0:
-            run_session_eval(engine, model, args, device, iteration, logger)
+            run_session_eval(engine, model, args, device, iteration, logger, progress)
+            run_baseline_eval(engine, model, args, device, iteration, logger, progress, baseline_opponents)
             if args.scenario_eval_games > 0:
+                progress.phase(iteration, "scenario_eval_build", f"{args.scenario_eval_games} games")
                 scenario_eval_states = build_scenario_states(
                     engine,
                     scenarios,
@@ -655,6 +815,7 @@ def main() -> None:
                     device,
                     iteration,
                     logger,
+                    progress,
                     phase="scenario_eval",
                     initial_states=scenario_eval_states,
                 )

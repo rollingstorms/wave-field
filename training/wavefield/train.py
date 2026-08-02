@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import argparse
 from pathlib import Path
-from typing import Any, Dict, List
+from typing import Any, Callable, Dict, List
 
 import numpy as np
 import torch
@@ -79,13 +79,15 @@ def train_epoch(
     optimizer: torch.optim.Optimizer,
     tensors: Dict[str, torch.Tensor],
     batch_size: int,
+    progress: Callable[[int, int, Dict[str, float]], None] | None = None,
 ) -> Dict[str, float]:
     model.train()
     sample_count = tensors["actions"].shape[0]
     order = torch.randperm(sample_count, device=tensors["actions"].device)
     totals = {"loss": 0.0, "kind": 0.0, "policy": 0.0, "tuning": 0.0, "value": 0.0}
+    batch_count = (sample_count + batch_size - 1) // batch_size
 
-    for start in range(0, sample_count, batch_size):
+    for batch_number, start in enumerate(range(0, sample_count, batch_size), start=1):
         batch = order[start:start + batch_size]
         kind_logits, move_logits, tuning_logits = model.full_policy(tensors["board"][batch], tensors["side"][batch])
         _legacy_logits, predicted_values = model(tensors["board"][batch], tensors["side"][batch])
@@ -122,6 +124,8 @@ def train_epoch(
         totals["policy"] += policy_loss.item() * weight
         totals["tuning"] += tuning_loss.item() * weight
         totals["value"] += value_loss.item() * weight
+        if progress is not None:
+            progress(batch_number, batch_count, totals)
 
     return totals
 

@@ -119,6 +119,17 @@ class ModelMoveServer:
 
         actions = self.engine.legal_actions(tuned_state)
         if not actions:
+            terminal_state = self.engine.begin_turn(tuned_state, analyze_checkmate=True)
+            if terminal_state.get("status") != "playing":
+                return {
+                    "ok": True,
+                    "terminalState": terminal_state,
+                    "actions": tuning_actions,
+                    "tuningActions": len(tuning_actions),
+                    "legalActions": 0,
+                    "inputView": self.input_view,
+                    "checkpoint": str(self.args.checkpoint),
+                }
             raise ValueError("No legal neural moves are available.")
         action, _sample = select_model_action(
             self.model,

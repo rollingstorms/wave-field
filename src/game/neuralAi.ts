@@ -44,14 +44,20 @@ interface NeuralMoveResponse {
   ok: boolean;
   action?: NeuralMove;
   actions?: NeuralTurnAction[];
+  terminalState?: GameState;
   error?: string;
+}
+
+export interface NeuralTurnResponse {
+  actions: NeuralTurnAction[];
+  terminalState?: GameState;
 }
 
 export async function requestNeuralMove(
   state: GameState,
   policy: NeuralPolicy = "neural-residual",
 ): Promise<NeuralMove> {
-  const actions = await requestNeuralTurn(state, policy);
+  const { actions } = await requestNeuralTurn(state, policy);
   const move = actions.find((action): action is NeuralMove => action.type !== "tune");
   if (!move) throw new Error("Neural model server did not return a move");
   return move;
@@ -60,7 +66,7 @@ export async function requestNeuralMove(
 export async function requestNeuralTurn(
   state: GameState,
   policy: NeuralPolicy = "neural-residual",
-): Promise<NeuralTurnAction[]> {
+): Promise<NeuralTurnResponse> {
   const endpoint = neuralEndpoints[policy];
   const response = await fetch(endpoint, {
     method: "POST",
@@ -71,7 +77,8 @@ export async function requestNeuralTurn(
   if (!response.ok || !payload.ok) {
     throw new Error(payload.error || `Neural model server returned ${response.status}`);
   }
-  if (payload.actions?.length) return payload.actions;
-  if (payload.action) return [{ type: "move", ...payload.action }];
+  if (payload.terminalState) return { actions: payload.actions ?? [], terminalState: payload.terminalState };
+  if (payload.actions?.length) return { actions: payload.actions };
+  if (payload.action) return { actions: [{ type: "move", ...payload.action }] };
   throw new Error("Neural model server did not return an action");
 }
