@@ -73,6 +73,11 @@ function presetSign(preset: FormulaPreset, delta: Position, r: number): Coeffici
 
 export function evaluateBasis(definition: BasisDefinition, delta: Position): number {
   const r = ring(delta);
+  if (definition.kind === "combo") {
+    return definition.components.reduce((total, component) => (
+      total + component.weight * evaluateBasis(component.definition, delta)
+    ), 0);
+  }
   const multiplier = decay(r, definition.decayBase, definition.originScale);
   if (definition.kind === "preset") {
     return presetSign(definition.preset, delta, r) * multiplier;

@@ -17,6 +17,20 @@ export const TUNING_STRENGTH = {
   king: 2,
 } as const;
 
+export const DEFAULT_COMPONENT_COUNTS = {
+  pawn: 1,
+  rook: 1,
+  spy: 1,
+  king: 1,
+} as const;
+
+export const DEBUG_COMPONENT_COUNT_LIMITS = {
+  pawn: 1,
+  rook: 2,
+  spy: 3,
+  king: 3,
+} as const;
+
 export const DEFAULT_HOME_ENERGY = {
   pawn: 0,
   rook: 0,
@@ -31,9 +45,6 @@ export const DEFAULT_WAVE_SCALES = {
   king: { friendly: 4, hostile: 2 },
 } as const;
 
-export const COMPONENT_COUNTS = {
-  pawn: 1,
-  rook: 2,
-  spy: 3,
-  king: 3,
-} as const;
+export function tuningStrengthFor(pieceType: keyof typeof TUNING_STRENGTH, componentCount: number): number {
+  return Math.min(TUNING_STRENGTH[pieceType], componentCount);
+}

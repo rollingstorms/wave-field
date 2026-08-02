@@ -72,7 +72,7 @@ describe("field engine", () => {
   });
 
   it("decay halves each ring for equal signs", () => {
-    const basin = DEFAULT_DEFINITIONS.king[0];
+    const basin = DEFAULT_DEFINITIONS.rook[0];
     expect(Math.abs(evaluateBasis(basin, { x: 1, y: 0 }))).toBeCloseTo(Math.abs(evaluateBasis(basin, { x: 0, y: 0 })) / 2);
     expect(Math.abs(evaluateBasis(basin, { x: 2, y: 0 }))).toBeCloseTo(Math.abs(evaluateBasis(basin, { x: 1, y: 0 })) / 2);
   });
@@ -102,9 +102,9 @@ describe("field engine", () => {
     expect(evaluatePieceContribution(piece, square, state)).toBeCloseTo(expected);
   });
 
-  it("spy +00 uses the spy friendly scale on the pawn geometric basis", () => {
+  it("spy +00 uses the spy friendly scale on the near remote scout basis", () => {
     const spy = tuned("spy", [1, 0, 0]);
-    expect(evaluatePieceContribution(spy.pieces[0], { x: 2, y: 2 }, spy)).toBeCloseTo(3);
+    expect(evaluatePieceContribution(spy.pieces[0], { x: 2, y: 3 }, spy)).toBeCloseTo(3);
   });
 
   it("piece home squares use the configured home energy", () => {

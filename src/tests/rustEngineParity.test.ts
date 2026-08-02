@@ -76,6 +76,19 @@ describe("Rust engine parity", () => {
     }
   });
 
+  it("matches tuning with compass rose triangle hat", () => {
+    const state = createInitialState();
+    const expected = applyTuning("blue", "spy", 0, -1, state);
+    const actual = rust<typeof expected>("applyTuning", state, {
+      player: "blue",
+      pieceType: "spy",
+      componentIndex: 0,
+      value: -1,
+    });
+
+    expect(actual).toEqual(expected);
+  });
+
   it("matches randomize and reset tuning actions", () => {
     const state = createInitialState();
     const rolls = [0, 0.3, 0.6, 0.9];

@@ -1,5 +1,5 @@
 import { evaluateField } from "../field/evaluateField";
-import { BOARD_SIZE, TUNING_STRENGTH } from "./constants";
+import { BOARD_SIZE, tuningStrengthFor } from "./constants";
 import type { Coefficient, GameState, MoveResult, PieceType, Player, PlayerComponents, Position } from "./types";
 import { getLegalMoves, samePosition } from "./movement";
 import { PIECE_TYPES, pieceNameLower } from "./pieceLabels";
@@ -383,6 +383,9 @@ export function applyTuning(
   const nextComponents = structuredClone(state.components);
   const activationOrders = structuredClone(state.activationOrders);
   const coefficients = nextComponents[player][pieceType];
+  if (componentIndex < 0 || componentIndex >= coefficients.length) {
+    return { ok: false, state, reason: "Unknown component." };
+  }
   const currentValue = coefficients[componentIndex];
   if (currentValue === value) return { ok: false, state, reason: "Choose a different sign." };
   const activeIndices = coefficients.flatMap((coefficient, index) => coefficient === 0 ? [] : [index]);
@@ -394,7 +397,7 @@ export function applyTuning(
 
   const wasActive = currentValue !== 0;
   const nextOrder = existingOrder.filter((index) => index !== componentIndex);
-  if (!wasActive && activeIndices.length >= TUNING_STRENGTH[pieceType]) {
+  if (!wasActive && activeIndices.length >= tuningStrengthFor(pieceType, coefficients.length)) {
     const evictedIndex = nextOrder.shift();
     if (evictedIndex !== undefined) coefficients[evictedIndex] = 0;
   }

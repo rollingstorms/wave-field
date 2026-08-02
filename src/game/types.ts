@@ -41,10 +41,10 @@ export interface Piece {
 }
 
 export interface PlayerComponents {
-  pawn: [Coefficient];
-  rook: [Coefficient, Coefficient];
-  spy: [Coefficient, Coefficient, Coefficient];
-  king: [Coefficient, Coefficient, Coefficient];
+  pawn: Coefficient[];
+  rook: Coefficient[];
+  spy: Coefficient[];
+  king: Coefficient[];
 }
 
 export type PlayerActivationOrder = Record<PieceType, number[]>;
@@ -77,7 +77,20 @@ export interface PresetBasisDefinition {
   originScale: number;
 }
 
-export type BasisDefinition = RingBasisDefinition | PresetBasisDefinition;
+export interface ComboBasisTerm {
+  weight: number;
+  definition: RingBasisDefinition | PresetBasisDefinition;
+}
+
+export interface ComboBasisDefinition {
+  kind: "combo";
+  name: string;
+  components: ComboBasisTerm[];
+  decayBase: number;
+  originScale: number;
+}
+
+export type BasisDefinition = RingBasisDefinition | PresetBasisDefinition | ComboBasisDefinition;
 
 export type ComponentDefinitions = {
   [K in PieceType]: BasisDefinition[];

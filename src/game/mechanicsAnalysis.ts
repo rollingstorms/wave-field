@@ -1,4 +1,4 @@
-import { BOARD_SIZE, PIECE_STRENGTH, TUNING_STRENGTH } from "./constants";
+import { BOARD_SIZE, PIECE_STRENGTH, tuningStrengthFor } from "./constants";
 import { evaluateField } from "../field/evaluateField";
 import { createInitialState } from "./initialState";
 import { getLegalMoves } from "./movement";
@@ -481,7 +481,7 @@ export function complexitySnapshot(state: GameState = createInitialState(), limi
 
 export function enumerateProfiles(pieceType: PieceType): Coefficient[][] {
   const count = createInitialState().components.red[pieceType].length;
-  const activeLimit = TUNING_STRENGTH[pieceType];
+  const activeLimit = tuningStrengthFor(pieceType, count);
   const profiles: Coefficient[][] = [];
 
   function build(index: number, active: number, values: Coefficient[]) {
@@ -898,7 +898,7 @@ export function candidateDefinitionVariants(pieceType: PieceType, componentIndex
         ringValues: Array.from({ length }, (_, index) => template[index % template.length]) as Coefficient[],
       });
     }
-  } else {
+  } else if (current.kind === "preset") {
     for (const preset of [
       "checkerboard",
       "diagonal-stripes",

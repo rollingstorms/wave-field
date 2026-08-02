@@ -1,4 +1,4 @@
-import { BOARD_SIZE } from "../game/constants";
+import { BOARD_SIZE, DEBUG_COMPONENT_COUNT_LIMITS } from "../game/constants";
 import { contributionGrid, evaluateSignedPieceContribution } from "../field/evaluateField";
 import { projectFieldValue } from "../field/projection";
 import { getLegalMoves } from "../game/movement";
@@ -17,6 +17,7 @@ interface DebugPanelProps {
   onResetWaveScales: () => void;
   onUpdateHomeEnergy: (pieceType: PieceType, value: number) => void;
   onResetHomeEnergy: () => void;
+  onSetComponentCount: (pieceType: PieceType, count: number) => void;
   onResetDefaults: () => void;
   onRestart: () => void;
 }
@@ -141,6 +142,37 @@ function HomeEnergyEditor({ homeEnergy, onUpdate, onReset }: {
   );
 }
 
+function PatternCountEditor({ state, onUpdate }: {
+  state: GameState;
+  onUpdate: DebugPanelProps["onSetComponentCount"];
+}) {
+  return (
+    <section className="pattern-count-editor" aria-labelledby="pattern-count-title">
+      <div className="debug-section-heading">
+        <h2 id="pattern-count-title">Pattern Slots</h2>
+      </div>
+      <div className="home-energy-grid">
+        <strong>Piece</strong>
+        <strong>Slots</strong>
+        {pieceTypes.map((pieceType) => (
+          <div className="home-energy-row" key={pieceType}>
+            <span>{pieceName(pieceType).toUpperCase()}</span>
+            <input
+              type="number"
+              min="1"
+              max={DEBUG_COMPONENT_COUNT_LIMITS[pieceType]}
+              step="1"
+              value={state.components[state.currentPlayer][pieceType].length}
+              onChange={(event) => onUpdate(pieceType, Number(event.currentTarget.value))}
+              aria-label={`${pieceName(pieceType)} pattern slots`}
+            />
+          </div>
+        ))}
+      </div>
+    </section>
+  );
+}
+
 function PressurePanel({ state }: { state: GameState }) {
   const current = pressureMetrics(state);
   const score = pressureScore(current);
@@ -180,7 +212,7 @@ function PressurePanel({ state }: { state: GameState }) {
   );
 }
 
-export function DebugPanel({ state, field, onUpdateDefault, onUpdateWaveScale, onResetWaveScales, onUpdateHomeEnergy, onResetHomeEnergy, onResetDefaults, onRestart }: DebugPanelProps) {
+export function DebugPanel({ state, field, onUpdateDefault, onUpdateWaveScale, onResetWaveScales, onUpdateHomeEnergy, onResetHomeEnergy, onSetComponentCount, onResetDefaults, onRestart }: DebugPanelProps) {
   const values = field.flat();
   const globalBias = values.reduce((sum, value) => sum + value, 0);
   const energy = values.reduce((sum, value) => sum + value * value, 0);
@@ -209,6 +241,7 @@ export function DebugPanel({ state, field, onUpdateDefault, onUpdateWaveScale, o
       />
       <WaveScaleEditor scales={state.waveScales} onUpdate={onUpdateWaveScale} onReset={onResetWaveScales} />
       <HomeEnergyEditor homeEnergy={state.homeEnergy} onUpdate={onUpdateHomeEnergy} onReset={onResetHomeEnergy} />
+      <PatternCountEditor state={state} onUpdate={onSetComponentCount} />
       <PressurePanel state={state} />
       <HistoryRoll state={state} />
       <div className="field-table" aria-label="Raw field values">

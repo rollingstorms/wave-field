@@ -55,11 +55,15 @@ fn material_value(piece_type: PieceType) -> f64 {
     }
 }
 
-fn tuning_strength(piece_type: PieceType) -> usize {
+fn base_tuning_strength(piece_type: PieceType) -> usize {
     match piece_type {
         PieceType::Pawn | PieceType::Spy => 1,
         PieceType::Rook | PieceType::King => 2,
     }
+}
+
+fn tuning_strength(piece_type: PieceType, count: usize) -> usize {
+    base_tuning_strength(piece_type).min(count)
 }
 
 fn profile_after_control_change(
@@ -94,7 +98,7 @@ fn profile_after_control_change(
         }
     }
 
-    if current_value == 0 && active_indices.len() >= tuning_strength(piece_type) {
+    if current_value == 0 && active_indices.len() >= tuning_strength(piece_type, profile.len()) {
         if !next_order.is_empty() {
             let evicted = next_order.remove(0);
             profile[evicted] = 0;

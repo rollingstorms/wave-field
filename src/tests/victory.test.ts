@@ -168,6 +168,7 @@ describe("stability and victory", () => {
     state.components.blue.spy = [-1, 0, 0];
     state.components.red.pawn = [-1];
     state.components.red.rook = [0, 0];
+    state.definitions.spy[0] = structuredClone(state.definitions.pawn[0]);
     expect(getUnstablePieces("blue", state, evaluateField(state)).map((piece) => piece.id)).not.toContain("blue-pawn");
 
     const result = applyMove("blue-spy", { x: 0, y: 3 }, state);
@@ -204,6 +205,7 @@ describe("stability and victory", () => {
     state.components.blue.king = [0, 0, 0];
     state.components.blue.spy = [-1, 0, 0];
     state.components.red.king = [0, 0, 0];
+    state.definitions.spy[0] = structuredClone(state.definitions.pawn[0]);
 
     const result = applyMove("blue-spy", { x: 0, y: 1 }, state);
 

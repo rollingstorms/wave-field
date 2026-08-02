@@ -7,7 +7,7 @@ import { HistoryRoll } from "../components/HistoryRoll";
 import { RulesPage } from "../components/RulesPage";
 import { GameActions, TurnStatus } from "../components/TurnStatus";
 import { WaveEditor } from "../components/WaveEditor";
-import { cloneDefinitions, DEFAULT_DEFINITIONS } from "../field/componentDefinitions";
+import { definitionForSlot } from "../field/componentDefinitions";
 import { ALL_ENERGY_CHANNELS } from "../field/cmykEnergy";
 import type { EnergyChannelState } from "../field/cmykEnergy";
 import { evaluateField, evaluateTypeFields } from "../field/evaluateField";
@@ -167,7 +167,7 @@ export function App() {
     dispatch({
       type: "update-definition",
       ...editorSelection,
-      definition: structuredClone(DEFAULT_DEFINITIONS[editorSelection.pieceType][editorSelection.componentIndex]),
+      definition: definitionForSlot(editorSelection.pieceType, editorSelection.componentIndex),
     });
   }
 
@@ -297,11 +297,23 @@ export function App() {
             onResetWaveScales={() => dispatch({ type: "reset-wave-scales" })}
             onUpdateHomeEnergy={(pieceType, value) => dispatch({ type: "update-home-energy", pieceType, value })}
             onResetHomeEnergy={() => dispatch({ type: "reset-home-energy" })}
+            onSetComponentCount={(pieceType, count) => {
+              dispatch({ type: "set-component-count", pieceType, count });
+              if (editorSelection.pieceType === pieceType && editorSelection.componentIndex >= count) {
+                setEditorSelection({ pieceType, componentIndex: Math.max(0, count - 1) });
+              }
+            }}
             onResetDefaults={() => dispatch({ type: "reset-default-components" })}
             onRestart={() => dispatch({ type: "restart", keepDefinitions: true })}
           />
           <WaveEditor
             definitions={state.definitions}
+            componentCounts={{
+              pawn: state.components[state.currentPlayer].pawn.length,
+              rook: state.components[state.currentPlayer].rook.length,
+              spy: state.components[state.currentPlayer].spy.length,
+              king: state.components[state.currentPlayer].king.length,
+            }}
             selected={editorSelection}
             onSelect={setEditorSelection}
             onUpdate={updateDefinition}

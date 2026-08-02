@@ -186,6 +186,20 @@ pub enum BasisDefinition {
         #[serde(rename = "originScale")]
         origin_scale: f64,
     },
+    Combo {
+        name: String,
+        components: Vec<ComboBasisTerm>,
+        #[serde(rename = "decayBase")]
+        decay_base: f64,
+        #[serde(rename = "originScale")]
+        origin_scale: f64,
+    },
+}
+
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
+pub struct ComboBasisTerm {
+    pub weight: f64,
+    pub definition: Box<BasisDefinition>,
 }
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]

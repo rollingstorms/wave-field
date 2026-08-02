@@ -4,11 +4,15 @@ use crate::model::*;
 use serde::{Deserialize, Serialize};
 use std::collections::HashSet;
 
-fn tuning_strength(piece_type: PieceType) -> usize {
+fn base_tuning_strength(piece_type: PieceType) -> usize {
     match piece_type {
         PieceType::Pawn | PieceType::Spy => 1,
         PieceType::Rook | PieceType::King => 2,
     }
+}
+
+fn tuning_strength(piece_type: PieceType, count: usize) -> usize {
+    base_tuning_strength(piece_type).min(count)
 }
 
 fn remove_unrescued_pieces(
@@ -129,7 +133,7 @@ fn resolve_own_turn_consequences_with_field(
 fn component_options(piece_type: PieceType, count: usize) -> Vec<Vec<i8>> {
     fn build(piece_type: PieceType, count: usize, values: &mut Vec<i8>, output: &mut Vec<Vec<i8>>) {
         if values.len() == count {
-            if values.iter().filter(|value| **value != 0).count() == tuning_strength(piece_type) {
+            if values.iter().filter(|value| **value != 0).count() == tuning_strength(piece_type, count) {
                 output.push(values.clone());
             }
             return;
@@ -709,7 +713,7 @@ pub fn apply_tuning(
     }
     order.retain(|index| *index != component_index);
     if current_value == 0
-        && active_indices.len() >= tuning_strength(piece_type)
+        && active_indices.len() >= tuning_strength(piece_type, coefficients.len())
         && !order.is_empty()
     {
         let evicted = order.remove(0);

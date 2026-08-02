@@ -1,4 +1,4 @@
-import { TUNING_STRENGTH } from "./constants";
+import { tuningStrengthFor } from "./constants";
 import type { ActivationOrders, Coefficient, PieceType, Player, PlayerActivationOrder, PlayerComponents } from "./types";
 
 const pieceTypes: PieceType[] = ["pawn", "rook", "spy", "king"];
@@ -8,11 +8,11 @@ export function getTuningLoad(coefficients: readonly Coefficient[]): number {
 }
 
 export function isTuningWithinStrength(pieceType: PieceType, coefficients: readonly Coefficient[]): boolean {
-  return getTuningLoad(coefficients) <= TUNING_STRENGTH[pieceType];
+  return getTuningLoad(coefficients) <= tuningStrengthFor(pieceType, coefficients.length);
 }
 
 export function isTuningAtStrength(pieceType: PieceType, coefficients: readonly Coefficient[]): boolean {
-  return getTuningLoad(coefficients) === TUNING_STRENGTH[pieceType];
+  return getTuningLoad(coefficients) === tuningStrengthFor(pieceType, coefficients.length);
 }
 
 export function canSetComponentValue(

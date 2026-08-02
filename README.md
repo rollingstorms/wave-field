@@ -30,12 +30,11 @@ Click a piece to see its legal destinations, or drag it across the board. Moving
 one piece ends the turn and relocates that piece's wave origin, so a local move
 can change territory far away.
 
-The `+` and `-` controls activate a component with that field orientation, or
-flip the polarity of an active component. Each piece type has its own set of
-patterns: Round Hats use one checkerboard-like pattern, Towers combine two overlapping
-patterns, Triangle Hats choose one of three masks, and Big Hats keep two of three patterns
-active. Tuning is shared by type, so both of your Towers use the same Tower
-profile.
+The `+` and `-` controls flip the polarity of a piece type's canonical wave
+pattern. Each piece type starts with one pattern: Round Hats use a checkerboard,
+Towers use a paired push/pull cadence, Triangle Hats use a compass rose, and
+Big Hats use a block checker. Tuning is
+shared by type, so both of your Towers use the same Tower profile.
 
 ## The Field
 
@@ -79,17 +78,16 @@ first.
 | Piece | Wave components | Energy | Active | Home | Default (Red / Blue) | Movement |
 |---|---:|---:|---:|---:|---|---|
 | Round Hat | 1 | 1 | 1 | 0 | `+` / `-` | Any distance in one direction |
-| Tower | 2 | 2 | 2 | 0 | `+ +` / `- -` | Any distance in one direction |
-| Triangle Hat | 3 | 2 | 1 | 0.5 | `+ 0 0` / `- 0 0` | Any distance in one direction, ignoring territory |
-| Big Hat | 3 | 2 | 2 | 0 | `0 + +` / `0 - -` | Any distance in one direction |
+| Tower | 1 | 2 | 1 | 0 | `+` / `-` | Any distance in one direction |
+| Triangle Hat | 1 | 2 | 1 | 0.5 | `+` / `-` | Any distance in one direction, ignoring territory |
+| Big Hat | 1 | 2 | 1 | 0 | `+` / `-` | Any distance in one direction |
 
 A direction may be horizontal, vertical, or diagonal, giving eight possible
 rays. Despite their familiar names, pieces do not use chess movement.
 
-All three Big Hat components are tunable. C1 starts Neutral, while C2 and C3 start
-positive. The Big Hat's active strength of 2 means exactly two of those components
-are active at once. The Triangle Hat has energy strength 2, but its active tuning
-strength remains 1, so it still uses exactly one pattern at a time.
+Developer mode can expand a piece type back toward the older multi-pattern
+debug space. In the normal ruleset, every piece type uses exactly one reversible
+pattern.
 
 ## Turn
 
@@ -119,13 +117,12 @@ The controls display each component's signed field contribution:
 Because Blue's owner sign reverses the shared coefficient, the live Blue
 controls display the opposite signs from Red for the same underlying profile.
 
-Tap `+` or `-` to activate a component orientation. Tap the other sign to flip
-an active component. These controls do not mean "Red energy" or "Blue energy"
-by themselves; each component is a spatial pattern that may contain both
-positive and negative energy after owner sign, scale, and territory effects are
-applied. Each piece type keeps exactly its strength count active; activating
-another component at the limit turns off the least recently pressed component:
-the Big Hat keeps the last two, while the Triangle Hat keeps only the last one.
+Tap `+` or `-` to choose the current orientation. These controls do not mean
+"Red energy" or "Blue energy" by themselves; each component is a spatial pattern
+that may contain both positive and negative energy after owner sign, scale, and
+territory effects are applied. If developer mode expands a piece type to
+multiple patterns, activating another component at the active limit turns off
+the least recently pressed component.
 
 Tuning is shared by piece type. Both of a player's Towers always use that
 player's Tower settings, while the opposing player controls a separate set.
@@ -226,8 +223,8 @@ legal-move indicators, blocked-Big Hat move markers, instability warnings, loss
 burst animations, undo and restart, continuous field-magnitude shading, a compact
 mobile tuning panel, and a developer mode for inspecting the raw field, piece
 contributions, mobility, and editable wave definitions. Developer mode also
-provides editable default component controls, friendly/hostile wave scales, and
-home-square energy.
+provides editable pattern slot counts, default component controls,
+friendly/hostile wave scales, and home-square energy.
 The selected control profile is applied to both players on restart. Its
 scrollable History Roll reconstructs moves, tuning
 changes, dice and hint profiles, piece losses, and turn transitions from the

@@ -1,6 +1,6 @@
 import { evaluateField } from "../field/evaluateField";
 import { isSquareCompatible } from "../field/projection";
-import { COMPONENT_COUNTS, TUNING_STRENGTH } from "./constants";
+import { tuningStrengthFor } from "./constants";
 import { snapshot } from "./initialState";
 import { getLegalMoves } from "./movement";
 import { applyMove, opponent } from "./rules";
@@ -56,7 +56,7 @@ function profileAfterControlChange(
     if (index !== componentIndex && !nextOrder.includes(index)) nextOrder.push(index);
   }
 
-  if (currentValue === 0 && activeIndices.length >= TUNING_STRENGTH[pieceType]) {
+  if (currentValue === 0 && activeIndices.length >= tuningStrengthFor(pieceType, profile.length)) {
     const evictedIndex = nextOrder.shift();
     if (evictedIndex !== undefined) profile[evictedIndex] = 0;
   }
@@ -72,7 +72,7 @@ function tuningCandidates(state: GameState, player: Player, maxCandidates = 28):
 
   for (const pieceType of pieceTypes) {
     const profile = current[pieceType];
-    for (let index = 0; index < COMPONENT_COUNTS[pieceType]; index += 1) {
+    for (let index = 0; index < profile.length; index += 1) {
       for (const value of coefficients.filter((coefficient) => coefficient !== 0)) {
         const nextProfile = profileAfterControlChange(state, player, pieceType, index, value);
         if (!nextProfile) continue;

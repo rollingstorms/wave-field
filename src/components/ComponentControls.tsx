@@ -1,5 +1,5 @@
 import { Dices, RotateCcw } from "lucide-react";
-import { COMPONENT_COUNTS, TUNING_STRENGTH } from "../game/constants";
+import { tuningStrengthFor } from "../game/constants";
 import { PIECE_INITIALS, pieceName } from "../game/pieceLabels";
 import { getTuningLoad } from "../game/tuning";
 import type { Coefficient, GameState, Piece, PieceType, Player } from "../game/types";
@@ -41,16 +41,16 @@ export function ComponentControls({ state, locked = false, onTune, onRandomize, 
   const player = state.currentPlayer;
   const controlsAtDefaults = JSON.stringify(state.components[player]) === JSON.stringify(state.defaultComponents);
   const renderPieceControls = (pieceType: PieceType) => (
-    <section className={`component-group components-${COMPONENT_COUNTS[pieceType]}`} key={pieceType}>
+    <section className={`component-group components-${state.components[player][pieceType].length}`} key={pieceType}>
       <div className="piece-heading">
         <WaveThumbnail state={state} player={player} pieceType={pieceType} />
         <PieceLegend player={player} pieceType={pieceType} />
         <div className="piece-heading-copy">
           <strong>{pieceName(pieceType).toUpperCase()}</strong>
-          <span className="component-count">({COMPONENT_COUNTS[pieceType]} components)</span>
+          <span className="component-count">({state.components[player][pieceType].length} pattern{state.components[player][pieceType].length === 1 ? "" : "s"})</span>
           <span className="strength">
             <span className="strength-label">Active </span>
-            {getTuningLoad(state.components[player][pieceType])}/{TUNING_STRENGTH[pieceType]}
+            {getTuningLoad(state.components[player][pieceType])}/{tuningStrengthFor(pieceType, state.components[player][pieceType].length)}
           </span>
         </div>
       </div>

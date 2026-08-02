@@ -51,22 +51,32 @@ function stateJson(state: GameState): string {
   return JSON.stringify(state);
 }
 
+function callRust<T>(operation: () => T): T | null {
+  if (!bindings) return null;
+  try {
+    return operation();
+  } catch (error) {
+    console.warn("Wave Field: Rust rule engine failed; falling back to TypeScript.", error);
+    bindings = null;
+    document.documentElement.dataset.ruleEngine = "typescript";
+    return null;
+  }
+}
+
 export function rustEvaluateField(state: GameState): number[][] | null {
-  return bindings ? JSON.parse(bindings.evaluate_field_json(stateJson(state))) as number[][] : null;
+  return callRust(() => JSON.parse(bindings!.evaluate_field_json(stateJson(state))) as number[][]);
 }
 
 export function rustLegalMoves(pieceId: string, state: GameState): Position[] | null {
-  return bindings ? JSON.parse(bindings.legal_moves_json(pieceId, stateJson(state))) as Position[] : null;
+  return callRust(() => JSON.parse(bindings!.legal_moves_json(pieceId, stateJson(state))) as Position[]);
 }
 
 export function rustPlayableMoves(pieceId: string, state: GameState): Position[] | null {
-  return bindings ? JSON.parse(bindings.playable_moves_json(pieceId, stateJson(state))) as Position[] : null;
+  return callRust(() => JSON.parse(bindings!.playable_moves_json(pieceId, stateJson(state))) as Position[]);
 }
 
 export function rustClosestPlayableConfiguration<T>(player: Player, state: GameState): T | null {
-  return bindings
-    ? JSON.parse(bindings.closest_playable_configuration_json(player, stateJson(state))) as T
-    : null;
+  return callRust(() => JSON.parse(bindings!.closest_playable_configuration_json(player, stateJson(state))) as T);
 }
 
 export function rustApplyMove(
@@ -75,15 +85,12 @@ export function rustApplyMove(
   state: GameState,
   analyzeCheckmate: boolean,
 ): MoveResult | null {
-  return bindings
-    ? JSON.parse(bindings.apply_move_json(pieceId, destination.x, destination.y, stateJson(state), analyzeCheckmate)) as MoveResult
-    : null;
+  return callRust(() =>
+    JSON.parse(bindings!.apply_move_json(pieceId, destination.x, destination.y, stateJson(state), analyzeCheckmate)) as MoveResult);
 }
 
 export function rustBeginTurn(state: GameState, analyzeCheckmate: boolean): GameState | null {
-  return bindings
-    ? JSON.parse(bindings.begin_turn_json(stateJson(state), analyzeCheckmate)) as GameState
-    : null;
+  return callRust(() => JSON.parse(bindings!.begin_turn_json(stateJson(state), analyzeCheckmate)) as GameState);
 }
 
 export function rustApplyTuning(
@@ -93,39 +100,32 @@ export function rustApplyTuning(
   value: Coefficient,
   state: GameState,
 ): MoveResult | null {
-  return bindings
-    ? JSON.parse(bindings.apply_tuning_json(player, pieceType, componentIndex, value, stateJson(state))) as MoveResult
-    : null;
+  return callRust(() =>
+    JSON.parse(bindings!.apply_tuning_json(player, pieceType, componentIndex, value, stateJson(state))) as MoveResult);
 }
 
 export function rustResignInCheck(state: GameState): MoveResult | null {
-  return bindings ? JSON.parse(bindings.resign_in_check_json(stateJson(state))) as MoveResult : null;
+  return callRust(() => JSON.parse(bindings!.resign_in_check_json(stateJson(state))) as MoveResult);
 }
 
 export function rustApplyClosestPlayableHint(state: GameState): MoveResult | null {
-  return bindings
-    ? JSON.parse(bindings.apply_closest_playable_hint_json(stateJson(state))) as MoveResult
-    : null;
+  return callRust(() => JSON.parse(bindings!.apply_closest_playable_hint_json(stateJson(state))) as MoveResult);
 }
 
 export function rustResetTuning(state: GameState): MoveResult | null {
-  return bindings ? JSON.parse(bindings.reset_tuning_json(stateJson(state))) as MoveResult : null;
+  return callRust(() => JSON.parse(bindings!.reset_tuning_json(stateJson(state))) as MoveResult);
 }
 
 export function rustRandomizeTuning(state: GameState, rolls: number[]): MoveResult | null {
-  return bindings
-    ? JSON.parse(bindings.randomize_tuning_json(JSON.stringify(rolls), stateJson(state))) as MoveResult
-    : null;
+  return callRust(() => JSON.parse(bindings!.randomize_tuning_json(JSON.stringify(rolls), stateJson(state))) as MoveResult);
 }
 
 export function rustUnstablePieceIds(player: Player, state: GameState): string[] | null {
-  return bindings
-    ? JSON.parse(bindings.unstable_piece_ids_json(player, stateJson(state))) as string[]
-    : null;
+  return callRust(() => JSON.parse(bindings!.unstable_piece_ids_json(player, stateJson(state))) as string[]);
 }
 
 export function rustKingUnprotected(player: Player, state: GameState): boolean | null {
-  return bindings ? bindings.king_unprotected_json(player, stateJson(state)) : null;
+  return callRust(() => bindings!.king_unprotected_json(player, stateJson(state)));
 }
 
 export function rustMarkInstability(state: GameState): GameState | null {

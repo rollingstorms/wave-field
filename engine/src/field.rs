@@ -178,6 +178,12 @@ fn preset_sign(preset: &FormulaPreset, delta: Position, ring: i32) -> i8 {
 
 pub fn evaluate_basis(definition: &BasisDefinition, delta: Position) -> f64 {
     let ring = delta.x.abs().max(delta.y.abs());
+    if let BasisDefinition::Combo { components, .. } = definition {
+        return components
+            .iter()
+            .map(|component| component.weight * evaluate_basis(&component.definition, delta))
+            .sum();
+    }
     let (sign, decay_base, origin_scale) = match definition {
         BasisDefinition::Preset {
             preset,
@@ -185,6 +191,7 @@ pub fn evaluate_basis(definition: &BasisDefinition, delta: Position) -> f64 {
             origin_scale,
             ..
         } => (preset_sign(preset, delta, ring), *decay_base, *origin_scale),
+        BasisDefinition::Combo { .. } => unreachable!(),
         BasisDefinition::Ring {
             ring_values,
             repeat,

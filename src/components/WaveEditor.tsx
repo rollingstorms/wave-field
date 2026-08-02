@@ -32,6 +32,7 @@ const coefficients: Coefficient[] = [1, 0, -1];
 
 interface WaveEditorProps {
   definitions: ComponentDefinitions;
+  componentCounts: Record<PieceType, number>;
   selected: { pieceType: PieceType; componentIndex: number };
   onSelect: (selection: { pieceType: PieceType; componentIndex: number }) => void;
   onUpdate: (definition: BasisDefinition) => void;
@@ -39,12 +40,6 @@ interface WaveEditorProps {
   onResetAll: () => void;
   onImport: (payload: unknown) => void;
 }
-
-function componentCount(pieceType: PieceType) {
-  return definitionsShape[pieceType];
-}
-
-const definitionsShape = { pawn: 1, rook: 2, spy: 3, king: 3 } as const;
 
 function label(value: number) {
   return value > 0 ? "+" : value < 0 ? "-" : "0";
@@ -60,7 +55,7 @@ function editableRingValues(definition: BasisDefinition) {
   return definition.kind === "ring" ? definition.ringValues.slice(1) : [];
 }
 
-export function WaveEditor({ definitions, selected, onSelect, onUpdate, onResetSelected, onResetAll, onImport }: WaveEditorProps) {
+export function WaveEditor({ definitions, componentCounts, selected, onSelect, onUpdate, onResetSelected, onResetAll, onImport }: WaveEditorProps) {
   const definition = definitions[selected.pieceType][selected.componentIndex];
   const grid = kernelValues(selected.pieceType, definition);
 
@@ -86,7 +81,7 @@ export function WaveEditor({ definitions, selected, onSelect, onUpdate, onResetS
           aria-label="Component selector"
         >
           {pieceTypes.flatMap((pieceType) =>
-            Array.from({ length: componentCount(pieceType) }, (_, index) => (
+            Array.from({ length: componentCounts[pieceType] }, (_, index) => (
               <option key={`${pieceType}-${index}`} value={`${pieceType}:${index}`}>{pieceName(pieceType).toUpperCase()} C{index + 1}</option>
             )),
           )}

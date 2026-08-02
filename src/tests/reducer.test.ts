@@ -4,16 +4,35 @@ import { gameReducer } from "../game/reducer";
 import { createInitialState } from "../game/initialState";
 import { getLegalMoves } from "../game/movement";
 import { beginTurn } from "../game/rules";
+import type { GameState } from "../game/types";
+
+function expandedState(pieceType: "spy" | "king"): GameState {
+  const state = createInitialState();
+  if (pieceType === "spy") {
+    state.components.blue.spy = [1, 0, 0];
+    state.components.red.spy = [1, 0, 0];
+    state.defaultComponents.spy = [1, 0, 0];
+    state.activationOrders.blue.spy = [0];
+    state.activationOrders.red.spy = [0];
+  } else {
+    state.components.blue.king = [0, 1, 1];
+    state.components.red.king = [0, 1, 1];
+    state.defaultComponents.king = [0, 1, 1];
+    state.activationOrders.blue.king = [1, 2];
+    state.activationOrders.red.king = [1, 2];
+  }
+  return state;
+}
 
 describe("reducer", () => {
   it("allows multiple tuning changes without ending the turn", () => {
     const state = createInitialState();
     const tuned = gameReducer(state, { type: "tune", pieceType: "pawn", componentIndex: 0, value: -1 });
-    const tunedAgain = gameReducer(tuned, { type: "tune", pieceType: "spy", componentIndex: 1, value: 1 });
+    const tunedAgain = gameReducer(tuned, { type: "tune", pieceType: "spy", componentIndex: 0, value: -1 });
 
     expect(tunedAgain.currentPlayer).toBe("blue");
     expect(tunedAgain.components.blue.pawn[0]).toBe(-1);
-    expect(tunedAgain.components.blue.spy).toEqual([0, 1, 0]);
+    expect(tunedAgain.components.blue.spy).toEqual([-1]);
     expect(tunedAgain.history).toHaveLength(2);
   });
 
@@ -28,7 +47,7 @@ describe("reducer", () => {
   });
 
   it("keeps only the last activated spy component", () => {
-    const state = createInitialState();
+    const state = expandedState("spy");
     const first = gameReducer(state, { type: "tune", pieceType: "spy", componentIndex: 1, value: 1 });
 
     expect(first.components.blue.spy).toEqual([0, 1, 0]);
@@ -36,7 +55,7 @@ describe("reducer", () => {
   });
 
   it("allows active pawn and king components to flip sign", () => {
-    const state = createInitialState();
+    const state = expandedState("king");
     const pawnFlipped = gameReducer(state, { type: "tune", pieceType: "pawn", componentIndex: 0, value: -1 });
     const kingFlipped = gameReducer(pawnFlipped, { type: "tune", pieceType: "king", componentIndex: 1, value: -1 });
 
@@ -46,7 +65,7 @@ describe("reducer", () => {
   });
 
   it("allows temporary self-trapping tuning before the turn-ending move", () => {
-    const state = createInitialState();
+    const state = expandedState("king");
     const tuned = gameReducer(state, { type: "tune", pieceType: "king", componentIndex: 1, value: -1 });
 
     expect(tuned.components.blue.king).toEqual([0, -1, 1]);
@@ -54,7 +73,7 @@ describe("reducer", () => {
   });
 
   it("evicts the oldest active king component at full strength", () => {
-    const state = createInitialState();
+    const state = expandedState("king");
     const tuned = gameReducer(state, { type: "tune", pieceType: "king", componentIndex: 0, value: -1 });
 
     expect(tuned.components.blue.king).toEqual([-1, 0, 1]);
@@ -71,7 +90,7 @@ describe("reducer", () => {
   });
 
   it("a sign flip makes the component most recently active", () => {
-    const state = createInitialState();
+    const state = expandedState("king");
     const flipped = gameReducer(state, { type: "tune", pieceType: "king", componentIndex: 1, value: -1 });
     const activated = gameReducer(flipped, { type: "tune", pieceType: "king", componentIndex: 0, value: -1 });
 
@@ -108,7 +127,7 @@ describe("reducer", () => {
   });
 
   it("applies edited default controls to both players on restart", () => {
-    const state = createInitialState();
+    const state = expandedState("king");
     const edited = gameReducer(state, { type: "update-default-component", pieceType: "king", componentIndex: 0, value: -1 });
 
     expect(edited.components.blue.king).toEqual([0, 1, 1]);
@@ -120,7 +139,7 @@ describe("reducer", () => {
   });
 
   it("keeps edited defaults when undoing a game action", () => {
-    const state = createInitialState();
+    const state = expandedState("king");
     const tuned = gameReducer(state, { type: "tune", pieceType: "pawn", componentIndex: 0, value: -1 });
     const edited = gameReducer(tuned, { type: "update-default-component", pieceType: "king", componentIndex: 0, value: -1 });
     const undone = gameReducer(edited, { type: "undo" });
@@ -162,7 +181,7 @@ describe("reducer", () => {
   });
 
   it("replaces an existing default control when a type is at full strength", () => {
-    const state = createInitialState();
+    const state = expandedState("spy");
     const first = gameReducer(state, { type: "update-default-component", pieceType: "spy", componentIndex: 1, value: -1 });
 
     expect(first.defaultComponents.spy).toEqual([0, -1, 0]);

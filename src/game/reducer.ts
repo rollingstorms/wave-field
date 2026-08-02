@@ -1,9 +1,10 @@
-import { cloneDefinitions, DEFAULT_COMPONENTS, validateDefinition, validateDefinitions } from "../field/componentDefinitions";
-import { DEFAULT_HOME_ENERGY, DEFAULT_WAVE_SCALES, TUNING_STRENGTH } from "./constants";
+import { cloneDefinitions, DEFAULT_COMPONENTS, definitionForSlot, validateDefinition, validateDefinitions } from "../field/componentDefinitions";
+import { DEBUG_COMPONENT_COUNT_LIMITS, DEFAULT_HOME_ENERGY, DEFAULT_WAVE_SCALES, tuningStrengthFor } from "./constants";
 import { playHeuristicTurn } from "./ai";
 import { createInitialState, fromSnapshot, snapshot } from "./initialState";
 import { pieceNameLower } from "./pieceLabels";
 import { applyClosestPlayableHint, applyMove, applyTuning, beginTurn, randomizeTuning, resetTuning, resignInCheck } from "./rules";
+import { activationOrdersForPlayers } from "./tuning";
 import type { BasisDefinition, Coefficient, GameState, PieceType, Player, Position } from "./types";
 
 export type GameAction =
@@ -23,6 +24,7 @@ export type GameAction =
   | { type: "reset-wave-scales" }
   | { type: "update-home-energy"; pieceType: PieceType; value: number }
   | { type: "reset-home-energy" }
+  | { type: "set-component-count"; pieceType: PieceType; count: number }
   | { type: "reset-default-components" }
   | { type: "update-definition"; pieceType: PieceType; componentIndex: number; definition: BasisDefinition }
   | { type: "reset-definitions" }
@@ -37,15 +39,40 @@ function setDefaultControlAtStrength(
   if (value === 0) return null;
   const next = structuredClone(defaults);
   const coefficients = next[pieceType];
+  if (componentIndex < 0 || componentIndex >= coefficients.length) return null;
   if (coefficients[componentIndex] === value) return null;
 
   const activeIndices = coefficients.flatMap((coefficient, index) => coefficient === 0 ? [] : [index]);
-  if (coefficients[componentIndex] === 0 && activeIndices.length >= TUNING_STRENGTH[pieceType]) {
+  if (coefficients[componentIndex] === 0 && activeIndices.length >= tuningStrengthFor(pieceType, coefficients.length)) {
     const evictedIndex = activeIndices.find((index) => index !== componentIndex);
     if (evictedIndex !== undefined) coefficients[evictedIndex] = 0;
   }
   coefficients[componentIndex] = value;
   return next;
+}
+
+function resizedCoefficients(values: Coefficient[], count: number, pieceType: PieceType): Coefficient[] {
+  const next = values.slice(0, count);
+  while (next.length < count) next.push(0);
+  const seeded: Coefficient[] = next.every((value) => value === 0)
+    ? next.map((value, index) => index === 0 ? 1 : value)
+    : next;
+  const strength = tuningStrengthFor(pieceType, count);
+  let active = 0;
+  return seeded.map((value) => {
+    if (value === 0) return 0;
+    active += 1;
+    return active <= strength ? value : 0;
+  });
+}
+
+function defaultComponentsForState(state: GameState): GameState["defaultComponents"] {
+  const defaults = structuredClone(state.defaultComponents);
+  (Object.keys(defaults) as PieceType[]).forEach((pieceType) => {
+    const count = state.components.red[pieceType].length;
+    defaults[pieceType] = Array.from({ length: count }, (_, index) => index < tuningStrengthFor(pieceType, count) ? 1 : 0);
+  });
+  return defaults;
 }
 
 export function gameReducer(state: GameState, action: GameAction): GameState {
@@ -119,13 +146,37 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
     }
     case "reset-home-energy":
       return { ...state, homeEnergy: structuredClone(DEFAULT_HOME_ENERGY), history: [...state.history, snapshot(state)], message: "Home energy reset" };
+    case "set-component-count": {
+      const count = Math.floor(action.count);
+      if (count < 1 || count > DEBUG_COMPONENT_COUNT_LIMITS[action.pieceType]) {
+        return { ...state, message: `Pattern count must be between 1 and ${DEBUG_COMPONENT_COUNT_LIMITS[action.pieceType]}.` };
+      }
+      const components = structuredClone(state.components);
+      components.red[action.pieceType] = resizedCoefficients(components.red[action.pieceType], count, action.pieceType);
+      components.blue[action.pieceType] = resizedCoefficients(components.blue[action.pieceType], count, action.pieceType);
+      const defaultComponents = structuredClone(state.defaultComponents);
+      defaultComponents[action.pieceType] = resizedCoefficients(defaultComponents[action.pieceType], count, action.pieceType);
+      const definitions = structuredClone(state.definitions);
+      definitions[action.pieceType] = Array.from({ length: DEBUG_COMPONENT_COUNT_LIMITS[action.pieceType] }, (_, index) =>
+        definitions[action.pieceType][index] ?? definitionForSlot(action.pieceType, index));
+      const activationOrders = activationOrdersForPlayers(components);
+      return {
+        ...state,
+        components,
+        activationOrders,
+        defaultComponents,
+        definitions,
+        history: [...state.history, snapshot(state)],
+        message: `${pieceNameLower(action.pieceType)} patterns set to ${count}`,
+      };
+    }
     case "update-default-component": {
       const defaultComponents = setDefaultControlAtStrength(state.defaultComponents, action.pieceType, action.componentIndex, action.value);
       if (!defaultComponents) return { ...state, message: "Default controls must stay at full strength." };
       return { ...state, defaultComponents, message: "Default controls updated · restart to apply" };
     }
     case "reset-default-components":
-      return { ...state, defaultComponents: structuredClone(DEFAULT_COMPONENTS), message: "Default controls reset · restart to apply" };
+      return { ...state, defaultComponents: defaultComponentsForState(state), message: "Default controls reset · restart to apply" };
     case "update-definition": {
       if (!validateDefinition(action.definition)) {
         return { ...state, message: "Wave definitions must use base-2 decay and origin scale 1" };

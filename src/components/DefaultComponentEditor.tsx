@@ -1,5 +1,5 @@
 import { RotateCcw } from "lucide-react";
-import { COMPONENT_COUNTS, TUNING_STRENGTH } from "../game/constants";
+import { tuningStrengthFor } from "../game/constants";
 import { PIECE_TYPES, pieceName } from "../game/pieceLabels";
 import type { Coefficient, PieceType, PlayerComponents } from "../game/types";
 
@@ -35,9 +35,9 @@ export function DefaultComponentEditor({ defaults, onUpdate, onReset, onRestart 
           <div className="default-piece-row" key={pieceType}>
             <span className="default-piece-name">
               <strong>{pieceName(pieceType).toUpperCase()}</strong>
-              <small>Active {TUNING_STRENGTH[pieceType]}</small>
+              <small>Active {tuningStrengthFor(pieceType, defaults[pieceType].length)}</small>
             </span>
-            <div className={`default-component-list components-${COMPONENT_COUNTS[pieceType]}`}>
+            <div className={`default-component-list components-${defaults[pieceType].length}`}>
               {defaults[pieceType].map((coefficient, componentIndex) => (
                 <div className="default-component" key={`${pieceType}-${componentIndex}`}>
                   <span>C{componentIndex + 1}</span>
