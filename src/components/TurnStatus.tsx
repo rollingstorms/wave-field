@@ -1,9 +1,11 @@
 import { Bot, CircleHelp, Grid2X2, Palette, RotateCcw, Undo2, Wrench } from "lucide-react";
+import type { ReactNode } from "react";
 import type { GameState } from "../game/types";
 
 interface TurnStatusProps {
   state: GameState;
   aiThinking: boolean;
+  actions?: ReactNode;
 }
 
 interface GameActionsProps {
@@ -69,7 +71,7 @@ export function GameActions({ developerMode, continuousField, showTypeSums, ener
   );
 }
 
-export function TurnStatus({ state, aiThinking }: TurnStatusProps) {
+export function TurnStatus({ state, aiThinking, actions }: TurnStatusProps) {
   const winner = state.status === "red-won" ? "Red wins" : state.status === "blue-won" ? "Blue wins" : null;
   const playerName = state.currentPlayer === "blue" ? "Blue" : "Red";
   return (
@@ -78,9 +80,12 @@ export function TurnStatus({ state, aiThinking }: TurnStatusProps) {
         <p className={`side-label ${state.currentPlayer}`}>{state.currentPlayer.toUpperCase()}</p>
         <h1>Wave ± Field</h1>
       </div>
-      <div className="turn-block">
-        <span>TURN {state.turnNumber}</span>
-        <strong>{winner ?? (aiThinking ? `${playerName} AI thinking...` : state.message)}</strong>
+      <div className="topbar-right">
+        <div className="turn-block">
+          <span>TURN {state.turnNumber}</span>
+          <strong>{winner ?? (aiThinking ? `${playerName} AI thinking...` : state.message)}</strong>
+        </div>
+        {actions}
       </div>
     </header>
   );

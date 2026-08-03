@@ -30,7 +30,7 @@ button, select {
 button {
   border: 1px solid var(--line);
   background: #121515;
-  min-height: 40px;
+  min-height: 38px;
   cursor: pointer;
 }
 
@@ -41,7 +41,7 @@ button:focus-visible, select:focus-visible {
 
 .app {
   min-height: 100vh;
-  padding: 26px;
+  padding: 22px 24px;
 }
 
 .topbar, .top-actions, .play-area {
@@ -53,43 +53,54 @@ button:focus-visible, select:focus-visible {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
   align-items: start;
-  gap: 20px;
+  gap: 16px;
 }
 
 h1 {
   margin: 0;
-  font-size: clamp(1.7rem, 4vw, 3.2rem);
+  font-size: clamp(1.55rem, 3.6vw, 2.9rem);
   letter-spacing: 0;
   text-transform: uppercase;
 }
 
 .side-label {
-  margin: 0 0 5px;
-  font-size: 1.25rem;
+  margin: 0 0 3px;
+  font-size: 1.1rem;
 }
 
 .side-label.red { color: #ff665b; }
 .side-label.blue { color: #5c91e7; }
 
-.turn-block {
+.topbar-right {
   display: grid;
   gap: 8px;
-  justify-items: center;
-  text-align: center;
-  font-size: 1.15rem;
+  justify-items: end;
 }
 
-.turn-block span { font-size: 1.55rem; }
+.turn-block {
+  display: grid;
+  gap: 4px;
+  justify-items: end;
+  text-align: right;
+  font-size: 1rem;
+}
+
+.turn-block span { font-size: 1.3rem; }
+
+.turn-block strong {
+  max-width: min(420px, 48vw);
+}
 
 .actions {
   display: flex;
   justify-content: flex-end;
-  gap: 8px;
+  gap: 6px;
 }
 
 .actions button {
-  width: 44px;
-  height: 44px;
+  width: 40px;
+  height: 40px;
+  min-height: 40px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -102,8 +113,8 @@ h1 {
 .top-actions {
   display: flex;
   justify-content: flex-end;
-  margin-top: 14px;
-  margin-bottom: 14px;
+  margin-top: 10px;
+  margin-bottom: 10px;
 }
 
 .gradient-view-toggle .gradient-swatch {
@@ -119,12 +130,12 @@ h1 {
   grid-template-columns: minmax(0, 1fr) clamp(280px, 24vw, 360px);
   gap: clamp(16px, 2vw, 32px);
   align-items: start;
-  margin-top: 26px;
+  margin-top: 16px;
 }
 
 .config-stack {
   display: grid;
-  gap: 12px;
+  gap: 10px;
   min-width: 0;
 }
 
@@ -843,9 +854,9 @@ h1 {
 
 .randomize-controls,
 .reset-controls {
-  width: 36px;
-  height: 36px;
-  min-height: 36px;
+  width: 34px;
+  height: 34px;
+  min-height: 34px;
   padding: 0;
   display: grid;
   place-items: center;
@@ -853,10 +864,10 @@ h1 {
 
 .control-actions {
   display: grid;
-  grid-template-columns: repeat(2, 36px);
+  grid-template-columns: repeat(2, 34px);
   justify-content: end;
-  gap: 6px;
-  padding: 6px 10px 8px;
+  gap: 5px;
+  padding: 5px 8px 6px;
   border-top: 1px solid var(--line);
 }
 
@@ -871,10 +882,10 @@ h1 {
 
 .component-group {
   display: grid;
-  gap: 5px;
+  gap: 4px;
   align-items: center;
-  min-height: 54px;
-  padding: 7px 8px;
+  min-height: 51px;
+  padding: 6px 7px;
 }
 
 .component-group.components-1 {
@@ -893,7 +904,7 @@ h1 {
   display: grid;
   grid-column: 1;
   grid-row: 1;
-  grid-template-columns: 32px 18px minmax(0, 1fr);
+  grid-template-columns: 30px 17px minmax(0, 1fr);
   gap: 3px;
   align-items: center;
 }
@@ -901,7 +912,7 @@ h1 {
 .piece-shape-legend {
   position: relative;
   display: block;
-  width: 18px;
+  width: 17px;
   aspect-ratio: 1;
 }
 
@@ -921,13 +932,13 @@ h1 {
 .piece-heading-copy strong {
   min-width: 0;
   overflow: hidden;
-  font-size: 0.74rem;
+  font-size: 0.7rem;
   text-overflow: ellipsis;
 }
 
 .piece-heading-copy span {
   color: var(--muted);
-  font-size: 0.64rem;
+  font-size: 0.6rem;
 }
 
 .piece-heading-copy .component-count,
@@ -936,7 +947,7 @@ h1 {
 }
 
 .wave-thumbnail {
-  width: 32px;
+  width: 30px;
   aspect-ratio: 1;
   display: grid;
   grid-template-columns: repeat(7, 1fr);
@@ -973,11 +984,11 @@ h1 {
 }
 
 .coefficient-row button {
-  height: 38px;
-  min-height: 38px;
+  height: 36px;
+  min-height: 36px;
   min-width: 0;
   padding: 0;
-  font-size: 0.92rem;
+  font-size: 0.88rem;
   touch-action: manipulation;
   -webkit-tap-highlight-color: rgba(238, 234, 225, 0.18);
 }
@@ -992,10 +1003,10 @@ h1 {
 .legend {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(58px, 1fr));
-  gap: 6px 9px;
-  padding: 8px 10px;
+  gap: 5px 8px;
+  padding: 6px 8px;
   border-top: 1px solid var(--line);
-  font-size: 0.68rem;
+  font-size: 0.64rem;
 }
 
 .legend span {
@@ -1820,8 +1831,14 @@ select, .editor-bar button, .secondary, .import-button {
   .topbar {
     grid-template-columns: 1fr;
   }
+  .topbar-right {
+    width: 100%;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+  }
   .turn-block {
     justify-items: start;
+    text-align: left;
   }
   .play-area {
     grid-template-columns: 1fr;
@@ -1892,6 +1909,12 @@ select, .editor-bar button, .secondary, .import-button {
   .topbar > :first-child {
     min-width: 0;
   }
+  .topbar-right {
+    width: auto;
+    grid-template-columns: 1fr;
+    gap: 5px;
+    justify-items: end;
+  }
   .side-label {
     margin-bottom: 2px;
     font-size: 0.82rem;
@@ -1911,18 +1934,14 @@ select, .editor-bar button, .secondary, .import-button {
   .turn-block strong {
     max-width: 155px;
   }
-  .top-actions {
-    justify-content: stretch;
-  }
-  .top-actions .actions {
-    width: 100%;
-    justify-content: space-between;
-    gap: 5px;
+  .topbar-right .actions {
+    justify-content: flex-end;
+    gap: 4px;
   }
   .actions button {
-    width: 40px;
-    height: 40px;
-    min-height: 40px;
+    width: 35px;
+    height: 35px;
+    min-height: 35px;
   }
   .rules-page {
     padding-right: 12px;

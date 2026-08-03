@@ -210,41 +210,41 @@ export function App() {
       <TurnStatus
         state={state}
         aiThinking={aiThinking}
+        actions={(
+          <GameActions
+            developerMode={developerMode}
+            continuousField={continuousField}
+            showTypeSums={showTypeSums}
+            energyView={energyView}
+            aiEnabled={sidePolicies.blue !== "human" || sidePolicies.red !== "human"}
+            onUndo={undo}
+            onRestart={restartGame}
+            onToggleDeveloper={() => setDeveloperMode((value) => !value)}
+            onToggleContinuousField={() => {
+              setEnergyView(false);
+              setContinuousField((value) => !value);
+            }}
+            onToggleTypeSums={() => {
+              setEnergyView(false);
+              setShowTypeSums((value) => !value);
+            }}
+            onToggleEnergyView={() => {
+              setShowTypeSums(false);
+              setContinuousField(false);
+              setEnergyView((value) => !value);
+            }}
+            onToggleAi={() => {
+              setSidePolicies((policies) => (
+                policies.blue === "human" && policies.red === "human"
+                  ? { blue: "human", red: "heuristic" }
+                  : { blue: "human", red: "human" }
+              ));
+              setDuelRunning(false);
+            }}
+            onShowRules={() => setShowRules(true)}
+          />
+        )}
       />
-      <div className="top-actions">
-        <GameActions
-          developerMode={developerMode}
-          continuousField={continuousField}
-          showTypeSums={showTypeSums}
-          energyView={energyView}
-          aiEnabled={sidePolicies.blue !== "human" || sidePolicies.red !== "human"}
-          onUndo={undo}
-          onRestart={restartGame}
-          onToggleDeveloper={() => setDeveloperMode((value) => !value)}
-          onToggleContinuousField={() => {
-            setEnergyView(false);
-            setContinuousField((value) => !value);
-          }}
-          onToggleTypeSums={() => {
-            setEnergyView(false);
-            setShowTypeSums((value) => !value);
-          }}
-          onToggleEnergyView={() => {
-            setShowTypeSums(false);
-            setContinuousField(false);
-            setEnergyView((value) => !value);
-          }}
-          onToggleAi={() => {
-            setSidePolicies((policies) => (
-              policies.blue === "human" && policies.red === "human"
-                ? { blue: "human", red: "heuristic" }
-                : { blue: "human", red: "human" }
-            ));
-            setDuelRunning(false);
-          }}
-          onShowRules={() => setShowRules(true)}
-        />
-      </div>
       <div className="play-area">
         <Board
           state={state}
