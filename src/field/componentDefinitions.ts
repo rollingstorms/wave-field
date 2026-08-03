@@ -5,8 +5,8 @@ import type { BasisDefinition, FormulaPreset } from "../game/types";
 export const DEFAULT_COMPONENTS: PlayerComponents = {
   pawn: [1],
   rook: [1, 1],
-  spy: [1, 0, 0],
-  king: [0, 1, 1],
+  spy: [1, 0],
+  king: [1, 1],
 };
 
 export const DEBUG_DEFINITIONS: ComponentDefinitions = {

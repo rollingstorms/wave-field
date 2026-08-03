@@ -513,7 +513,7 @@ pub fn get_playable_moves(piece_id: &str, state: &GameState) -> Vec<Position> {
     let field = evaluate_field(state);
     get_legal_moves(piece_id, state, &field)
         .into_iter()
-        .filter(|destination| apply_move(piece_id, *destination, state.clone(), true).ok)
+        .filter(|destination| apply_move(piece_id, *destination, state.clone(), false).ok)
         .collect()
 }
 

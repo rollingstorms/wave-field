@@ -74,8 +74,14 @@ export function Board({ state, field, typeFields, continuousField, showTypeSums,
   const [energySelection, setEnergySelection] = useState<Position | null>(null);
   const selectedPiece = state.pieces.find((piece) => piece.id === state.selectedPieceId);
   const interactionPiece = energyView ? undefined : state.pieces.find((piece) => piece.id === draggingPieceId) ?? selectedPiece;
-  const reachableMoves = !locked && interactionPiece ? getLegalMoves(interactionPiece.id, state, field) : [];
-  const legalMoves = !locked && interactionPiece ? getPlayableMoves(interactionPiece.id, state, field) : [];
+  const reachableMoves = useMemo(
+    () => !locked && interactionPiece ? getLegalMoves(interactionPiece.id, state, field) : [],
+    [field, interactionPiece, locked, state],
+  );
+  const legalMoves = useMemo(
+    () => !locked && interactionPiece ? getPlayableMoves(interactionPiece.id, state, field) : [],
+    [field, interactionPiece, locked, state],
+  );
   const previewState = useMemo<GameState>(() => {
     if (!draggingPieceId || !dragPreview) return state;
     const piece = state.pieces.find((candidate) => candidate.id === draggingPieceId);
@@ -127,7 +133,7 @@ export function Board({ state, field, typeFields, continuousField, showTypeSums,
     if (!selectedPiece) return new Set<string>();
     const ownPieceIds = new Set(state.pieces.filter((piece) => piece.owner === state.currentPlayer).map((piece) => piece.id));
     return new Set(legalMoves.flatMap((move) => {
-      const result = applyMove(selectedPiece.id, move, state);
+      const result = applyMove(selectedPiece.id, move, state, { analyzeCheckmate: false });
       if (!result.ok) return [];
       const remainingIds = new Set(result.state.pieces.map((piece) => piece.id));
       return [...ownPieceIds].some((id) => !remainingIds.has(id)) ? [`${move.x}:${move.y}`] : [];
@@ -142,7 +148,7 @@ export function Board({ state, field, typeFields, continuousField, showTypeSums,
     return new Set(reachableMoves.flatMap((move) => {
       const key = `${move.x}:${move.y}`;
       if (playableMoveKeys.has(key)) return [];
-      const result = applyMove(interactionPiece.id, move, state);
+      const result = applyMove(interactionPiece.id, move, state, { analyzeCheckmate: false });
       return result.reason?.toLowerCase().includes("big hat unprotected") || result.reason?.toLowerCase().includes("king unprotected") ? [key] : [];
     }));
   }, [interactionPiece, playableMoveKeys, reachableMoves, state]);
@@ -229,7 +235,8 @@ export function Board({ state, field, typeFields, continuousField, showTypeSums,
     if (!drag || drag.contactId !== contactId || drag.input !== input) return false;
     const position = positionFromPointer(clientX, clientY);
     const legal = position && drag.legalMoves.some((move) => samePosition(move, position));
-    setDragPreview(legal ? position : drag.start);
+    const nextPreview = legal ? position : drag.start;
+    setDragPreview((current) => current && samePosition(current, nextPreview) ? current : nextPreview);
     return true;
   }
 

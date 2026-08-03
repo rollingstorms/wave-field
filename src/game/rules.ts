@@ -251,7 +251,7 @@ export function applyMove(pieceId: string, destination: Position, state: GameSta
 export function getPlayableMoves(pieceId: string, state: GameState, field: number[][] = evaluateField(state)): Position[] {
   const rustMoves = rustPlayableMoves(pieceId, state);
   if (rustMoves) return rustMoves;
-  return getLegalMoves(pieceId, state, field).filter((destination) => applyMove(pieceId, destination, state).ok);
+  return getLegalMoves(pieceId, state, field).filter((destination) => applyMove(pieceId, destination, state, { analyzeCheckmate: false }).ok);
 }
 
 export function resignInCheck(state: GameState): MoveResult {

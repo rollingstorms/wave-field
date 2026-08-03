@@ -32,7 +32,7 @@ describe("reducer", () => {
 
     expect(tunedAgain.currentPlayer).toBe("blue");
     expect(tunedAgain.components.blue.pawn[0]).toBe(-1);
-    expect(tunedAgain.components.blue.spy).toEqual([-1, 0, 0]);
+    expect(tunedAgain.components.blue.spy).toEqual([-1, 0]);
     expect(tunedAgain.history).toHaveLength(2);
   });
 

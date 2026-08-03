@@ -45,9 +45,9 @@ function defaultValues(pieceType: PieceType): Coefficient[] {
     case "rook":
       return [1, 1];
     case "spy":
-      return [1, 0, 0];
+      return [1, 0];
     case "king":
-      return [0, 1, 1];
+      return [1, 1];
   }
 }
 

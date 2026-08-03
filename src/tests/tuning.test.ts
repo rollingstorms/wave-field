@@ -5,11 +5,14 @@ import { coefficientLabel } from "../components/ComponentControls";
 import { randomizeTuning, resetTuning } from "../game/rules";
 
 describe("component strength budget", () => {
-  it("starts both players' rooks at positive-positive", () => {
+  it("starts both players with the trimmed default component set", () => {
     const state = createInitialState();
 
+    expect(state.components.blue.pawn).toEqual([1]);
     expect(state.components.blue.rook).toEqual([1, 1]);
-    expect(state.components.red.rook).toEqual([1, 1]);
+    expect(state.components.blue.spy).toEqual([1, 0]);
+    expect(state.components.blue.king).toEqual([1, 1]);
+    expect(state.components.red).toEqual(state.components.blue);
   });
 
   it("counts positive and negative coefficients as active", () => {
@@ -38,13 +41,13 @@ describe("component strength budget", () => {
     expect(canSetComponentValue(components, "king", 1, 0)).toBe(true);
   });
 
-  it("starts the king with a neutral C1", () => {
+  it("starts the king at positive-positive full strength", () => {
     const state = createInitialState();
 
-    expect(state.components.blue.king).toEqual([0, 1, 1]);
-    expect(state.components.red.king).toEqual([0, 1, 1]);
-    expect(canSetComponentValue(state.components.blue, "king", 0, -1)).toBe(false);
-    expect(canSetComponentValue(state.components.blue, "king", 2, 0)).toBe(true);
+    expect(state.components.blue.king).toEqual([1, 1]);
+    expect(state.components.red.king).toEqual([1, 1]);
+    expect(canSetComponentValue(state.components.blue, "king", 0, -1)).toBe(true);
+    expect(canSetComponentValue(state.components.blue, "king", 0, 0)).toBe(true);
   });
 
   it("displays component signs as field signs for each player", () => {
