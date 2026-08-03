@@ -58,10 +58,11 @@ Each piece type has a home-square energy parameter for its own square. The
 defaults are Round Hat `0`, Tower `0`, Triangle Hat `0.5`, and Big Hat `0`. Other pieces can
 still contribute to that square from afar.
 
-Every basis wave halves once per square ring: `1`, `1/2`, `1/4`, `1/8`, and so
-on. Coefficients and strengths are integers, so combined field totals are always
-dyadic fractions whose denominators are powers of two. A sum may be `3/8` or
-`5/16`, but never `1/3` or `1/5`.
+Ring decay is currently disabled, so every remote square in a basis wave uses
+the same strength before piece energy and friendly/hostile scaling are applied.
+The decay base remains configurable in the wave definition model, but the live
+ring-decay exponent is `0` for this rules trial. Coefficients and strengths are
+integers, so combined field totals remain integers under the current defaults.
 
 Each piece type also has friendly and hostile scale parameters. A component
 cell that supports its owner uses the friendly scale; a cell that opposes its

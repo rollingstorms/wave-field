@@ -67,14 +67,16 @@ describe("field engine", () => {
   it("pawn defaults to stronger friendly than hostile ring-1 pressure", () => {
     const state = tuned("pawn", [1]);
     const piece = state.pieces[0];
-    expect(evaluatePieceContribution(piece, { x: 4, y: 3 }, state)).toBeCloseTo(-0.5);
-    expect(evaluatePieceContribution(piece, { x: 4, y: 4 }, state)).toBeCloseTo(2);
+    expect(evaluatePieceContribution(piece, { x: 4, y: 3 }, state)).toBeCloseTo(-1);
+    expect(evaluatePieceContribution(piece, { x: 4, y: 4 }, state)).toBeCloseTo(4);
   });
 
-  it("decay halves each ring for equal signs", () => {
+  it("ring decay can be disabled so each remote ring keeps full pattern strength", () => {
     const basin = DEFAULT_DEFINITIONS.rook[0];
-    expect(Math.abs(evaluateBasis(basin, { x: 1, y: 0 }))).toBeCloseTo(Math.abs(evaluateBasis(basin, { x: 0, y: 0 })) / 2);
-    expect(Math.abs(evaluateBasis(basin, { x: 2, y: 0 }))).toBeCloseTo(Math.abs(evaluateBasis(basin, { x: 1, y: 0 })) / 2);
+    expect(Math.abs(evaluateBasis(basin, { x: 1, y: 0 }))).toBeCloseTo(1);
+    expect(Math.abs(evaluateBasis(basin, { x: 2, y: 0 }))).toBeCloseTo(1);
+    expect(Math.abs(evaluateBasis(basin, { x: 3, y: 0 }))).toBeCloseTo(1);
+    expect(Math.abs(evaluateBasis(basin, { x: 4, y: 0 }))).toBeCloseTo(1);
   });
 
   it("every default basis value is zero or a signed power of two", () => {
@@ -104,7 +106,7 @@ describe("field engine", () => {
 
   it("spy +00 uses the spy friendly scale on the near remote scout basis", () => {
     const spy = tuned("spy", [1, 0, 0]);
-    expect(evaluatePieceContribution(spy.pieces[0], { x: 2, y: 3 }, spy)).toBeCloseTo(3);
+    expect(evaluatePieceContribution(spy.pieces[0], { x: 2, y: 3 }, spy)).toBeCloseTo(6);
   });
 
   it("piece home squares use the configured home energy", () => {

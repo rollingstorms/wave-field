@@ -1,3 +1,4 @@
+import { WAVE_RING_DECAY } from "../game/constants";
 import type { BasisDefinition, Coefficient, FormulaPreset, PieceType, Position } from "../game/types";
 
 function ring(offset: Position): number {
@@ -5,7 +6,8 @@ function ring(offset: Position): number {
 }
 
 function decay(r: number, decayBase: number, originScale: number): number {
-  return Math.pow(decayBase, -r) * (r === 0 ? originScale : 1);
+  if (r === 0) return originScale;
+  return Math.pow(decayBase, -r * WAVE_RING_DECAY);
 }
 
 function presetSign(preset: FormulaPreset, delta: Position, r: number): Coefficient {

@@ -18,12 +18,12 @@ describe("debug history roll", () => {
 
   it("describes moves with board coordinates", () => {
     const state = createInitialState();
-    const destination = getLegalMoves("blue-pawn-1", state, evaluateField(state))[0];
-    const moved = gameReducer(state, { type: "move", pieceId: "blue-pawn-1", destination });
+    const destination = getLegalMoves("blue-rook-1", state, evaluateField(state))[0];
+    const moved = gameReducer(state, { type: "move", pieceId: "blue-rook-1", destination });
     const entries = buildHistoryRoll(moved);
 
-    expect(entries.at(-1)?.summary).toBe("Blue moved round hat");
-    expect(entries.at(-1)?.details.some((detail) => detail.includes("Blue round hat C6→"))).toBe(true);
+    expect(entries.at(-1)?.summary).toBe("Blue moved tower");
+    expect(entries.at(-1)?.details.some((detail) => detail.includes("Blue tower C7→"))).toBe(true);
   });
 
   it("describes home energy changes", () => {

@@ -608,10 +608,13 @@ pub fn play_heuristic_turn(state: GameState, player: Player, options: AiTurnOpti
             continue;
         }
         if result.state.status == win_status(player) {
-            let mut state = result.state;
-            let snap = state.snapshot();
-            state.history.push(snap);
-            return state;
+            let mut winning_state = result.state;
+            winning_state.history = {
+                let mut history = state.history.clone();
+                history.push(state.snapshot());
+                history
+            };
+            return winning_state;
         }
         if fallback.is_none() {
             fallback = Some(result.state);

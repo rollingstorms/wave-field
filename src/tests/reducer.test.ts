@@ -38,11 +38,11 @@ describe("reducer", () => {
 
   it("ends the turn only after a piece moves", () => {
     const state = createInitialState();
-    const tuned = gameReducer(state, { type: "tune", pieceType: "pawn", componentIndex: 0, value: -1 });
-    const destination = getLegalMoves("blue-pawn-1", tuned, evaluateField(tuned))[0];
+    const tuned = gameReducer(state, { type: "tune", pieceType: "spy", componentIndex: 0, value: -1 });
+    const destination = getLegalMoves("blue-spy-1", tuned, evaluateField(tuned))[0];
     expect(destination).toBeDefined();
 
-    const moved = gameReducer(tuned, { type: "move", pieceId: "blue-pawn-1", destination });
+    const moved = gameReducer(tuned, { type: "move", pieceId: "blue-spy-1", destination });
     expect(moved.currentPlayer).toBe("red");
   });
 

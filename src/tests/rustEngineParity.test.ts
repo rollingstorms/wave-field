@@ -136,8 +136,8 @@ describe("Rust engine parity", () => {
 
   it("matches heuristic AI turns", () => {
     const opening = createInitialState();
-    expect(rust("playHeuristicTurn", opening, { player: "blue", seed: 17, variety: 0, timeBudgetMs: 1_000 }))
-      .toEqual(playHeuristicTurn(opening, "blue", { seed: 17, variety: 0, timeBudgetMs: 1_000 }));
+    expect(rust("playHeuristicTurn", opening, { player: "blue", seed: 17, variety: 0, timeBudgetMs: 10_000 }))
+      .toEqual(playHeuristicTurn(opening, "blue", { seed: 17, variety: 0, timeBudgetMs: 10_000 }));
 
   }, 15_000);
 });

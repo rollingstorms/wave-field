@@ -1,5 +1,7 @@
 use crate::model::*;
 
+const WAVE_RING_DECAY: f64 = 0.0;
+
 fn piece_strength(piece_type: PieceType) -> f64 {
     match piece_type {
         PieceType::Pawn => 1.0,
@@ -211,7 +213,11 @@ pub fn evaluate_basis(definition: &BasisDefinition, delta: Position) -> f64 {
             )
         }
     };
-    let multiplier = decay_base.powi(-ring) * if ring == 0 { origin_scale } else { 1.0 };
+    let multiplier = if ring == 0 {
+        origin_scale
+    } else {
+        decay_base.powf(-f64::from(ring) * WAVE_RING_DECAY)
+    };
     f64::from(sign) * multiplier
 }
 
