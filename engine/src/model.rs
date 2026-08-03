@@ -186,6 +186,15 @@ pub enum BasisDefinition {
         #[serde(rename = "originScale")]
         origin_scale: f64,
     },
+    Grid {
+        name: String,
+        #[serde(rename = "gridValues")]
+        grid_values: Vec<Vec<i32>>,
+        #[serde(rename = "decayBase")]
+        decay_base: f64,
+        #[serde(rename = "originScale")]
+        origin_scale: f64,
+    },
     Combo {
         name: String,
         components: Vec<ComboBasisTerm>,

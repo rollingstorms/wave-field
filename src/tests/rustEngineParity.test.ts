@@ -89,6 +89,16 @@ describe("Rust engine parity", () => {
     expect(actual).toEqual(expected);
   });
 
+  it("matches custom integer grid definitions", () => {
+    const state = createInitialState();
+    const gridValues = Array.from({ length: 7 }, () => Array.from({ length: 7 }, () => 0));
+    gridValues[3][4] = 2;
+    gridValues[3][6] = -8;
+    state.definitions.pawn[0] = { kind: "grid", name: "Counter-decay", gridValues, decayBase: 2, originScale: 1 };
+
+    expect(rust<number[][]>("evaluateField", state)).toEqual(evaluateField(state));
+  });
+
   it("matches randomize and reset tuning actions", () => {
     const state = createInitialState();
     const rolls = [0, 0.3, 0.6, 0.9];

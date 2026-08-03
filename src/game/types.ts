@@ -77,9 +77,17 @@ export interface PresetBasisDefinition {
   originScale: number;
 }
 
+export interface GridBasisDefinition {
+  kind: "grid";
+  name: string;
+  gridValues: number[][];
+  decayBase: number;
+  originScale: number;
+}
+
 export interface ComboBasisTerm {
   weight: number;
-  definition: RingBasisDefinition | PresetBasisDefinition;
+  definition: RingBasisDefinition | PresetBasisDefinition | GridBasisDefinition;
 }
 
 export interface ComboBasisDefinition {
@@ -90,7 +98,7 @@ export interface ComboBasisDefinition {
   originScale: number;
 }
 
-export type BasisDefinition = RingBasisDefinition | PresetBasisDefinition | ComboBasisDefinition;
+export type BasisDefinition = RingBasisDefinition | PresetBasisDefinition | GridBasisDefinition | ComboBasisDefinition;
 
 export type ComponentDefinitions = {
   [K in PieceType]: BasisDefinition[];

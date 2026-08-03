@@ -1433,6 +1433,32 @@ select, .editor-bar button, .secondary, .import-button {
   color: #111313;
 }
 
+.grid-editor {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(32px, 1fr));
+  gap: 4px;
+  max-width: 360px;
+}
+
+.grid-editor input {
+  width: 100%;
+  min-width: 0;
+  height: 34px;
+  text-align: center;
+  border: 1px solid var(--line);
+  background: #101212;
+  color: var(--text);
+  padding: 0 2px;
+}
+
+.grid-editor input:disabled {
+  opacity: 0.45;
+}
+
+.grid-editor .red { border-color: #ff776d; }
+.grid-editor .blue { border-color: #77a8ff; }
+.grid-editor .neutral { color: var(--muted); }
+
 .kernel .red { color: #ff776d; }
 .kernel .blue { color: #77a8ff; }
 .kernel .neutral { color: var(--muted); }

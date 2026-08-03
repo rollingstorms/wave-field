@@ -29,6 +29,7 @@ const presets: FormulaPreset[] = [
   "dipole-y",
 ];
 const coefficients: Coefficient[] = [1, 0, -1];
+const gridLimit = 8;
 
 interface WaveEditorProps {
   definitions: ComponentDefinitions;
@@ -45,6 +46,11 @@ function label(value: number) {
   return value > 0 ? "+" : value < 0 ? "-" : "0";
 }
 
+function valueLabel(value: number) {
+  if (Math.abs(value) < 0.001) return "0";
+  return Number.isInteger(value) ? String(value) : value.toFixed(2);
+}
+
 function kernelValues(pieceType: PieceType, definition: BasisDefinition) {
   return Array.from({ length: BOARD_SIZE }, (_, y) =>
     Array.from({ length: BOARD_SIZE }, (_, x) => evaluateComponentBasis(pieceType, definition, { x: x - 3, y: y - 3 })),
@@ -53,6 +59,24 @@ function kernelValues(pieceType: PieceType, definition: BasisDefinition) {
 
 function editableRingValues(definition: BasisDefinition) {
   return definition.kind === "ring" ? definition.ringValues.slice(1) : [];
+}
+
+function blankGrid() {
+  return Array.from({ length: BOARD_SIZE }, () => Array.from({ length: BOARD_SIZE }, () => 0));
+}
+
+function gridFromDefinition(pieceType: PieceType, definition: BasisDefinition) {
+  if (definition.kind === "grid") return structuredClone(definition.gridValues);
+  return Array.from({ length: BOARD_SIZE }, (_, y) =>
+    Array.from({ length: BOARD_SIZE }, (_, x) => {
+      if (x === 3 && y === 3) return 0;
+      return Math.max(-1, Math.min(1, Math.sign(evaluateComponentBasis(pieceType, definition, { x: x - 3, y: y - 3 }))));
+    }),
+  );
+}
+
+function clampGridValue(value: number) {
+  return Math.max(-gridLimit, Math.min(gridLimit, Math.trunc(value || 0)));
 }
 
 export function WaveEditor({ definitions, componentCounts, selected, onSelect, onUpdate, onResetSelected, onResetAll, onImport }: WaveEditorProps) {
@@ -67,6 +91,18 @@ export function WaveEditor({ definitions, componentCounts, selected, onSelect, o
       base.ringValues[index] = value;
       onUpdate(base);
     }
+  }
+
+  function updateGridValue(x: number, y: number, value: number) {
+    const gridValues = definition.kind === "grid" ? structuredClone(definition.gridValues) : gridFromDefinition(selected.pieceType, definition);
+    gridValues[y][x] = x === 3 && y === 3 ? 0 : clampGridValue(value);
+    onUpdate({
+      kind: "grid",
+      name: definition.name,
+      gridValues,
+      decayBase: definition.decayBase,
+      originScale: definition.originScale,
+    });
   }
 
   return (
@@ -109,12 +145,13 @@ export function WaveEditor({ definitions, componentCounts, selected, onSelect, o
           <div className="segmented">
             <button className={definition.kind === "preset" ? "active" : ""} onClick={() => onUpdate({ kind: "preset", name: definition.name, preset: "checkerboard", decayBase: definition.decayBase, originScale: definition.originScale })}>Preset</button>
             <button className={definition.kind === "ring" ? "active" : ""} onClick={() => onUpdate({ kind: "ring", name: definition.name, geometry: "chebyshev", ringValues: [1, 1, -1, -1], repeat: true, decayBase: definition.decayBase, originScale: definition.originScale })}>Rings</button>
+            <button className={definition.kind === "grid" ? "active" : ""} onClick={() => onUpdate({ kind: "grid", name: definition.name, gridValues: gridFromDefinition(selected.pieceType, definition), decayBase: definition.decayBase, originScale: definition.originScale })}>Grid</button>
           </div>
           {definition.kind === "preset" ? (
             <select value={definition.preset} onChange={(event) => onUpdate({ ...definition, preset: event.target.value as FormulaPreset })}>
               {presets.map((preset) => <option key={preset} value={preset}>{preset}</option>)}
             </select>
-          ) : (
+          ) : definition.kind === "ring" ? (
             <div className="ring-editor">
               {editableRingValues(definition).map((value, index) => (
                 <div className="ring-row" key={index + 1}>
@@ -125,13 +162,32 @@ export function WaveEditor({ definitions, componentCounts, selected, onSelect, o
                 </div>
               ))}
             </div>
+          ) : definition.kind === "grid" ? (
+            <div className="grid-editor" aria-label="Raw integer pattern values">
+              {(definition.gridValues.length === BOARD_SIZE ? definition.gridValues : blankGrid()).map((row, y) => row.map((value, x) => (
+                <input
+                  key={`${x}-${y}`}
+                  type="number"
+                  min={-gridLimit}
+                  max={gridLimit}
+                  step={1}
+                  value={x === 3 && y === 3 ? 0 : value}
+                  disabled={x === 3 && y === 3}
+                  aria-label={`Pattern value ${x - 3},${y - 3}`}
+                  className={value > 0 ? "red" : value < 0 ? "blue" : "neutral"}
+                  onChange={(event) => updateGridValue(x, y, Number(event.target.value))}
+                />
+              )))}
+            </div>
+          ) : (
+            <p>Combo patterns can be edited by importing JSON.</p>
           )}
         </div>
         <div>
           <h3>Kernel preview</h3>
           <div className="kernel">
             {grid.map((row, y) => row.map((value, x) => (
-              <span className={value > 0 ? "red" : value < 0 ? "blue" : "neutral"} key={`${x}-${y}`}>{label(value)}</span>
+              <span className={value > 0 ? "red" : value < 0 ? "blue" : "neutral"} key={`${x}-${y}`}>{definition.kind === "grid" ? valueLabel(value) : label(value)}</span>
             )))}
           </div>
         </div>

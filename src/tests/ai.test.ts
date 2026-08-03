@@ -22,7 +22,7 @@ function setPiecePosition(state: GameState, pieceId: string, x: number, y: numbe
 describe("heuristic opponent", () => {
   it("completes a legal red turn", () => {
     const opening = createInitialState();
-    const blueMove = applyMove("blue-rook-1", { x: 1, y: 1 }, opening);
+    const blueMove = applyMove("blue-pawn-1", { x: 1, y: 1 }, opening);
     expect(blueMove.ok).toBe(true);
 
     const result = playHeuristicTurn(blueMove.state);

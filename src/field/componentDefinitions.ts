@@ -91,6 +91,14 @@ export function validateDefinition(value: unknown): value is BasisDefinition {
       && definition.ringValues.length > 0
       && definition.ringValues.every((coefficient) => coefficient === -1 || coefficient === 0 || coefficient === 1);
   }
+  if (definition.kind === "grid") {
+    return Array.isArray(definition.gridValues)
+      && definition.gridValues.length === 7
+      && definition.gridValues.every((row) =>
+        Array.isArray(row)
+        && row.length === 7
+        && row.every((value) => Number.isInteger(value) && Math.abs(value) <= 8));
+  }
   if (definition.kind === "combo") {
     return Array.isArray(definition.components)
       && definition.components.length > 0

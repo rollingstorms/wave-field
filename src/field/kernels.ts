@@ -1,4 +1,3 @@
-import { WAVE_RING_DECAY } from "../game/constants";
 import type { BasisDefinition, Coefficient, FormulaPreset, PieceType, Position } from "../game/types";
 
 function ring(offset: Position): number {
@@ -6,8 +5,7 @@ function ring(offset: Position): number {
 }
 
 function decay(r: number, decayBase: number, originScale: number): number {
-  if (r === 0) return originScale;
-  return Math.pow(decayBase, -r * WAVE_RING_DECAY);
+  return Math.pow(decayBase, -r) * (r === 0 ? originScale : 1);
 }
 
 function presetSign(preset: FormulaPreset, delta: Position, r: number): Coefficient {
@@ -83,6 +81,10 @@ export function evaluateBasis(definition: BasisDefinition, delta: Position): num
   const multiplier = decay(r, definition.decayBase, definition.originScale);
   if (definition.kind === "preset") {
     return presetSign(definition.preset, delta, r) * multiplier;
+  }
+  if (definition.kind === "grid") {
+    const row = definition.gridValues[delta.y + 3];
+    return (row?.[delta.x + 3] ?? 0) * multiplier;
   }
 
   const index = definition.repeat ? r % definition.ringValues.length : r;

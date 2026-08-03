@@ -4,7 +4,7 @@ import { evaluateField, evaluatePieceContribution, evaluateTypeFields } from "..
 import { evaluateBasis, evaluateComponentBasis } from "../field/kernels";
 import { DEFAULT_HOME_ENERGY, FIELD_EPSILON } from "../game/constants";
 import { createInitialState } from "../game/initialState";
-import type { Coefficient, FormulaPreset, GameState, PieceType } from "../game/types";
+import type { BasisDefinition, Coefficient, FormulaPreset, GameState, PieceType } from "../game/types";
 
 const allPresets: FormulaPreset[] = [
   "checkerboard",
@@ -67,16 +67,26 @@ describe("field engine", () => {
   it("pawn defaults to stronger friendly than hostile ring-1 pressure", () => {
     const state = tuned("pawn", [1]);
     const piece = state.pieces[0];
-    expect(evaluatePieceContribution(piece, { x: 4, y: 3 }, state)).toBeCloseTo(-1);
-    expect(evaluatePieceContribution(piece, { x: 4, y: 4 }, state)).toBeCloseTo(4);
+    expect(evaluatePieceContribution(piece, { x: 4, y: 3 }, state)).toBeCloseTo(-0.5);
+    expect(evaluatePieceContribution(piece, { x: 4, y: 4 }, state)).toBeCloseTo(2);
   });
 
-  it("ring decay can be disabled so each remote ring keeps full pattern strength", () => {
+  it("decay halves each ring for equal signs", () => {
     const basin = DEFAULT_DEFINITIONS.rook[0];
-    expect(Math.abs(evaluateBasis(basin, { x: 1, y: 0 }))).toBeCloseTo(1);
-    expect(Math.abs(evaluateBasis(basin, { x: 2, y: 0 }))).toBeCloseTo(1);
-    expect(Math.abs(evaluateBasis(basin, { x: 3, y: 0 }))).toBeCloseTo(1);
-    expect(Math.abs(evaluateBasis(basin, { x: 4, y: 0 }))).toBeCloseTo(1);
+    expect(Math.abs(evaluateBasis(basin, { x: 1, y: 0 }))).toBeCloseTo(Math.abs(evaluateBasis(basin, { x: 0, y: 0 })) / 2);
+    expect(Math.abs(evaluateBasis(basin, { x: 2, y: 0 }))).toBeCloseTo(Math.abs(evaluateBasis(basin, { x: 1, y: 0 })) / 2);
+  });
+
+  it("grid definitions use integer cells before normal ring decay", () => {
+    const gridValues = Array.from({ length: 7 }, () => Array.from({ length: 7 }, () => 0));
+    gridValues[3][4] = 2;
+    gridValues[3][6] = -8;
+    const definition: BasisDefinition = { kind: "grid", name: "Counter-decay", gridValues, decayBase: 2, originScale: 1 };
+
+    expect(evaluateBasis(definition, { x: 1, y: 0 })).toBeCloseTo(1);
+    expect(evaluateBasis(definition, { x: 3, y: 0 })).toBeCloseTo(-1);
+    expect(evaluateBasis(definition, { x: 4, y: 0 })).toBe(0);
+    expect(validateDefinition(definition)).toBe(true);
   });
 
   it("every default basis value is zero or a signed power of two", () => {
@@ -106,7 +116,7 @@ describe("field engine", () => {
 
   it("spy +00 uses the spy friendly scale on the near remote scout basis", () => {
     const spy = tuned("spy", [1, 0, 0]);
-    expect(evaluatePieceContribution(spy.pieces[0], { x: 2, y: 3 }, spy)).toBeCloseTo(6);
+    expect(evaluatePieceContribution(spy.pieces[0], { x: 2, y: 3 }, spy)).toBeCloseTo(3);
   });
 
   it("piece home squares use the configured home energy", () => {

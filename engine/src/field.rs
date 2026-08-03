@@ -1,7 +1,5 @@
 use crate::model::*;
 
-const WAVE_RING_DECAY: f64 = 0.0;
-
 fn piece_strength(piece_type: PieceType) -> f64 {
     match piece_type {
         PieceType::Pawn => 1.0,
@@ -192,8 +190,27 @@ pub fn evaluate_basis(definition: &BasisDefinition, delta: Position) -> f64 {
             decay_base,
             origin_scale,
             ..
-        } => (preset_sign(preset, delta, ring), *decay_base, *origin_scale),
+        } => (
+            f64::from(preset_sign(preset, delta, ring)),
+            *decay_base,
+            *origin_scale,
+        ),
         BasisDefinition::Combo { .. } => unreachable!(),
+        BasisDefinition::Grid {
+            grid_values,
+            decay_base,
+            origin_scale,
+            ..
+        } => {
+            let y = (delta.y + 3) as usize;
+            let x = (delta.x + 3) as usize;
+            let value = grid_values
+                .get(y)
+                .and_then(|row| row.get(x))
+                .copied()
+                .unwrap_or(0);
+            (f64::from(value), *decay_base, *origin_scale)
+        }
         BasisDefinition::Ring {
             ring_values,
             repeat,
@@ -207,18 +224,18 @@ pub fn evaluate_basis(definition: &BasisDefinition, delta: Position) -> f64 {
                 ring as usize
             };
             (
-                *ring_values.get(index).unwrap_or(&0),
+                f64::from(*ring_values.get(index).unwrap_or(&0)),
                 *decay_base,
                 *origin_scale,
             )
         }
     };
     let multiplier = if ring == 0 {
-        origin_scale
+        decay_base.powi(-ring) * origin_scale
     } else {
-        decay_base.powf(-f64::from(ring) * WAVE_RING_DECAY)
+        decay_base.powi(-ring)
     };
-    f64::from(sign) * multiplier
+    sign * multiplier
 }
 
 pub fn evaluate_piece_contribution(piece: &Piece, square: Position, state: &GameState) -> f64 {
