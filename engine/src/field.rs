@@ -229,11 +229,10 @@ pub fn evaluate_piece_contribution(piece: &Piece, square: Position, state: &Game
         .iter()
         .enumerate()
         .map(|(index, coefficient)| {
-            let basis = evaluate_basis(&definitions[index], delta);
+            let value = f64::from(*coefficient) * evaluate_basis(&definitions[index], delta);
             let scale = state.wave_scales.get(piece.piece_type);
-            f64::from(*coefficient)
-                * basis
-                * if basis >= 0.0 {
+            value
+                * if value >= 0.0 {
                     scale.friendly
                 } else {
                     scale.hostile

@@ -95,29 +95,11 @@ describe("field engine", () => {
     const square = { x: 5, y: 3 };
     const delta = { x: 2, y: 0 };
     const c1 = evaluateBasis(DEFAULT_DEFINITIONS.rook[0], delta);
-    const c2 = evaluateBasis(DEFAULT_DEFINITIONS.rook[1], delta);
+    const c2 = -evaluateBasis(DEFAULT_DEFINITIONS.rook[1], delta);
     const scale = (value: number) => value >= 0 ? state.waveScales.rook.friendly : state.waveScales.rook.hostile;
-    const scaled = c1 * scale(c1) - c2 * scale(c2);
+    const scaled = c1 * scale(c1) + c2 * scale(c2);
     const expected = 2 * scaled;
     expect(evaluatePieceContribution(piece, square, state)).toBeCloseTo(expected);
-  });
-
-  it("polarity flips preserve remote field magnitude for major piece patterns", () => {
-    for (const pieceType of ["rook", "spy", "king"] as PieceType[]) {
-      const positive = tuned(pieceType, [1]);
-      const negative = tuned(pieceType, [-1]);
-      const positivePiece = positive.pieces[0];
-      const negativePiece = negative.pieces[0];
-
-      for (let y = 0; y < 7; y += 1) {
-        for (let x = 0; x < 7; x += 1) {
-          if (x === positivePiece.position.x && y === positivePiece.position.y) continue;
-          expect(evaluatePieceContribution(negativePiece, { x, y }, negative)).toBeCloseTo(
-            -evaluatePieceContribution(positivePiece, { x, y }, positive),
-          );
-        }
-      }
-    }
   });
 
   it("spy +00 uses the spy friendly scale on the near remote scout basis", () => {
