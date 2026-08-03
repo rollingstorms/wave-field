@@ -63,12 +63,13 @@ on. Coefficients and strengths are integers, so combined field totals are always
 dyadic fractions whose denominators are powers of two. A sum may be `3/8` or
 `5/16`, but never `1/3` or `1/5`.
 
-Each piece type also has friendly and hostile scale parameters. A component
-cell that supports its owner uses the friendly scale; a cell that opposes its
-owner uses the hostile scale. Current defaults are Round Hat `4/1`, Tower `3/1`, Triangle Hat
-`3/0`, and Big Hat `4/2` for friendly/hostile. Round Hats therefore have a first ring
-of `+2` on friendly cells and `-1/2` on hostile cells for Red, with signs
-reversed for Blue.
+Each piece type also has friendly and hostile scale parameters. A canonical
+positive wave cell uses the friendly scale, and a canonical negative wave cell
+uses the hostile scale. Polarity is applied after those scales, so flipping a
+piece type preserves the field strength and reverses the sign. Current defaults
+are Round Hat `4/1`, Tower `3/1`, Triangle Hat `3/0`, and Big Hat `4/2` for
+friendly/hostile. Round Hats therefore have a first ring of `+2` on friendly
+cells and `-1/2` on hostile cells for Red at `+`, with signs reversed at `-`.
 
 ## Pieces
 

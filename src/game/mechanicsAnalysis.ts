@@ -502,9 +502,9 @@ export function enumerateProfiles(pieceType: PieceType): Coefficient[][] {
 function profileContribution(pieceType: PieceType, profile: readonly Coefficient[], delta: Position, state: GameState): number {
   if (delta.x === 0 && delta.y === 0) return state.homeEnergy[pieceType];
   return PIECE_STRENGTH[pieceType] * profile.reduce<number>((total, coefficient, index) => {
-    const raw = coefficient * evaluateComponentBasis(pieceType, state.definitions[pieceType][index], delta);
+    const raw = evaluateComponentBasis(pieceType, state.definitions[pieceType][index], delta);
     const scale = raw >= 0 ? state.waveScales[pieceType].friendly : state.waveScales[pieceType].hostile;
-    return total + raw * scale;
+    return total + coefficient * raw * scale;
   }, 0);
 }
 

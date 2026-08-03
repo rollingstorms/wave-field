@@ -79,7 +79,7 @@ describe("stability and victory", () => {
     state.components.blue.pawn = [-1];
     state.components.blue.king = [0, 0, 0];
     state.components.blue.rook = [1, 0];
-    state.components.blue.spy = [-1, 0, 0];
+    state.components.blue.spy = [1, 0, 0];
     state.components.red.pawn = [0];
 
     const result = applyMove("blue-spy", { x: 5, y: 5 }, state);
@@ -166,12 +166,12 @@ describe("stability and victory", () => {
     ];
     state.components.blue.pawn = [0];
     state.components.blue.spy = [-1, 0, 0];
-    state.components.red.pawn = [-1];
+    state.components.red.pawn = [1];
     state.components.red.rook = [0, 0];
     state.definitions.spy[0] = structuredClone(state.definitions.pawn[0]);
     expect(getUnstablePieces("blue", state, evaluateField(state)).map((piece) => piece.id)).not.toContain("blue-pawn");
 
-    const result = applyMove("blue-spy", { x: 0, y: 3 }, state);
+    const result = applyMove("blue-spy", { x: 1, y: 3 }, state);
 
     expect(result.ok).toBe(true);
     expect(result.state.pieces.some((piece) => piece.id === "blue-pawn")).toBe(false);
@@ -187,7 +187,7 @@ describe("stability and victory", () => {
     ];
     state.components.blue.king = [0, 0, 0];
     state.components.blue.spy = [-1, 0, 0];
-    state.components.red.pawn = [-1];
+    state.components.red.pawn = [1];
     state.components.red.king = [0, 0, 0];
     const result = applyMove("blue-spy", { x: 2, y: 0 }, state);
     expect(result.ok).toBe(false);
@@ -203,11 +203,11 @@ describe("stability and victory", () => {
       { id: "red-king", owner: "red", type: "king", position: { x: 6, y: 6 }, unstable: false },
     ];
     state.components.blue.king = [0, 0, 0];
-    state.components.blue.spy = [-1, 0, 0];
+    state.components.blue.spy = [1, 0, 0];
     state.components.red.king = [0, 0, 0];
     state.definitions.spy[0] = structuredClone(state.definitions.pawn[0]);
 
-    const result = applyMove("blue-spy", { x: 0, y: 1 }, state);
+    const result = applyMove("blue-spy", { x: 0, y: 2 }, state);
 
     expect(result.ok).toBe(true);
     expect(result.state.status).toBe("playing");
