@@ -157,15 +157,23 @@ function PatternCountEditor({ state, onUpdate }: {
         {pieceTypes.map((pieceType) => (
           <div className="home-energy-row" key={pieceType}>
             <span>{pieceName(pieceType).toUpperCase()}</span>
-            <input
-              type="number"
-              min="1"
-              max={DEBUG_COMPONENT_COUNT_LIMITS[pieceType]}
-              step="1"
-              value={state.components[state.currentPlayer][pieceType].length}
-              onChange={(event) => onUpdate(pieceType, Number(event.currentTarget.value))}
-              aria-label={`${pieceName(pieceType)} pattern slots`}
-            />
+            <div className="slot-stepper">
+              <button
+                aria-label={`Remove ${pieceName(pieceType)} pattern slot`}
+                disabled={state.components[state.currentPlayer][pieceType].length <= 1}
+                onClick={() => onUpdate(pieceType, state.components[state.currentPlayer][pieceType].length - 1)}
+              >
+                -
+              </button>
+              <span>{state.components[state.currentPlayer][pieceType].length}</span>
+              <button
+                aria-label={`Add ${pieceName(pieceType)} pattern slot`}
+                disabled={state.components[state.currentPlayer][pieceType].length >= DEBUG_COMPONENT_COUNT_LIMITS[pieceType]}
+                onClick={() => onUpdate(pieceType, state.components[state.currentPlayer][pieceType].length + 1)}
+              >
+                +
+              </button>
+            </div>
           </div>
         ))}
       </div>

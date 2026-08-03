@@ -171,6 +171,13 @@ export function App() {
     });
   }
 
+  function setComponentCount(pieceType: PieceType, count: number) {
+    dispatch({ type: "set-component-count", pieceType, count });
+    if (editorSelection.pieceType === pieceType && editorSelection.componentIndex >= count) {
+      setEditorSelection({ pieceType, componentIndex: Math.max(0, count - 1) });
+    }
+  }
+
   function undo() {
     setDuelRunning(false);
     dispatch({ type: "undo" });
@@ -297,12 +304,7 @@ export function App() {
             onResetWaveScales={() => dispatch({ type: "reset-wave-scales" })}
             onUpdateHomeEnergy={(pieceType, value) => dispatch({ type: "update-home-energy", pieceType, value })}
             onResetHomeEnergy={() => dispatch({ type: "reset-home-energy" })}
-            onSetComponentCount={(pieceType, count) => {
-              dispatch({ type: "set-component-count", pieceType, count });
-              if (editorSelection.pieceType === pieceType && editorSelection.componentIndex >= count) {
-                setEditorSelection({ pieceType, componentIndex: Math.max(0, count - 1) });
-              }
-            }}
+            onSetComponentCount={setComponentCount}
             onResetDefaults={() => dispatch({ type: "reset-default-components" })}
             onRestart={() => dispatch({ type: "restart", keepDefinitions: true })}
           />
@@ -316,6 +318,7 @@ export function App() {
             }}
             selected={editorSelection}
             onSelect={setEditorSelection}
+            onSetComponentCount={setComponentCount}
             onUpdate={updateDefinition}
             onResetSelected={resetSelectedDefinition}
             onResetAll={() => dispatch({ type: "reset-definitions" })}

@@ -4,24 +4,24 @@ import type { BasisDefinition, FormulaPreset } from "../game/types";
 
 export const DEFAULT_COMPONENTS: PlayerComponents = {
   pawn: [1],
-  rook: [1],
-  spy: [1],
-  king: [1],
+  rook: [1, 1],
+  spy: [1, 0, 0],
+  king: [0, 1, 1],
 };
 
 export const DEBUG_DEFINITIONS: ComponentDefinitions = {
   pawn: [{ kind: "preset", name: "Checkerboard", preset: "checkerboard", decayBase: 2, originScale: 1 }],
   rook: [
-    { kind: "ring", name: "Tower cadence", geometry: "chebyshev", ringValues: [1, 1, 1, -1, -1, -1], repeat: true, decayBase: 2, originScale: 1 },
+    { kind: "ring", name: "Push pairs", geometry: "chebyshev", ringValues: [0, 1, 1, -1], repeat: true, decayBase: 2, originScale: 1 },
     { kind: "ring", name: "Pull gap push", geometry: "chebyshev", ringValues: [0, 1, 0, -1], repeat: true, decayBase: 2, originScale: 1 },
   ],
   spy: [
-    { kind: "preset", name: "Compass rose", preset: "compass-rose", decayBase: 2, originScale: 1 },
+    { kind: "preset", name: "Round Hat mask", preset: "checkerboard", decayBase: 2, originScale: 1 },
     { kind: "preset", name: "Diamond core", preset: "diamond-core", decayBase: 2, originScale: 1 },
     { kind: "preset", name: "Axis favor", preset: "axis-favor", decayBase: 2, originScale: 1 },
   ],
   king: [
-    { kind: "preset", name: "Block checker", preset: "block-checker", decayBase: 2, originScale: 1 },
+    { kind: "ring", name: "Slow alternating rings", geometry: "chebyshev", ringValues: [1, 1, 1, -1, -1, -1], repeat: true, decayBase: 2, originScale: 1 },
     { kind: "preset", name: "Horizontal mode", preset: "horizontal-versus-vertical", decayBase: 2, originScale: 1 },
     { kind: "preset", name: "Block checker", preset: "block-checker", decayBase: 2, originScale: 1 },
   ],

@@ -5,14 +5,11 @@ import { coefficientLabel } from "../components/ComponentControls";
 import { randomizeTuning, resetTuning } from "../game/rules";
 
 describe("component strength budget", () => {
-  it("starts every piece type with one reversible canonical pattern", () => {
+  it("starts both players' rooks at positive-positive", () => {
     const state = createInitialState();
 
-    expect(state.components.blue.pawn).toEqual([1]);
-    expect(state.components.blue.rook).toEqual([1]);
-    expect(state.components.blue.spy).toEqual([1]);
-    expect(state.components.blue.king).toEqual([1]);
-    expect(state.components.red).toEqual(state.components.blue);
+    expect(state.components.blue.rook).toEqual([1, 1]);
+    expect(state.components.red.rook).toEqual([1, 1]);
   });
 
   it("counts positive and negative coefficients as active", () => {
@@ -41,13 +38,13 @@ describe("component strength budget", () => {
     expect(canSetComponentValue(components, "king", 1, 0)).toBe(true);
   });
 
-  it("starts the king with one active canonical pattern", () => {
+  it("starts the king with a neutral C1", () => {
     const state = createInitialState();
 
-    expect(state.components.blue.king).toEqual([1]);
-    expect(state.components.red.king).toEqual([1]);
-    expect(canSetComponentValue(state.components.blue, "king", 0, -1)).toBe(true);
-    expect(canSetComponentValue(state.components.blue, "king", 0, 0)).toBe(true);
+    expect(state.components.blue.king).toEqual([0, 1, 1]);
+    expect(state.components.red.king).toEqual([0, 1, 1]);
+    expect(canSetComponentValue(state.components.blue, "king", 0, -1)).toBe(false);
+    expect(canSetComponentValue(state.components.blue, "king", 2, 0)).toBe(true);
   });
 
   it("displays component signs as field signs for each player", () => {

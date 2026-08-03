@@ -1,4 +1,4 @@
-import { BOARD_SIZE } from "../game/constants";
+import { BOARD_SIZE, DEBUG_COMPONENT_COUNT_LIMITS } from "../game/constants";
 import { evaluateComponentBasis } from "../field/kernels";
 import { PIECE_TYPES, pieceName } from "../game/pieceLabels";
 import type { BasisDefinition, Coefficient, ComponentDefinitions, FormulaPreset, PieceType } from "../game/types";
@@ -36,6 +36,7 @@ interface WaveEditorProps {
   componentCounts: Record<PieceType, number>;
   selected: { pieceType: PieceType; componentIndex: number };
   onSelect: (selection: { pieceType: PieceType; componentIndex: number }) => void;
+  onSetComponentCount: (pieceType: PieceType, count: number) => void;
   onUpdate: (definition: BasisDefinition) => void;
   onResetSelected: () => void;
   onResetAll: () => void;
@@ -79,9 +80,10 @@ function clampGridValue(value: number) {
   return Math.max(-gridLimit, Math.min(gridLimit, Math.trunc(value || 0)));
 }
 
-export function WaveEditor({ definitions, componentCounts, selected, onSelect, onUpdate, onResetSelected, onResetAll, onImport }: WaveEditorProps) {
+export function WaveEditor({ definitions, componentCounts, selected, onSelect, onSetComponentCount, onUpdate, onResetSelected, onResetAll, onImport }: WaveEditorProps) {
   const definition = definitions[selected.pieceType][selected.componentIndex];
   const grid = kernelValues(selected.pieceType, definition);
+  const selectedCount = componentCounts[selected.pieceType];
 
   function updateRingValue(index: number, value: Coefficient) {
     const base: BasisDefinition = definition.kind === "ring"
@@ -105,23 +107,24 @@ export function WaveEditor({ definitions, componentCounts, selected, onSelect, o
     });
   }
 
+  function addComponent(pieceType: PieceType) {
+    const count = componentCounts[pieceType];
+    if (count >= DEBUG_COMPONENT_COUNT_LIMITS[pieceType]) return;
+    onSetComponentCount(pieceType, count + 1);
+    onSelect({ pieceType, componentIndex: count });
+  }
+
+  function removeComponent(pieceType: PieceType) {
+    const count = componentCounts[pieceType];
+    if (count <= 1) return;
+    const nextCount = count - 1;
+    onSetComponentCount(pieceType, nextCount);
+    onSelect({ pieceType, componentIndex: Math.min(selected.componentIndex, nextCount - 1) });
+  }
+
   return (
     <section className="wave-editor">
       <div className="editor-bar">
-        <select
-          value={`${selected.pieceType}:${selected.componentIndex}`}
-          onChange={(event) => {
-            const [pieceType, componentIndex] = event.target.value.split(":");
-            onSelect({ pieceType: pieceType as PieceType, componentIndex: Number(componentIndex) });
-          }}
-          aria-label="Component selector"
-        >
-          {pieceTypes.flatMap((pieceType) =>
-            Array.from({ length: componentCounts[pieceType] }, (_, index) => (
-              <option key={`${pieceType}-${index}`} value={`${pieceType}:${index}`}>{pieceName(pieceType).toUpperCase()} C{index + 1}</option>
-            )),
-          )}
-        </select>
         <button onClick={onResetSelected}>Reset selected</button>
         <button onClick={onResetAll}>Reset all</button>
         <button onClick={() => navigator.clipboard?.writeText(JSON.stringify(definitions, null, 2))}>Export JSON</button>
@@ -137,6 +140,44 @@ export function WaveEditor({ definitions, componentCounts, selected, onSelect, o
             }}
           />
         </label>
+      </div>
+
+      <div className="pattern-tabs" aria-label="Piece pattern tabs">
+        {pieceTypes.map((pieceType) => (
+          <button
+            key={pieceType}
+            className={pieceType === selected.pieceType ? "active" : ""}
+            onClick={() => onSelect({ pieceType, componentIndex: Math.min(selected.componentIndex, componentCounts[pieceType] - 1) })}
+          >
+            {pieceName(pieceType).toUpperCase()}
+          </button>
+        ))}
+      </div>
+
+      <div className="component-tabs" aria-label={`${pieceName(selected.pieceType)} component tabs`}>
+        {Array.from({ length: selectedCount }, (_, index) => (
+          <button
+            key={index}
+            className={index === selected.componentIndex ? "active" : ""}
+            onClick={() => onSelect({ ...selected, componentIndex: index })}
+          >
+            C{index + 1}
+          </button>
+        ))}
+        <button
+          aria-label={`Add ${pieceName(selected.pieceType)} component`}
+          disabled={selectedCount >= DEBUG_COMPONENT_COUNT_LIMITS[selected.pieceType]}
+          onClick={() => addComponent(selected.pieceType)}
+        >
+          +
+        </button>
+        <button
+          aria-label={`Remove ${pieceName(selected.pieceType)} component`}
+          disabled={selectedCount <= 1}
+          onClick={() => removeComponent(selected.pieceType)}
+        >
+          -
+        </button>
       </div>
 
       <div className="editor-grid">
@@ -165,18 +206,27 @@ export function WaveEditor({ definitions, componentCounts, selected, onSelect, o
           ) : definition.kind === "grid" ? (
             <div className="grid-editor" aria-label="Raw integer pattern values">
               {(definition.gridValues.length === BOARD_SIZE ? definition.gridValues : blankGrid()).map((row, y) => row.map((value, x) => (
-                <input
+                <div
                   key={`${x}-${y}`}
-                  type="number"
-                  min={-gridLimit}
-                  max={gridLimit}
-                  step={1}
-                  value={x === 3 && y === 3 ? 0 : value}
-                  disabled={x === 3 && y === 3}
-                  aria-label={`Pattern value ${x - 3},${y - 3}`}
-                  className={value > 0 ? "red" : value < 0 ? "blue" : "neutral"}
-                  onChange={(event) => updateGridValue(x, y, Number(event.target.value))}
-                />
+                  className={`grid-stepper ${value > 0 ? "red" : value < 0 ? "blue" : "neutral"}`}
+                  aria-label={`Pattern value ${x - 3},${y - 3}: ${x === 3 && y === 3 ? 0 : value}`}
+                >
+                  <button
+                    aria-label={`Increase pattern value ${x - 3},${y - 3}`}
+                    disabled={x === 3 && y === 3 || value >= gridLimit}
+                    onClick={() => updateGridValue(x, y, value + 1)}
+                  >
+                    ▲
+                  </button>
+                  <span>{x === 3 && y === 3 ? 0 : value}</span>
+                  <button
+                    aria-label={`Decrease pattern value ${x - 3},${y - 3}`}
+                    disabled={x === 3 && y === 3 || value <= -gridLimit}
+                    onClick={() => updateGridValue(x, y, value - 1)}
+                  >
+                    ▼
+                  </button>
+                </div>
               )))}
             </div>
           ) : (

@@ -19,9 +19,9 @@ export const TUNING_STRENGTH = {
 
 export const DEFAULT_COMPONENT_COUNTS = {
   pawn: 1,
-  rook: 1,
-  spy: 1,
-  king: 1,
+  rook: 2,
+  spy: 3,
+  king: 3,
 } as const;
 
 export const DEBUG_COMPONENT_COUNT_LIMITS = {
