@@ -1,5 +1,5 @@
 import { cloneDefinitions, DEFAULT_COMPONENTS } from "../field/componentDefinitions";
-import { DEFAULT_HOME_ENERGY, DEFAULT_WAVE_SCALES } from "./constants";
+import { BOARD_CENTER, BOARD_SIZE, DEFAULT_HOME_ENERGY, DEFAULT_WAVE_SCALES } from "./constants";
 import { activationOrdersForPlayers } from "./tuning";
 import type { ComponentDefinitions, GameSnapshot, GameState, HomeEnergy, Piece, Player, PlayerComponents, PieceType, WaveScales } from "./types";
 
@@ -8,19 +8,24 @@ function piece(owner: Player, type: PieceType, x: number, y: number, n: number):
 }
 
 export function createInitialPieces(): Piece[] {
+  const left = BOARD_CENTER - 1;
+  const middle = BOARD_CENTER;
+  const right = BOARD_CENTER + 1;
+  const redBackRank = BOARD_SIZE - 1;
+  const redPawnRank = BOARD_SIZE - 2;
   return [
-    piece("blue", "rook", 2, 0, 1),
-    piece("blue", "king", 3, 0, 1),
-    piece("blue", "rook", 4, 0, 2),
-    piece("blue", "pawn", 2, 1, 1),
-    piece("blue", "spy", 3, 1, 1),
-    piece("blue", "pawn", 4, 1, 2),
-    piece("red", "pawn", 2, 5, 1),
-    piece("red", "spy", 3, 5, 1),
-    piece("red", "pawn", 4, 5, 2),
-    piece("red", "rook", 2, 6, 1),
-    piece("red", "king", 3, 6, 1),
-    piece("red", "rook", 4, 6, 2),
+    piece("blue", "rook", left, 0, 1),
+    piece("blue", "king", middle, 0, 1),
+    piece("blue", "rook", right, 0, 2),
+    piece("blue", "pawn", left, 1, 1),
+    piece("blue", "spy", middle, 1, 1),
+    piece("blue", "pawn", right, 1, 2),
+    piece("red", "pawn", left, redPawnRank, 1),
+    piece("red", "spy", middle, redPawnRank, 1),
+    piece("red", "pawn", right, redPawnRank, 2),
+    piece("red", "rook", left, redBackRank, 1),
+    piece("red", "king", middle, redBackRank, 1),
+    piece("red", "rook", right, redBackRank, 2),
   ];
 }
 

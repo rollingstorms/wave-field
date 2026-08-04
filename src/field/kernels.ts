@@ -1,4 +1,5 @@
 import type { BasisDefinition, Coefficient, FormulaPreset, PieceType, Position } from "../game/types";
+import { BOARD_CENTER } from "../game/constants";
 
 function ring(offset: Position): number {
   return Math.max(Math.abs(offset.x), Math.abs(offset.y));
@@ -83,8 +84,8 @@ export function evaluateBasis(definition: BasisDefinition, delta: Position): num
     return presetSign(definition.preset, delta, r) * multiplier;
   }
   if (definition.kind === "grid") {
-    const row = definition.gridValues[delta.y + 3];
-    return (row?.[delta.x + 3] ?? 0) * multiplier;
+    const row = definition.gridValues[delta.y + BOARD_CENTER];
+    return (row?.[delta.x + BOARD_CENTER] ?? 0) * multiplier;
   }
 
   const index = definition.repeat ? r % definition.ringValues.length : r;

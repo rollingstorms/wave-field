@@ -332,7 +332,7 @@ export function Board({ state, field, typeFields, continuousField, showTypeSums,
   }
 
   return (
-    <section className="board-wrap" aria-label="Wave Field board">
+    <section className="board-wrap" aria-label="Wave Field board" style={{ "--board-size": BOARD_SIZE } as CSSProperties}>
       {energyView && (
         <div className="energy-toolbar" aria-label="CMYK energy channels">
           <strong>CMYK ENERGY</strong>

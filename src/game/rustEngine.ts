@@ -1,3 +1,4 @@
+import { BIG_BOARD_SIZE, BOARD_SIZE } from "./constants";
 import type { Coefficient, GameState, MoveResult, PieceType, Player, Position } from "./types";
 
 interface RustBindings {
@@ -23,6 +24,7 @@ let bindings: RustBindings | null = null;
 
 function requestedRuleEngine(): "rust" | "ts" {
   if (!import.meta.env.DEV) return "ts";
+  if (BOARD_SIZE === BIG_BOARD_SIZE) return "ts";
   const requested = new URLSearchParams(globalThis.location?.search ?? "").get("engine");
   if (requested === "ts" || requested === "typescript") return "ts";
   return "rust";

@@ -1,4 +1,9 @@
-export const BOARD_SIZE = 7;
+const routePath = globalThis.location?.pathname.replace(/\/$/, "") ?? "";
+
+export const STANDARD_BOARD_SIZE = 7;
+export const BIG_BOARD_SIZE = 15;
+export const BOARD_SIZE = routePath.endsWith("/big") ? BIG_BOARD_SIZE : STANDARD_BOARD_SIZE;
+export const BOARD_CENTER = Math.floor(BOARD_SIZE / 2);
 export const FIELD_EPSILON = 1e-9;
 export const WAVE_DECAY_BASE = 2;
 export const WAVE_ORIGIN_SCALE = 1;

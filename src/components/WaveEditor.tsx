@@ -1,4 +1,4 @@
-import { BOARD_SIZE, DEBUG_COMPONENT_COUNT_LIMITS } from "../game/constants";
+import { BOARD_CENTER, BOARD_SIZE, DEBUG_COMPONENT_COUNT_LIMITS } from "../game/constants";
 import { evaluateComponentBasis } from "../field/kernels";
 import { PIECE_TYPES, pieceName } from "../game/pieceLabels";
 import type { BasisDefinition, Coefficient, ComponentDefinitions, FormulaPreset, PieceType } from "../game/types";
@@ -54,7 +54,7 @@ function valueLabel(value: number) {
 
 function kernelValues(pieceType: PieceType, definition: BasisDefinition) {
   return Array.from({ length: BOARD_SIZE }, (_, y) =>
-    Array.from({ length: BOARD_SIZE }, (_, x) => evaluateComponentBasis(pieceType, definition, { x: x - 3, y: y - 3 })),
+    Array.from({ length: BOARD_SIZE }, (_, x) => evaluateComponentBasis(pieceType, definition, { x: x - BOARD_CENTER, y: y - BOARD_CENTER })),
   );
 }
 
@@ -70,8 +70,8 @@ function gridFromDefinition(pieceType: PieceType, definition: BasisDefinition) {
   if (definition.kind === "grid") return structuredClone(definition.gridValues);
   return Array.from({ length: BOARD_SIZE }, (_, y) =>
     Array.from({ length: BOARD_SIZE }, (_, x) => {
-      if (x === 3 && y === 3) return 0;
-      return Math.max(-1, Math.min(1, Math.sign(evaluateComponentBasis(pieceType, definition, { x: x - 3, y: y - 3 }))));
+      if (x === BOARD_CENTER && y === BOARD_CENTER) return 0;
+      return Math.max(-1, Math.min(1, Math.sign(evaluateComponentBasis(pieceType, definition, { x: x - BOARD_CENTER, y: y - BOARD_CENTER }))));
     }),
   );
 }
@@ -97,7 +97,7 @@ export function WaveEditor({ definitions, componentCounts, selected, onSelect, o
 
   function updateGridValue(x: number, y: number, value: number) {
     const gridValues = definition.kind === "grid" ? structuredClone(definition.gridValues) : gridFromDefinition(selected.pieceType, definition);
-    gridValues[y][x] = x === 3 && y === 3 ? 0 : clampGridValue(value);
+    gridValues[y][x] = x === BOARD_CENTER && y === BOARD_CENTER ? 0 : clampGridValue(value);
     onUpdate({
       kind: "grid",
       name: definition.name,
@@ -209,19 +209,19 @@ export function WaveEditor({ definitions, componentCounts, selected, onSelect, o
                 <div
                   key={`${x}-${y}`}
                   className={`grid-stepper ${value > 0 ? "red" : value < 0 ? "blue" : "neutral"}`}
-                  aria-label={`Pattern value ${x - 3},${y - 3}: ${x === 3 && y === 3 ? 0 : value}`}
+                  aria-label={`Pattern value ${x - BOARD_CENTER},${y - BOARD_CENTER}: ${x === BOARD_CENTER && y === BOARD_CENTER ? 0 : value}`}
                 >
                   <button
-                    aria-label={`Increase pattern value ${x - 3},${y - 3}`}
-                    disabled={x === 3 && y === 3 || value >= gridLimit}
+                    aria-label={`Increase pattern value ${x - BOARD_CENTER},${y - BOARD_CENTER}`}
+                    disabled={x === BOARD_CENTER && y === BOARD_CENTER || value >= gridLimit}
                     onClick={() => updateGridValue(x, y, value + 1)}
                   >
                     ▲
                   </button>
-                  <span>{x === 3 && y === 3 ? 0 : value}</span>
+                  <span>{x === BOARD_CENTER && y === BOARD_CENTER ? 0 : value}</span>
                   <button
-                    aria-label={`Decrease pattern value ${x - 3},${y - 3}`}
-                    disabled={x === 3 && y === 3 || value <= -gridLimit}
+                    aria-label={`Decrease pattern value ${x - BOARD_CENTER},${y - BOARD_CENTER}`}
+                    disabled={x === BOARD_CENTER && y === BOARD_CENTER || value <= -gridLimit}
                     onClick={() => updateGridValue(x, y, value - 1)}
                   >
                     ▼

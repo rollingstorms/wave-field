@@ -1,7 +1,7 @@
 import { ArrowLeft, Bot, CircleDot, CircleHelp, Crown, Grid2X2, Palette, RotateCcw, Sparkles, Undo2, Waves, Wrench } from "lucide-react";
 import { evaluateField } from "../field/evaluateField";
 import { projectFieldValue } from "../field/projection";
-import { createInitialPieces, createInitialState } from "../game/initialState";
+import { createInitialState } from "../game/initialState";
 import { getLegalMoves } from "../game/movement";
 import { PIECE_DISPLAY_NAMES, PIECE_INITIALS, PIECE_TYPES, pieceName, pieceNamePlural } from "../game/pieceLabels";
 import { applyMove, getPlayableMoves } from "../game/rules";
@@ -16,6 +16,7 @@ const playerLabel: Record<Player, string> = {
   red: "Red",
   blue: "Blue",
 };
+const rulesBoardSize = 7;
 
 const pieceQuickNotes: Record<PieceType, string> = {
   pawn: "Checkerboard energy.",
@@ -24,7 +25,20 @@ const pieceQuickNotes: Record<PieceType, string> = {
   king: "Must always end in stable territory.",
 };
 
-const setupPieces = createInitialPieces();
+const setupPieces: PieceModel[] = [
+  { id: "blue-rook-1", owner: "blue", type: "rook", position: { x: 2, y: 0 }, unstable: false },
+  { id: "blue-king-1", owner: "blue", type: "king", position: { x: 3, y: 0 }, unstable: false },
+  { id: "blue-rook-2", owner: "blue", type: "rook", position: { x: 4, y: 0 }, unstable: false },
+  { id: "blue-pawn-1", owner: "blue", type: "pawn", position: { x: 2, y: 1 }, unstable: false },
+  { id: "blue-spy-1", owner: "blue", type: "spy", position: { x: 3, y: 1 }, unstable: false },
+  { id: "blue-pawn-2", owner: "blue", type: "pawn", position: { x: 4, y: 1 }, unstable: false },
+  { id: "red-pawn-1", owner: "red", type: "pawn", position: { x: 2, y: 5 }, unstable: false },
+  { id: "red-spy-1", owner: "red", type: "spy", position: { x: 3, y: 5 }, unstable: false },
+  { id: "red-pawn-2", owner: "red", type: "pawn", position: { x: 4, y: 5 }, unstable: false },
+  { id: "red-rook-1", owner: "red", type: "rook", position: { x: 2, y: 6 }, unstable: false },
+  { id: "red-king-1", owner: "red", type: "king", position: { x: 3, y: 6 }, unstable: false },
+  { id: "red-rook-2", owner: "red", type: "rook", position: { x: 4, y: 6 }, unstable: false },
+];
 const selectedMovementPieceId = "rules-blue-spy";
 
 function createMovementDemoState() {
@@ -60,9 +74,9 @@ function MiniPiece({ owner, type, id = `${owner}-${type}-rules` }: { owner: Play
 function SetupBoard() {
   return (
     <div className="rules-board" aria-label="Starting position diagram">
-      {Array.from({ length: 49 }, (_, index) => {
-        const x = index % 7;
-        const y = Math.floor(index / 7);
+      {Array.from({ length: rulesBoardSize * rulesBoardSize }, (_, index) => {
+        const x = index % rulesBoardSize;
+        const y = Math.floor(index / rulesBoardSize);
         const piece = pieceAt(x, y);
         return (
           <div className={`rules-board-cell ${piece?.owner ?? ""}`} key={`${x}-${y}`}>
@@ -99,9 +113,9 @@ function MovementBoard() {
 
   return (
     <div className="rules-board movement-demo" aria-label="Example movement markers">
-      {Array.from({ length: 49 }, (_, index) => {
-        const x = index % 7;
-        const y = Math.floor(index / 7);
+      {Array.from({ length: rulesBoardSize * rulesBoardSize }, (_, index) => {
+        const x = index % rulesBoardSize;
+        const y = Math.floor(index / rulesBoardSize);
         const key = `${x},${y}`;
         const piece = state.pieces.find((candidate) => candidate.position.x === x && candidate.position.y === y);
         const territory = projectFieldValue(field[y][x]);

@@ -1,5 +1,5 @@
 import type { ComponentDefinitions, PlayerComponents } from "../game/types";
-import { DEBUG_COMPONENT_COUNT_LIMITS, DEFAULT_COMPONENT_COUNTS, WAVE_DECAY_BASE, WAVE_ORIGIN_SCALE } from "../game/constants";
+import { BOARD_SIZE, DEBUG_COMPONENT_COUNT_LIMITS, DEFAULT_COMPONENT_COUNTS, WAVE_DECAY_BASE, WAVE_ORIGIN_SCALE } from "../game/constants";
 import type { BasisDefinition, FormulaPreset } from "../game/types";
 
 export const DEFAULT_COMPONENTS: PlayerComponents = {
@@ -93,10 +93,10 @@ export function validateDefinition(value: unknown): value is BasisDefinition {
   }
   if (definition.kind === "grid") {
     return Array.isArray(definition.gridValues)
-      && definition.gridValues.length === 7
+      && definition.gridValues.length === BOARD_SIZE
       && definition.gridValues.every((row) =>
         Array.isArray(row)
-        && row.length === 7
+        && row.length === BOARD_SIZE
         && row.every((value) => Number.isInteger(value) && Math.abs(value) <= 8));
   }
   if (definition.kind === "combo") {

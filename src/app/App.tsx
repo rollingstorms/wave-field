@@ -12,10 +12,12 @@ import { ALL_ENERGY_CHANNELS } from "../field/cmykEnergy";
 import type { EnergyChannelState } from "../field/cmykEnergy";
 import { evaluateField, evaluateTypeFields } from "../field/evaluateField";
 import { playHeuristicTurn } from "../game/ai";
+import { BOARD_SIZE } from "../game/constants";
 import { createInitialState } from "../game/initialState";
 import { isNeuralPolicy, policyLabel, requestNeuralTurn } from "../game/neuralAi";
 import type { AiPolicy } from "../game/neuralAi";
 import { gameReducer } from "../game/reducer";
+import type { CSSProperties } from "react";
 import type { BasisDefinition, PieceType, Player, PlayerComponents, Position } from "../game/types";
 
 const routePath = globalThis.location?.pathname.replace(/\/$/, "") ?? "";
@@ -206,7 +208,7 @@ export function App() {
   }
 
   return (
-    <main className="app">
+    <main className="app" style={{ "--board-size": BOARD_SIZE } as CSSProperties}>
       <TurnStatus
         state={state}
         aiThinking={aiThinking}
