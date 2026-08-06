@@ -36,15 +36,20 @@ PIECE_IDENTITY_CHANNELS = len(PIECE_IDS)
 RICH_BOARD_CHANNELS = BOARD_CHANNELS + PIECE_IDENTITY_CHANNELS
 InputView = Literal["base", "piece_identity"]
 
-TUNING_COMPONENT_COUNTS = {"pawn": 1, "rook": 1, "spy": 1, "king": 1}
+TUNING_COMPONENT_COUNTS = {"pawn": 1, "rook": 2, "spy": 3, "king": 3}
 TUNING_SIZE_PER_PLAYER = sum(TUNING_COMPONENT_COUNTS.values())
 SIDE_SIZE = TUNING_SIZE_PER_PLAYER * len(PLAYERS) + 1
 ACTION_SIZE = len(PIECE_IDS) * BOARD_SIZE * BOARD_SIZE
 TUNING_SLOTS = (
     ("pawn", 0),
     ("rook", 0),
+    ("rook", 1),
     ("spy", 0),
+    ("spy", 1),
+    ("spy", 2),
     ("king", 0),
+    ("king", 1),
+    ("king", 2),
 )
 TUNING_VALUES = (-1, 1)
 TUNING_ACTION_SIZE = len(TUNING_SLOTS) * len(TUNING_VALUES)

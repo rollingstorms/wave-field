@@ -14,6 +14,7 @@ from wavefield.encoding import (
     decode_action,
     encode_state,
 )
+from wavefield.analyze_model import effective_rank, fit_linear_probe
 from wavefield.engine import RustEngine, load_initial_state
 from wavefield.eval import aggregate
 from wavefield.experiment import parse_weights, replay_weight_samples, sample_metadata_summary
@@ -277,6 +278,28 @@ class TrainingSmokeTest(unittest.TestCase):
         self.assertEqual(actions[0]["type"], "tune")
         self.assertEqual(actions[-1]["type"], "move")
         self.assertEqual(response["tuningActions"], 1)
+
+    def test_analysis_rank_and_linear_probe_helpers(self) -> None:
+        torch.manual_seed(61)
+        base = torch.randn(80, 3)
+        features = torch.cat([base, base[:, :1] * 0.5], dim=1)
+        rank = effective_rank(features)
+        self.assertEqual(rank["samples"], 80)
+        self.assertEqual(rank["dimensions"], 4)
+        self.assertGreater(rank["effective_rank"], 1.0)
+
+        labels = (base[:, 0] > 0).long()
+        result = fit_linear_probe(
+            features,
+            labels,
+            task="binary",
+            epochs=50,
+            lr=1.0e-2,
+            batch_size=16,
+            seed=67,
+        )
+        self.assertEqual(result["status"], "ok")
+        self.assertGreaterEqual(result["accuracy"], result["majority_baseline"])
 
 
 if __name__ == "__main__":

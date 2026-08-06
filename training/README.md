@@ -92,6 +92,35 @@ Each run writes `events.jsonl` and `checkpoint.pt` under `--run-dir`. Generated
 samples include metadata such as source, phase, ply, and legal action count
 when that information is available.
 
+To continue an experiment from a checkpoint, use `--resume-checkpoint`. The
+runner restores both model and optimizer state and continues checkpoint
+iteration numbers from the saved checkpoint:
+
+```bash
+PYTHONPATH=training python3 -m wavefield.experiment \
+  --run-dir training/runs/transformer-128-full-policy-next80 \
+  --resume-checkpoint training/runs/transformer-128-full-policy-long/checkpoint.pt \
+  --hidden-size 128 \
+  --model-arch transformer \
+  --input-view piece_identity \
+  --model-games 100 \
+  --scenario-games-per-iteration 25 \
+  --iterations 80 \
+  --epochs 5 \
+  --batch-size 128 \
+  --rollout-batch-size 128 \
+  --temperature 0.9 \
+  --full-policy \
+  --max-tuning-actions 3 \
+  --eval-every 10 \
+  --eval-games 25 \
+  --eval-max-plies 150 \
+  --baseline-eval-games 10 \
+  --baseline-eval-max-plies 300 \
+  --baseline-opponents heuristic \
+  --progress
+```
+
 The experiment runner can also mix fresh Rust random games into every
 model-self-play iteration and replay-weight parts of the batch. This is the
 current curriculum/augmentation MVP: it does not transform boards, but it can
@@ -214,3 +243,26 @@ fast path for random training data: Rust rolls out games, encodes board tensors,
 emits legal action indexes, and returns the batch to Python for PyTorch updates.
 Model-driven self-play still runs through Python because PyTorch selects moves
 at each ply, but inference is batched across active games.
+
+## Model Analysis
+
+Use `wavefield.analyze_model` to inspect a checkpoint without running an
+expensive eval. It samples reachable states from the Rust rules engine, captures
+activations, reports centered effective rank/isotropy metrics, summarizes legal
+policy concentration, and trains cheap linear probes against rule and strategy
+labels.
+
+```bash
+PYTHONPATH=training python3 -m wavefield.analyze_model \
+  --checkpoint training/runs/transformer-128-full-policy-long/checkpoint.pt \
+  --samples 256 \
+  --max-plies 150 \
+  --probe-epochs 120 \
+  --json-out training/runs/transformer-128-full-policy-long/analysis.json
+```
+
+Useful probe labels include current/opponent king pressure, legal move count,
+material balance, low-material phase, and opening/midgame/endgame phase. Read
+probe scores relative to their majority or variance baseline: strong probe
+scores mean the representation contains the signal, not that the policy is
+using it well.

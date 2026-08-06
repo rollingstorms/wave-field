@@ -24,6 +24,7 @@ def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Run logged Wave Field training experiments.")
     parser.add_argument("--run-dir", type=Path, default=Path("training/runs/dev"))
     parser.add_argument("--seed", type=int, default=90210)
+    parser.add_argument("--resume-checkpoint", type=Path, default=None)
     parser.add_argument("--hidden-size", type=int, default=128)
     parser.add_argument("--model-arch", choices=("conv", "residual", "transformer"), default="conv")
     parser.add_argument("--input-view", choices=("base", "piece_identity"), default="base")
@@ -435,8 +436,9 @@ def save_checkpoint(
     args: argparse.Namespace,
     logger: JsonlLogger,
     iteration: int,
+    final_iteration: int,
 ) -> None:
-    checkpoint_path = args.run_dir / ("checkpoint.pt" if iteration == args.iterations else f"checkpoint-iter-{iteration}.pt")
+    checkpoint_path = args.run_dir / ("checkpoint.pt" if iteration == final_iteration else f"checkpoint-iter-{iteration}.pt")
     torch.save(
         {
             "model": model.state_dict(),
@@ -463,8 +465,11 @@ def main() -> None:
     baseline_opponents = parse_baseline_opponents(args.baseline_opponents)
     if args.input_view != "base" and (args.pretrain_random_games > 0 or args.random_games_per_iteration > 0):
         raise ValueError("Rust random training batches currently support only --input-view base")
+    if args.resume_checkpoint is not None and (args.pretrain_random_games > 0 or args.heuristic_bootstrap_games > 0):
+        raise ValueError("Resume runs should use per-iteration generation, not bootstrap phases.")
     torch.manual_seed(args.seed)
     args.run_dir.mkdir(parents=True, exist_ok=True)
+    start_iteration = 0
     progress = TerminalProgress(args.progress, args.iterations)
     logger = JsonlLogger(args.run_dir / "events.jsonl", progress)
 
@@ -476,6 +481,13 @@ def main() -> None:
         architecture=args.model_arch,
     ).to(device)
     optimizer = torch.optim.AdamW(model.parameters(), lr=args.lr)
+    if args.resume_checkpoint is not None:
+        checkpoint = torch.load(args.resume_checkpoint, map_location=device, weights_only=False)
+        model.load_state_dict(checkpoint["model"], strict=False)
+        if "optimizer" in checkpoint:
+            optimizer.load_state_dict(checkpoint["optimizer"])
+        start_iteration = int(checkpoint.get("iteration", 0))
+        progress.iterations = start_iteration + args.iterations
 
     logger.write(
         {
@@ -489,6 +501,8 @@ def main() -> None:
                 "scenarios": scenarios,
                 "board_channels": board_channels_for_view(args.input_view),
                 "side_size": SIDE_SIZE,
+                "start_iteration": start_iteration,
+                "final_iteration": start_iteration + args.iterations,
             },
         }
     )
@@ -587,7 +601,8 @@ def main() -> None:
             progress,
         )
 
-    for iteration in range(1, args.iterations + 1):
+    final_iteration = start_iteration + args.iterations
+    for iteration in range(start_iteration + 1, final_iteration + 1):
         iteration_samples: List[Sample] = []
         if args.heuristic_bootstrap_per_iteration > 0:
             started_at = time.perf_counter()
@@ -820,10 +835,10 @@ def main() -> None:
                     initial_states=scenario_eval_states,
                 )
         if args.save_every > 0 and iteration % args.save_every == 0:
-            save_checkpoint(model, optimizer, args, logger, iteration)
+            save_checkpoint(model, optimizer, args, logger, iteration, final_iteration)
 
-    if args.iterations == 0 or args.save_every <= 0 or args.iterations % args.save_every != 0:
-        save_checkpoint(model, optimizer, args, logger, args.iterations)
+    if args.iterations == 0 or args.save_every <= 0 or final_iteration % args.save_every != 0:
+        save_checkpoint(model, optimizer, args, logger, final_iteration, final_iteration)
     engine.close()
 
 
