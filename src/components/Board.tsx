@@ -39,6 +39,7 @@ interface BoardProps {
 }
 
 const FILE_LABELS = Array.from({ length: BOARD_SIZE }, (_, index) => String.fromCharCode(65 + index));
+const RANK_LABELS = Array.from({ length: BOARD_SIZE }, (_, index) => index + 1);
 
 interface ActiveDrag {
   pieceId: string;
@@ -58,6 +59,10 @@ interface MovementAnimation {
   piece: NonNullable<GameState["pieces"][number]>;
   from: Position;
   to: Position;
+}
+
+function visualY(y: number) {
+  return BOARD_SIZE - 1 - y;
 }
 
 export function Board({ state, field, typeFields, continuousField, showTypeSums, energyView, energyChannels, locked = false, onSelect, onMove, onResign, onHint, hintSearching = false, onToggleEnergyChannel }: BoardProps) {
@@ -211,7 +216,8 @@ export function Board({ state, field, typeFields, continuousField, showTypeSums,
     if (!board) return null;
     const bounds = board.getBoundingClientRect();
     const x = Math.floor(((clientX - bounds.left) / bounds.width) * BOARD_SIZE);
-    const y = Math.floor(((clientY - bounds.top) / bounds.height) * BOARD_SIZE);
+    const visualRow = Math.floor(((clientY - bounds.top) / bounds.height) * BOARD_SIZE);
+    const y = visualY(visualRow);
     const position = { x, y };
     return x >= 0 && x < BOARD_SIZE && y >= 0 && y < BOARD_SIZE ? position : null;
   }
@@ -366,7 +372,7 @@ export function Board({ state, field, typeFields, continuousField, showTypeSums,
       )}
       <div className="files top">{FILE_LABELS.map((file) => <span key={file}>{file}</span>)}</div>
       <div className="board-row-wrap">
-        <div className="ranks left">{Array.from({ length: BOARD_SIZE }, (_, i) => <span key={i}>{BOARD_SIZE - i}</span>)}</div>
+        <div className="ranks left">{RANK_LABELS.map((rank) => <span key={rank}>{rank}</span>)}</div>
         <div
           className={`board ${draggingPieceId ? "dragging" : ""}`}
           ref={boardRef}
@@ -386,18 +392,19 @@ export function Board({ state, field, typeFields, continuousField, showTypeSums,
               key={animation.id}
               style={{
                 "--from-x": animation.from.x,
-                "--from-y": animation.from.y,
+                "--from-y": visualY(animation.from.y),
                 "--to-x": animation.to.x,
-                "--to-y": animation.to.y,
-                transform: `translate(${animation.from.x * 100}%, ${animation.from.y * 100}%)`,
+                "--to-y": visualY(animation.to.y),
+                transform: `translate(${animation.from.x * 100}%, ${visualY(animation.from.y) * 100}%)`,
               } as CSSProperties}
               aria-hidden="true"
             >
               <Piece piece={animation.piece} selected={false} dragging={false} />
             </span>
           ))}
-          {Array.from({ length: BOARD_SIZE }, (_, y) =>
+          {Array.from({ length: BOARD_SIZE }, (_, row) =>
             Array.from({ length: BOARD_SIZE }, (_, x) => {
+              const y = visualY(row);
               const position = { x, y };
               const piece = getPieceAt(previewState, position);
               const influenceValue = influenceGrid?.[y][x] ?? 0;
@@ -449,7 +456,7 @@ export function Board({ state, field, typeFields, continuousField, showTypeSums,
             }),
           )}
         </div>
-        <div className="ranks right">{Array.from({ length: BOARD_SIZE }, (_, i) => <span key={i}>{BOARD_SIZE - i}</span>)}</div>
+        <div className="ranks right">{RANK_LABELS.map((rank) => <span key={rank}>{rank}</span>)}</div>
       </div>
       <div className="files bottom">{FILE_LABELS.map((file) => <span key={file}>{file}</span>)}</div>
       {energyView && energySelection && selectedEnergy && (
