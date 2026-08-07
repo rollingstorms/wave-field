@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { playHeuristicTurn } from "../game/ai";
+import { playEasyTurn, playHeuristicTurn } from "../game/ai";
 import { createInitialState, snapshot } from "../game/initialState";
 import { applyMove } from "../game/rules";
 import type { GameState, PieceType } from "../game/types";
@@ -20,6 +20,17 @@ function setPiecePosition(state: GameState, pieceId: string, x: number, y: numbe
 }
 
 describe("heuristic opponent", () => {
+  it("easy minimax completes a legal blue turn without tuning", () => {
+    const opening = createInitialState();
+
+    const result = playEasyTurn(opening, "blue", { seed: 7 });
+
+    expect(result.status).toBe("playing");
+    expect(result.currentPlayer).toBe("red");
+    expect(result.components.blue).toEqual(opening.components.blue);
+    expect(result.history).toHaveLength(opening.history.length + 1);
+  });
+
   it("completes a legal red turn", () => {
     const opening = createInitialState();
     const blueMove = applyMove("blue-pawn-1", { x: 1, y: 1 }, opening);

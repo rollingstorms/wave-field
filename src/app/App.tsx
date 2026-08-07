@@ -7,11 +7,11 @@ import { HistoryRoll } from "../components/HistoryRoll";
 import { RulesPage } from "../components/RulesPage";
 import { GameActions, TurnStatus } from "../components/TurnStatus";
 import { WaveEditor } from "../components/WaveEditor";
-import { definitionForSlot } from "../field/componentDefinitions";
+import { definitionForSlot, TRAINING_COMPONENTS } from "../field/componentDefinitions";
 import { ALL_ENERGY_CHANNELS } from "../field/cmykEnergy";
 import type { EnergyChannelState } from "../field/cmykEnergy";
 import { evaluateField, evaluateTypeFields } from "../field/evaluateField";
-import { playHeuristicTurn } from "../game/ai";
+import { playEasyTurn, playHeuristicTurn } from "../game/ai";
 import { BOARD_SIZE } from "../game/constants";
 import { createInitialState } from "../game/initialState";
 import { isNeuralPolicy, policyLabel, requestNeuralTurn } from "../game/neuralAi";
@@ -27,6 +27,9 @@ const arenaEnabled = routePath.endsWith("/arena") || localNeuralArenaEnabled;
 type SidePolicy = AiPolicy | "human";
 type AiStats = Record<Player, { turns: number; tuneActions: number; lastTurnTunes: number }>;
 const pieceTypes: PieceType[] = ["pawn", "rook", "spy", "king"];
+const createArenaInitialState = () => localNeuralArenaEnabled
+  ? createInitialState(TRAINING_COMPONENTS)
+  : createInitialState();
 
 const emptyAiStats = (): AiStats => ({
   blue: { turns: 0, tuneActions: 0, lastTurnTunes: 0 },
@@ -40,7 +43,7 @@ function componentChangeCount(before: PlayerComponents, after: PlayerComponents)
 }
 
 export function App() {
-  const [state, dispatch] = useReducer(gameReducer, undefined, createInitialState);
+  const [state, dispatch] = useReducer(gameReducer, undefined, createArenaInitialState);
   const [duelSeed, setDuelSeed] = useState(() => Math.floor(Math.random() * 1_000_000_000));
   const [developerMode, setDeveloperMode] = useState(false);
   const [continuousField, setContinuousField] = useState(false);
@@ -49,8 +52,8 @@ export function App() {
   const [energyChannels, setEnergyChannels] = useState<EnergyChannelState>({ ...ALL_ENERGY_CHANNELS });
   const [showRules, setShowRules] = useState(false);
   const [sidePolicies, setSidePolicies] = useState<Record<Player, SidePolicy>>(() => arenaEnabled
-    ? { blue: "heuristic", red: "heuristic" }
-    : { blue: "human", red: "heuristic" });
+    ? { blue: "easy", red: "easy" }
+    : { blue: "human", red: "easy" });
   const [duelRunning, setDuelRunning] = useState(false);
   const [duelSpeedMs, setDuelSpeedMs] = useState(450);
   const [duelMaxTurns, setDuelMaxTurns] = useState(80);
@@ -81,10 +84,12 @@ export function App() {
     setAiThinking(true);
     setAiStatus(`${policyLabel(policy)} thinking`);
     const run = async () => {
-      if (policy === "heuristic") {
+      if (policy === "easy" || policy === "heuristic") {
         const player = state.currentPlayer;
-        const variety = bothAutomated ? 0.55 : 0;
-        const preview = playHeuristicTurn(state, player, { seed: duelSeed, variety });
+        const variety = policy === "heuristic" && bothAutomated ? 0.55 : 0;
+        const preview = policy === "easy"
+          ? playEasyTurn(state, player, { seed: duelSeed, variety })
+          : playHeuristicTurn(state, player, { seed: duelSeed, variety });
         const tuneCount = componentChangeCount(state.components[player], preview.components[player]);
         setAiStats((stats) => ({
           ...stats,
@@ -94,7 +99,11 @@ export function App() {
             lastTurnTunes: tuneCount,
           },
         }));
-        dispatch({ type: "ai-turn", player, seed: duelSeed, variety });
+        if (policy === "heuristic") {
+          dispatch({ type: "ai-turn", player, seed: duelSeed, variety });
+        } else {
+          dispatch({ type: "replace-state", state: preview });
+        }
         return;
       }
       if (!isNeuralPolicy(policy)) return;

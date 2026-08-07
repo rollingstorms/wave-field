@@ -1,6 +1,8 @@
 mod ai;
+mod api;
 mod batch;
 mod board;
+mod ffi;
 mod field;
 mod model;
 mod rollout_session;

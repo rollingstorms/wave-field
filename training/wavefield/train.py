@@ -62,7 +62,7 @@ def samples_to_tensors(samples: List[Sample], device: torch.device) -> Dict[str,
         else np.zeros((TUNING_ACTION_SIZE,), dtype=np.float32)
         for sample in samples
     ]
-    return {
+    tensors = {
         "board": torch.tensor(np.stack([sample.board for sample in samples]), dtype=torch.float32, device=device),
         "side": torch.tensor(np.stack([sample.side for sample in samples]), dtype=torch.float32, device=device),
         "legal_mask": torch.tensor(np.stack([sample.legal_mask for sample in samples]), dtype=torch.float32, device=device),
@@ -72,6 +72,18 @@ def samples_to_tensors(samples: List[Sample], device: torch.device) -> Dict[str,
         "tuning_actions": torch.tensor([sample.tuning_action_index for sample in samples], dtype=torch.long, device=device),
         "values": torch.tensor([sample.value for sample in samples], dtype=torch.float32, device=device),
     }
+    if all(sample.history_board is not None and sample.history_side is not None for sample in samples):
+        tensors["history_board"] = torch.tensor(
+            np.stack([sample.history_board for sample in samples if sample.history_board is not None]),
+            dtype=torch.float32,
+            device=device,
+        )
+        tensors["history_side"] = torch.tensor(
+            np.stack([sample.history_side for sample in samples if sample.history_side is not None]),
+            dtype=torch.float32,
+            device=device,
+        )
+    return tensors
 
 
 def train_epoch(
@@ -89,8 +101,20 @@ def train_epoch(
 
     for batch_number, start in enumerate(range(0, sample_count, batch_size), start=1):
         batch = order[start:start + batch_size]
-        kind_logits, move_logits, tuning_logits = model.full_policy(tensors["board"][batch], tensors["side"][batch])
-        _legacy_logits, predicted_values = model(tensors["board"][batch], tensors["side"][batch])
+        history_board = tensors["history_board"][batch] if "history_board" in tensors else None
+        history_side = tensors["history_side"][batch] if "history_side" in tensors else None
+        kind_logits, move_logits, tuning_logits = model.full_policy(
+            tensors["board"][batch],
+            tensors["side"][batch],
+            history_board=history_board,
+            history_side=history_side,
+        )
+        _legacy_logits, predicted_values = model(
+            tensors["board"][batch],
+            tensors["side"][batch],
+            history_board=history_board,
+            history_side=history_side,
+        )
         action_kinds = tensors["action_kinds"][batch]
         kind_loss = F.cross_entropy(kind_logits, action_kinds)
 

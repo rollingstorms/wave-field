@@ -26,8 +26,9 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--seed", type=int, default=90210)
     parser.add_argument("--resume-checkpoint", type=Path, default=None)
     parser.add_argument("--hidden-size", type=int, default=128)
-    parser.add_argument("--model-arch", choices=("conv", "residual", "transformer"), default="conv")
+    parser.add_argument("--model-arch", choices=("conv", "residual", "transformer", "sequence_transformer"), default="conv")
     parser.add_argument("--input-view", choices=("base", "piece_identity"), default="base")
+    parser.add_argument("--history-plies", type=int, default=1, help="State history window for sequence_transformer models.")
     parser.add_argument("--lr", type=float, default=1.0e-3)
     parser.add_argument("--device", default="auto")
     parser.add_argument("--max-plies", type=int, default=120)
@@ -54,7 +55,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--eval-pressure", action="store_true")
     parser.add_argument("--baseline-eval-games", type=int, default=0, help="Run side-swapped model-vs-baseline matches during eval.")
     parser.add_argument("--baseline-eval-max-plies", type=int, default=None, help="Override ply cap for baseline eval matches.")
-    parser.add_argument("--baseline-opponents", default="heuristic", help="Comma-separated policies: heuristic,random.")
+    parser.add_argument("--baseline-opponents", default="heuristic", help="Comma-separated policies: heuristic,easy,random.")
     parser.add_argument("--save-every", type=int, default=1)
     parser.add_argument("--cap-value", choices=("zero", "material"), default="material")
     parser.add_argument("--progress", action="store_true", help="Show compact ANSI progress lines during long runs.")
@@ -162,12 +163,16 @@ def sample_metadata_summary(samples: List[Sample]) -> Dict[str, Any]:
     ]
     values = [float(sample.value) for sample in samples]
     action_kinds = Counter("tune" if sample.action_kind == 1 else "move" for sample in samples)
+    players = Counter(sample.player for sample in samples)
+    history_plies = Counter(int(sample.metadata.get("history_plies", 1)) for sample in samples)
     summary: Dict[str, Any] = {
         "sources": dict(sources),
         "phases": dict(phases),
         "scenarios": dict(scenarios),
         "low_material": low_material,
         "action_kinds": dict(action_kinds),
+        "players": dict(players),
+        "history_plies": dict(history_plies),
     }
     if legal_counts:
         summary["legal_count"] = numeric_summary(legal_counts)
@@ -298,6 +303,7 @@ def train_samples(
                 "policy": round(losses["policy"], 6),
                 "tuning": round(losses["tuning"], 6),
                 "value": round(losses["value"], 6),
+                "history_plies": getattr(model, "history_plies", 1),
             }
         )
 
@@ -335,6 +341,7 @@ def run_session_eval(
             full_policy=True,
             max_tuning_actions=args.max_tuning_actions,
             initial_states=initial_states,
+            history_plies=args.history_plies,
         )
     else:
         records = session_model_selfplay_records(
@@ -364,9 +371,9 @@ def run_session_eval(
 
 def parse_baseline_opponents(raw: str) -> List[str]:
     opponents = [item.strip() for item in raw.split(",") if item.strip()]
-    invalid = [opponent for opponent in opponents if opponent not in {"heuristic", "random"}]
+    invalid = [opponent for opponent in opponents if opponent not in {"heuristic", "easy", "random"}]
     if invalid:
-        raise ValueError(f"Invalid baseline opponent(s): {invalid}. Expected heuristic or random.")
+        raise ValueError(f"Invalid baseline opponent(s): {invalid}. Expected heuristic, easy, or random.")
     return opponents
 
 
@@ -448,6 +455,7 @@ def save_checkpoint(
             "side_size": SIDE_SIZE,
             "model_arch": args.model_arch,
             "input_view": args.input_view,
+            "history_plies": args.history_plies,
             "iteration": iteration,
             "config": serializable_config(args),
         },
@@ -465,6 +473,18 @@ def main() -> None:
     baseline_opponents = parse_baseline_opponents(args.baseline_opponents)
     if args.input_view != "base" and (args.pretrain_random_games > 0 or args.random_games_per_iteration > 0):
         raise ValueError("Rust random training batches currently support only --input-view base")
+    if args.model_arch == "sequence_transformer" and not args.full_policy:
+        raise ValueError("sequence_transformer experiments currently require --full-policy Python rollouts.")
+    if args.model_arch == "sequence_transformer" and args.history_plies < 2:
+        raise ValueError("sequence_transformer requires --history-plies >= 2.")
+    if args.model_arch == "sequence_transformer" and (
+        args.pretrain_random_games > 0
+        or args.random_games_per_iteration > 0
+        or args.heuristic_bootstrap_games > 0
+        or args.heuristic_bootstrap_per_iteration > 0
+        or args.scenario_bootstrap_per_iteration > 0
+    ):
+        raise ValueError("sequence_transformer currently supports model/session and scenario model samples only.")
     if args.resume_checkpoint is not None and (args.pretrain_random_games > 0 or args.heuristic_bootstrap_games > 0):
         raise ValueError("Resume runs should use per-iteration generation, not bootstrap phases.")
     torch.manual_seed(args.seed)
@@ -479,6 +499,7 @@ def main() -> None:
         board_channels=board_channels_for_view(args.input_view),
         side_size=SIDE_SIZE,
         architecture=args.model_arch,
+        history_plies=args.history_plies,
     ).to(device)
     optimizer = torch.optim.AdamW(model.parameters(), lr=args.lr)
     if args.resume_checkpoint is not None:
@@ -503,6 +524,7 @@ def main() -> None:
                 "side_size": SIDE_SIZE,
                 "start_iteration": start_iteration,
                 "final_iteration": start_iteration + args.iterations,
+                "history_plies": args.history_plies,
             },
         }
     )
@@ -672,6 +694,7 @@ def main() -> None:
                     input_view=args.input_view,
                     full_policy=True,
                     max_tuning_actions=args.max_tuning_actions,
+                    history_plies=args.history_plies,
                 )
             else:
                 records = session_model_selfplay_records(
@@ -760,6 +783,7 @@ def main() -> None:
                     full_policy=True,
                     max_tuning_actions=args.max_tuning_actions,
                     initial_states=scenario_states,
+                    history_plies=args.history_plies,
                 )
             else:
                 scenario_records = session_model_selfplay_records(

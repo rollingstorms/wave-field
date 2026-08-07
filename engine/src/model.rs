@@ -36,6 +36,17 @@ pub enum PieceType {
     King,
 }
 
+impl PieceType {
+    pub(crate) fn name(self) -> &'static str {
+        match self {
+            Self::Pawn => "pawn",
+            Self::Rook => "rook",
+            Self::Spy => "spy",
+            Self::King => "king",
+        }
+    }
+}
+
 pub(crate) const PIECE_TYPES: [PieceType; 4] = [
     PieceType::Pawn,
     PieceType::Rook,

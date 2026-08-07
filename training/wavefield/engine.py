@@ -209,6 +209,23 @@ class RustEngine:
             timeBudgetMs=time_budget_ms,
         )
 
+    def play_easy_turn(
+        self,
+        state: Dict[str, Any],
+        player: Optional[str] = None,
+        seed: int = 0,
+        variety: float = 0.0,
+        time_budget_ms: int = 10,
+    ) -> Dict[str, Any]:
+        return self.request(
+            "playEasyTurn",
+            state,
+            player=player or state["currentPlayer"],
+            seed=seed,
+            variety=variety,
+            timeBudgetMs=time_budget_ms,
+        )
+
     def simulate_random_lean_games(
         self,
         state: Dict[str, Any],

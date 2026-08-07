@@ -157,6 +157,41 @@ which appends one board plane per piece slot. Pair it with
 training batches currently emit only the base view, so rich-view runs should use
 model/session and scenario-session data until the Rust encoder grows that mode.
 
+For sequence modeling, use `--model-arch sequence_transformer` with a history
+window. This encodes each position with the board-token state encoder, then runs
+temporal attention over the last N state embeddings before predicting the next
+tune/move action. The first supported path is Python full-policy rollout:
+
+```bash
+PYTHONPATH=training python3 -m wavefield.experiment \
+  --run-dir training/runs/sequence-transformer-16 \
+  --hidden-size 256 \
+  --model-arch sequence_transformer \
+  --history-plies 16 \
+  --input-view piece_identity \
+  --model-games 100 \
+  --scenario-games-per-iteration 25 \
+  --iterations 300 \
+  --epochs 10 \
+  --batch-size 128 \
+  --rollout-batch-size 128 \
+  --temperature 0.9 \
+  --full-policy \
+  --max-tuning-actions 3 \
+  --eval-every 10 \
+  --eval-games 25 \
+  --eval-max-plies 150 \
+  --baseline-eval-games 10 \
+  --baseline-eval-max-plies 300 \
+  --baseline-opponents heuristic \
+  --progress
+```
+
+The Rust session rollout path is still state-only; sequence experiments
+intentionally require `--full-policy` so the generated samples carry
+`history_board` and `history_side` windows. The local model server uses browser
+history snapshots when serving sequence checkpoints.
+
 ## Head-to-Head Matches
 
 ```bash

@@ -14,6 +14,7 @@ const FULL_ANALYSIS_LIMIT: usize = 3;
 const REPETITION_LOOKBACK: usize = 18;
 const REPEATED_STATE_PENALTY: f64 = 900.0;
 const IMMEDIATE_REVERSAL_PENALTY: f64 = 500.0;
+const EASY_SEARCH_DEPTH: u8 = 2;
 
 #[cfg(not(target_arch = "wasm32"))]
 type SearchStartedAt = Instant;
@@ -444,6 +445,14 @@ struct Choice {
     score: f64,
 }
 
+#[derive(Clone)]
+struct MoveChoice {
+    piece_id: String,
+    destination: Position,
+    preview: GameState,
+    score: f64,
+}
+
 fn activation_order_for_profile(components: &PlayerComponents) -> PlayerActivationOrder {
     fn active(values: &[i8]) -> Vec<usize> {
         values
@@ -467,6 +476,196 @@ fn sort_choices(choices: &mut [Choice]) {
             .partial_cmp(&left.score)
             .unwrap_or(Ordering::Equal)
     });
+}
+
+fn legal_move_choices(state: &GameState) -> Vec<MoveChoice> {
+    let field = evaluate_field(state);
+    state
+        .pieces
+        .iter()
+        .filter(|piece| piece.owner == state.current_player)
+        .cloned()
+        .flat_map(|piece| {
+            get_legal_moves(&piece.id, state, &field)
+                .into_iter()
+                .filter_map(move |destination| {
+                    let result = apply_move(&piece.id, destination, state.clone(), false);
+                    result.ok.then_some(MoveChoice {
+                        piece_id: piece.id.clone(),
+                        destination,
+                        preview: result.state,
+                        score: 0.0,
+                    })
+                })
+                .collect::<Vec<_>>()
+        })
+        .collect()
+}
+
+fn no_legal_move_state(mut state: GameState, player: Player) -> GameState {
+    let field = evaluate_field(&state);
+    let winner = player.opponent();
+    let message = if is_king_unprotected(player, &state, &field) {
+        format!("{} has no legal rescue", player_name(player))
+    } else {
+        format!("{} has no legal move", player_name(player))
+    };
+    let previous = state.snapshot();
+    state.status = win_status(winner);
+    state.selected_piece_id = None;
+    state.history.push(previous);
+    state.message = message;
+    state
+}
+
+fn minimax_score(
+    state: &GameState,
+    root_player: Player,
+    depth: u8,
+    mut alpha: f64,
+    mut beta: f64,
+) -> f64 {
+    if depth == 0 || state.status != GameStatus::Playing {
+        let field = evaluate_field(state);
+        return score_state(state, root_player, &field);
+    }
+
+    let choices = legal_move_choices(state);
+    if choices.is_empty() {
+        return if state.current_player == root_player {
+            -1_000_000.0
+        } else {
+            1_000_000.0
+        };
+    }
+
+    if state.current_player == root_player {
+        let mut value = f64::NEG_INFINITY;
+        for choice in choices {
+            value = value.max(minimax_score(
+                &choice.preview,
+                root_player,
+                depth - 1,
+                alpha,
+                beta,
+            ));
+            alpha = alpha.max(value);
+            if alpha >= beta {
+                break;
+            }
+        }
+        value
+    } else {
+        let mut value = f64::INFINITY;
+        for choice in choices {
+            value = value.min(minimax_score(
+                &choice.preview,
+                root_player,
+                depth - 1,
+                alpha,
+                beta,
+            ));
+            beta = beta.min(value);
+            if alpha >= beta {
+                break;
+            }
+        }
+        value
+    }
+}
+
+fn sort_move_choices(choices: &mut [MoveChoice]) {
+    choices.sort_by(|left, right| {
+        right
+            .score
+            .partial_cmp(&left.score)
+            .unwrap_or(Ordering::Equal)
+    });
+}
+
+pub fn play_easy_turn(state: GameState, player: Player, options: AiTurnOptions) -> GameState {
+    if state.status != GameStatus::Playing || state.current_player != player {
+        return state;
+    }
+
+    let repetition_counts = recent_state_counts(&state);
+    let recent_moves = last_move_by_piece(&state, player);
+    let mut choices = legal_move_choices(&state)
+        .into_iter()
+        .filter_map(|mut choice| {
+            let piece = state
+                .pieces
+                .iter()
+                .find(|piece| piece.id == choice.piece_id)?
+                .clone();
+            choice.score = minimax_score(
+                &choice.preview,
+                player,
+                EASY_SEARCH_DEPTH.saturating_sub(1),
+                f64::NEG_INFINITY,
+                f64::INFINITY,
+            ) - loop_penalty(
+                &choice.preview,
+                &piece,
+                choice.destination,
+                &repetition_counts,
+                &recent_moves,
+            );
+            Some(choice)
+        })
+        .collect::<Vec<_>>();
+
+    if choices.is_empty() {
+        return no_legal_move_state(state, player);
+    }
+
+    sort_move_choices(&mut choices);
+    let seed = options.seed.unwrap_or(0);
+    let variety = options.variety.unwrap_or(0.0).clamp(0.0, 1.0);
+    if variety > 0.0 {
+        let leader = choices[0].score;
+        let mut candidate_window = choices
+            .iter()
+            .filter(|choice| leader - choice.score <= 80.0 + variety * 180.0)
+            .cloned()
+            .collect::<Vec<_>>();
+        candidate_window.sort_by(|left, right| {
+            let right_value = right.score
+                + hash_unit(&format!(
+                    "{}:{}:{}:{}:{}:{}:{:.3}",
+                    seed,
+                    state.turn_number,
+                    player_key(player),
+                    right.piece_id,
+                    right.destination.x,
+                    right.destination.y,
+                    right.score
+                )) * variety
+                    * 120.0;
+            let left_value = left.score
+                + hash_unit(&format!(
+                    "{}:{}:{}:{}:{}:{}:{:.3}",
+                    seed,
+                    state.turn_number,
+                    player_key(player),
+                    left.piece_id,
+                    left.destination.x,
+                    left.destination.y,
+                    left.score
+                )) * variety
+                    * 120.0;
+            right_value
+                .partial_cmp(&left_value)
+                .unwrap_or(Ordering::Equal)
+        });
+        choices.splice(0..candidate_window.len(), candidate_window);
+    }
+
+    choices
+        .into_iter()
+        .next()
+        .map(|choice| choice.preview)
+        .unwrap_or_else(|| no_legal_move_state(state, player))
 }
 
 pub fn play_heuristic_turn(state: GameState, player: Player, options: AiTurnOptions) -> GameState {

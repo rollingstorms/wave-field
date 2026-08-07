@@ -1,0 +1,323 @@
+{
+  "pieces": [
+    {
+      "id": "blue-rook-1",
+      "owner": "blue",
+      "type": "rook",
+      "position": {
+        "x": 2,
+        "y": 0
+      },
+      "unstable": false
+    },
+    {
+      "id": "blue-king-1",
+      "owner": "blue",
+      "type": "king",
+      "position": {
+        "x": 3,
+        "y": 0
+      },
+      "unstable": false
+    },
+    {
+      "id": "blue-rook-2",
+      "owner": "blue",
+      "type": "rook",
+      "position": {
+        "x": 4,
+        "y": 0
+      },
+      "unstable": false
+    },
+    {
+      "id": "blue-pawn-1",
+      "owner": "blue",
+      "type": "pawn",
+      "position": {
+        "x": 2,
+        "y": 1
+      },
+      "unstable": false
+    },
+    {
+      "id": "blue-spy-1",
+      "owner": "blue",
+      "type": "spy",
+      "position": {
+        "x": 3,
+        "y": 1
+      },
+      "unstable": false
+    },
+    {
+      "id": "blue-pawn-2",
+      "owner": "blue",
+      "type": "pawn",
+      "position": {
+        "x": 4,
+        "y": 1
+      },
+      "unstable": false
+    },
+    {
+      "id": "red-pawn-1",
+      "owner": "red",
+      "type": "pawn",
+      "position": {
+        "x": 2,
+        "y": 5
+      },
+      "unstable": false
+    },
+    {
+      "id": "red-spy-1",
+      "owner": "red",
+      "type": "spy",
+      "position": {
+        "x": 3,
+        "y": 5
+      },
+      "unstable": false
+    },
+    {
+      "id": "red-pawn-2",
+      "owner": "red",
+      "type": "pawn",
+      "position": {
+        "x": 4,
+        "y": 5
+      },
+      "unstable": false
+    },
+    {
+      "id": "red-rook-1",
+      "owner": "red",
+      "type": "rook",
+      "position": {
+        "x": 2,
+        "y": 6
+      },
+      "unstable": false
+    },
+    {
+      "id": "red-king-1",
+      "owner": "red",
+      "type": "king",
+      "position": {
+        "x": 3,
+        "y": 6
+      },
+      "unstable": false
+    },
+    {
+      "id": "red-rook-2",
+      "owner": "red",
+      "type": "rook",
+      "position": {
+        "x": 4,
+        "y": 6
+      },
+      "unstable": false
+    }
+  ],
+  "currentPlayer": "blue",
+  "components": {
+    "blue": {
+      "pawn": [
+        1
+      ],
+      "rook": [
+        1,
+        1
+      ],
+      "spy": [
+        1,
+        0
+      ],
+      "king": [
+        1,
+        1
+      ]
+    },
+    "red": {
+      "pawn": [
+        1
+      ],
+      "rook": [
+        1,
+        1
+      ],
+      "spy": [
+        1,
+        0
+      ],
+      "king": [
+        1,
+        1
+      ]
+    }
+  },
+  "activationOrders": {
+    "blue": {
+      "pawn": [
+        0
+      ],
+      "rook": [
+        0,
+        1
+      ],
+      "spy": [
+        0
+      ],
+      "king": [
+        0,
+        1
+      ]
+    },
+    "red": {
+      "pawn": [
+        0
+      ],
+      "rook": [
+        0,
+        1
+      ],
+      "spy": [
+        0
+      ],
+      "king": [
+        0,
+        1
+      ]
+    }
+  },
+  "defaultComponents": {
+    "pawn": [
+      1
+    ],
+    "rook": [
+      1,
+      1
+    ],
+    "spy": [
+      1,
+      0
+    ],
+    "king": [
+      1,
+      1
+    ]
+  },
+  "definitions": {
+    "pawn": [
+      {
+        "kind": "preset",
+        "name": "Checkerboard",
+        "preset": "checkerboard",
+        "decayBase": 2,
+        "originScale": 1
+      }
+    ],
+    "rook": [
+      {
+        "kind": "ring",
+        "name": "Push pairs",
+        "geometry": "chebyshev",
+        "ringValues": [
+          0,
+          1,
+          1,
+          -1
+        ],
+        "repeat": true,
+        "decayBase": 2,
+        "originScale": 1
+      },
+      {
+        "kind": "ring",
+        "name": "Pull gap push",
+        "geometry": "chebyshev",
+        "ringValues": [
+          0,
+          1,
+          0,
+          -1
+        ],
+        "repeat": true,
+        "decayBase": 2,
+        "originScale": 1
+      }
+    ],
+    "spy": [
+      {
+        "kind": "preset",
+        "name": "Pawn mask",
+        "preset": "checkerboard",
+        "decayBase": 2,
+        "originScale": 1
+      },
+      {
+        "kind": "preset",
+        "name": "Diamond core",
+        "preset": "diamond-core",
+        "decayBase": 2,
+        "originScale": 1
+      }
+    ],
+    "king": [
+      {
+        "kind": "ring",
+        "name": "Slow alternating rings",
+        "geometry": "chebyshev",
+        "ringValues": [
+          1,
+          1,
+          1,
+          -1,
+          -1,
+          -1
+        ],
+        "repeat": true,
+        "decayBase": 2,
+        "originScale": 1
+      },
+      {
+        "kind": "preset",
+        "name": "Horizontal mode",
+        "preset": "horizontal-versus-vertical",
+        "decayBase": 2,
+        "originScale": 1
+      }
+    ]
+  },
+  "waveScales": {
+    "pawn": {
+      "friendly": 4,
+      "hostile": 1
+    },
+    "rook": {
+      "friendly": 3,
+      "hostile": 1
+    },
+    "spy": {
+      "friendly": 3,
+      "hostile": 0
+    },
+    "king": {
+      "friendly": 4,
+      "hostile": 2
+    }
+  },
+  "homeEnergy": {
+    "pawn": 0,
+    "rook": 0,
+    "spy": 0.5,
+    "king": 0
+  },
+  "selectedPieceId": null,
+  "status": "playing",
+  "history": [],
+  "turnNumber": 1,
+  "message": "Blue to move"
+}

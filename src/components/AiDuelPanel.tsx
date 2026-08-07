@@ -86,6 +86,7 @@ export function AiDuelPanel({
               onChange={(event) => onSetSidePolicy(player, event.currentTarget.value as AiPolicy | "human")}
             >
               <option value="human">Human</option>
+              <option value="easy">Easy</option>
               <option value="heuristic">Heuristic</option>
               {neuralEnabled && <option value="neural-residual">{policyLabel("neural-residual")}</option>}
               {neuralEnabled && <option value="neural-transformer">{policyLabel("neural-transformer")}</option>}

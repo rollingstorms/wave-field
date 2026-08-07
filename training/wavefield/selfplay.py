@@ -36,7 +36,7 @@ from .model import PolicyValueNet, masked_policy_logits
 
 
 Player = Literal["red", "blue"]
-PolicyMode = Literal["random", "model", "heuristic"]
+PolicyMode = Literal["random", "model", "heuristic", "easy"]
 CapValueMode = Literal["zero", "material"]
 
 
@@ -51,6 +51,8 @@ class Sample:
     action_kind: int = 0
     legal_tuning_mask: np.ndarray | None = None
     tuning_action_index: int = -100
+    history_board: np.ndarray | None = None
+    history_side: np.ndarray | None = None
     metadata: Dict[str, Any] = field(default_factory=dict)
 
 
@@ -248,6 +250,47 @@ def _sample_from_action(
     )
 
 
+EncodedHistory = Sequence[Tuple[np.ndarray, np.ndarray]]
+
+
+def _history_arrays(
+    current_board: np.ndarray,
+    current_side: np.ndarray,
+    history: EncodedHistory | None,
+    history_plies: int,
+) -> Tuple[np.ndarray, np.ndarray] | None:
+    if history_plies <= 1:
+        return None
+    prior = list(history or [])
+    window = [*prior, (current_board, current_side)][-history_plies:]
+    pad_count = history_plies - len(window)
+    board_pad = [
+        np.zeros_like(current_board)
+        for _ in range(pad_count)
+    ]
+    side_pad = [
+        np.zeros_like(current_side)
+        for _ in range(pad_count)
+    ]
+    history_boards = [*board_pad, *(item[0] for item in window)]
+    history_sides = [*side_pad, *(item[1] for item in window)]
+    return np.stack(history_boards).astype(np.float32), np.stack(history_sides).astype(np.float32)
+
+
+def _attach_history(
+    sample: Sample,
+    board: np.ndarray,
+    side: np.ndarray,
+    history: EncodedHistory | None,
+    history_plies: int,
+) -> Sample:
+    arrays = _history_arrays(board, side, history, history_plies)
+    if arrays is not None:
+        sample.history_board, sample.history_side = arrays
+        sample.metadata["history_plies"] = history_plies
+    return sample
+
+
 def select_model_action(
     model: PolicyValueNet,
     state: Dict[str, Any],
@@ -257,14 +300,32 @@ def select_model_action(
     device: torch.device | str = "cpu",
     record_sample: bool = True,
     input_view: InputView = "base",
+    history: EncodedHistory | None = None,
+    history_plies: int = 1,
 ) -> Tuple[Action, Sample | None]:
     board, side, mask = encode_state(state, engine, actions, input_view=input_view)
     board_tensor = torch.tensor(board, dtype=torch.float32, device=device).unsqueeze(0)
     side_tensor = torch.tensor(side, dtype=torch.float32, device=device).unsqueeze(0)
     mask_tensor = torch.tensor(mask, dtype=torch.float32, device=device).unsqueeze(0)
+    history_arrays = _history_arrays(board, side, history, history_plies)
+    history_board_tensor = (
+        torch.tensor(history_arrays[0], dtype=torch.float32, device=device).unsqueeze(0)
+        if history_arrays is not None
+        else None
+    )
+    history_side_tensor = (
+        torch.tensor(history_arrays[1], dtype=torch.float32, device=device).unsqueeze(0)
+        if history_arrays is not None
+        else None
+    )
 
     with torch.no_grad():
-        logits, _value = model(board_tensor, side_tensor)
+        logits, _value = model(
+            board_tensor,
+            side_tensor,
+            history_board=history_board_tensor,
+            history_side=history_side_tensor,
+        )
         masked = masked_policy_logits(logits, mask_tensor).squeeze(0)
         if temperature <= 0:
             selected_index = int(masked.argmax().item())
@@ -291,6 +352,7 @@ def select_model_action(
                     "legal_count": len(actions),
                 },
             )
+            _attach_history(sample, board, side, history, history_plies)
 
     return selected, sample
 
@@ -302,9 +364,11 @@ def _sample_from_tuning_action(
     tune_actions: List[TuningAction],
     action: TuningAction,
     input_view: InputView = "base",
+    history: EncodedHistory | None = None,
+    history_plies: int = 1,
 ) -> Sample:
     board, side, move_mask = encode_state(state, engine, move_actions, input_view=input_view)
-    return Sample(
+    sample = Sample(
         board=board,
         side=side,
         legal_mask=move_mask,
@@ -319,6 +383,7 @@ def _sample_from_tuning_action(
             "legal_tuning_count": len(tune_actions),
         },
     )
+    return _attach_history(sample, board, side, history, history_plies)
 
 
 def _sample_from_model_move_action(
@@ -327,6 +392,8 @@ def _sample_from_model_move_action(
     move_actions: List[Action],
     action: Action,
     input_view: InputView = "base",
+    history: EncodedHistory | None = None,
+    history_plies: int = 1,
 ) -> Sample:
     sample = _sample_from_action(state, engine, move_actions, action, input_view=input_view)
     sample.action_kind = 0
@@ -334,7 +401,7 @@ def _sample_from_model_move_action(
     sample.legal_tuning_mask = legal_tuning_mask(legal_tuning_actions(state))
     sample.metadata["source"] = "python_model_full_policy"
     sample.metadata["legal_tuning_count"] = int(sample.legal_tuning_mask.sum())
-    return sample
+    return _attach_history(sample, sample.board, sample.side, history, history_plies)
 
 
 def _heuristic_tuning_samples(
@@ -522,6 +589,8 @@ def select_model_full_turn(
     record_samples: bool = True,
     input_view: InputView = "base",
     max_tuning_actions: int = 3,
+    history: EncodedHistory | None = None,
+    history_plies: int = 1,
 ) -> Tuple[Dict[str, Any], List[Sample], int]:
     samples: List[Sample] = []
     tuned_state = state
@@ -540,9 +609,25 @@ def select_model_full_turn(
         move_mask_tensor = torch.tensor(move_mask, dtype=torch.float32, device=device).unsqueeze(0)
         tune_mask = legal_tuning_mask(tune_actions)
         tune_mask_tensor = torch.tensor(tune_mask, dtype=torch.float32, device=device).unsqueeze(0)
+        history_arrays = _history_arrays(board, side, history, history_plies)
+        history_board_tensor = (
+            torch.tensor(history_arrays[0], dtype=torch.float32, device=device).unsqueeze(0)
+            if history_arrays is not None
+            else None
+        )
+        history_side_tensor = (
+            torch.tensor(history_arrays[1], dtype=torch.float32, device=device).unsqueeze(0)
+            if history_arrays is not None
+            else None
+        )
 
         with torch.no_grad():
-            kind_logits, move_logits, tune_logits = model.full_policy(board_tensor, side_tensor)
+            kind_logits, move_logits, tune_logits = model.full_policy(
+                board_tensor,
+                side_tensor,
+                history_board=history_board_tensor,
+                history_side=history_side_tensor,
+            )
             kind_mask = torch.tensor([[1.0 if move_actions else 0.0, 1.0 if can_tune else 0.0]], dtype=torch.float32, device=device)
             kind = _select_index(masked_policy_logits(kind_logits, kind_mask).squeeze(0), temperature)
 
@@ -561,6 +646,8 @@ def select_model_full_turn(
                             tune_actions,
                             tune_action,
                             input_view=input_view,
+                            history=history,
+                            history_plies=history_plies,
                         )
                     )
                 tuned_state = engine.apply_tuning(tuned_state, tune_action)
@@ -576,6 +663,7 @@ def select_model_full_turn(
                 selected_index = action_index(move_action)
             if record_samples:
                 sample = _sample_from_model_move_action(tuned_state, engine, move_actions, move_action, input_view=input_view)
+                _attach_history(sample, sample.board, sample.side, history, history_plies)
                 sample.action_index = selected_index
                 samples.append(sample)
             return engine.apply_action(tuned_state, move_action, analyze_checkmate=False), samples, tune_count
@@ -647,6 +735,7 @@ def play_game(
     input_view: InputView = "base",
     full_policy: bool = False,
     max_tuning_actions: int = 3,
+    history_plies: int = 1,
 ) -> GameRecord:
     if policy == "model" and model is None:
         raise ValueError("model policy requires a model")
@@ -655,6 +744,7 @@ def play_game(
     state = initial_state or load_initial_state()
     samples: List[Sample] = []
     stats = GameStats()
+    encoded_history: List[Tuple[np.ndarray, np.ndarray]] = []
 
     if model is not None:
         model.eval()
@@ -668,6 +758,8 @@ def play_game(
             state = _no_move_loss(state)
             stats.plies = ply + 1
             break
+        history_actions = actions if actions else engine.legal_actions(state)
+        history_board, history_side, _history_mask = encode_state(state, engine, history_actions, input_view=input_view)
 
         current_player = state["currentPlayer"]
         before_pieces = _piece_map(state)
@@ -693,6 +785,8 @@ def play_game(
                     record_samples=record_samples,
                     input_view=input_view,
                     max_tuning_actions=max_tuning_actions,
+                    history=encoded_history,
+                    history_plies=history_plies,
                 )
                 if next_state["status"] == "playing" and not engine.legal_actions(next_state):
                     next_state = _no_move_loss(next_state)
@@ -713,6 +807,8 @@ def play_game(
                     device=device,
                     record_sample=record_samples,
                     input_view=input_view,
+                    history=encoded_history,
+                    history_plies=history_plies,
                 )
                 if sample is not None:
                     samples.append(sample)
@@ -728,6 +824,15 @@ def play_game(
             )
             tune_changes = _component_change_count(state, next_state, current_player)
             _update_tuning_stats(stats, current_player, tune_changes, tune_changes)
+        elif policy == "easy":
+            next_state = engine.play_easy_turn(
+                state,
+                player=current_player,
+                seed=(seed or 0) + ply,
+                variety=0.0,
+                time_budget_ms=heuristic_time_budget_ms,
+            )
+            _update_tuning_stats(stats, current_player, 0, 0)
         else:
             action = rng.choice(actions)
             if record_samples:
@@ -759,6 +864,9 @@ def play_game(
             stats.max_loser_pieces = max(before_counts[loser], _piece_counts(next_state)[loser])
 
         stats.plies = ply + 1
+        encoded_history.append((history_board, history_side))
+        if len(encoded_history) >= history_plies:
+            encoded_history = encoded_history[-(history_plies - 1):] if history_plies > 1 else []
         state = next_state
 
     stats.status = state["status"]
@@ -852,6 +960,7 @@ def selfplay_records(
     input_view: InputView = "base",
     full_policy: bool = False,
     max_tuning_actions: int = 3,
+    history_plies: int = 1,
     initial_states: List[Dict[str, Any]] | None = None,
 ) -> List[GameRecord]:
     if initial_states is not None and len(initial_states) != games:
@@ -872,6 +981,7 @@ def selfplay_records(
             input_view=input_view,
             full_policy=full_policy,
             max_tuning_actions=max_tuning_actions,
+            history_plies=history_plies,
         )
         for game in range(games)
     ]

@@ -4,7 +4,7 @@ import { tuningStrengthFor } from "./constants";
 import { snapshot } from "./initialState";
 import { getLegalMoves } from "./movement";
 import { applyMove, opponent } from "./rules";
-import { rustPlayHeuristicTurn } from "./rustEngine";
+import { rustPlayEasyTurn, rustPlayHeuristicTurn } from "./rustEngine";
 import { activationOrderForProfile } from "./tuning";
 import type { Coefficient, GameSnapshot, GameState, Piece, PieceType, Player, PlayerComponents, Position } from "./types";
 import { getUnstablePieces, isKingUnprotected, markInstability } from "./victory";
@@ -18,6 +18,7 @@ const fullAnalysisLimit = 3;
 const repetitionLookback = 18;
 const repeatedStatePenalty = 900;
 const immediateReversalPenalty = 500;
+const easySearchDepth = 2;
 
 export interface AiTurnOptions {
   seed?: number;
@@ -205,6 +206,112 @@ function loopPenalty(
     && samePosition(previousMove.from, destination),
   );
   return repeatCount * repeatedStatePenalty + (reversesLastMove ? immediateReversalPenalty : 0);
+}
+
+function legalMoveChoices(state: GameState): Array<{ pieceId: string; destination: Position; preview: GameState; score: number }> {
+  const field = evaluateField(state);
+  return state.pieces
+    .filter((piece) => piece.owner === state.currentPlayer)
+    .flatMap((piece) =>
+      getLegalMoves(piece.id, state, field)
+        .flatMap((destination) => {
+          const result = applyMove(piece.id, destination, state, { analyzeCheckmate: false });
+          return result.ok ? [{ pieceId: piece.id, destination, preview: result.state, score: 0 }] : [];
+        }),
+    );
+}
+
+function noLegalMoveState(state: GameState, player: Player): GameState {
+  const field = evaluateField(state);
+  const winner = opponent(player);
+  const message = isKingUnprotected(player, state, field)
+    ? `${playerName(player)} has no legal rescue`
+    : `${playerName(player)} has no legal move`;
+  return {
+    ...state,
+    status: winStatus(winner),
+    selectedPieceId: null,
+    history: [...state.history, snapshot(state)],
+    message,
+  };
+}
+
+function minimaxScore(
+  state: GameState,
+  rootPlayer: Player,
+  depth: number,
+  alpha: number,
+  beta: number,
+): number {
+  if (depth <= 0 || state.status !== "playing") {
+    return scoreState(state, rootPlayer, evaluateField(state));
+  }
+
+  const choices = legalMoveChoices(state);
+  if (choices.length === 0) return state.currentPlayer === rootPlayer ? -1_000_000 : 1_000_000;
+
+  if (state.currentPlayer === rootPlayer) {
+    let value = Number.NEGATIVE_INFINITY;
+    let nextAlpha = alpha;
+    for (const choice of choices) {
+      value = Math.max(value, minimaxScore(choice.preview, rootPlayer, depth - 1, nextAlpha, beta));
+      nextAlpha = Math.max(nextAlpha, value);
+      if (nextAlpha >= beta) break;
+    }
+    return value;
+  }
+
+  let value = Number.POSITIVE_INFINITY;
+  let nextBeta = beta;
+  for (const choice of choices) {
+    value = Math.min(value, minimaxScore(choice.preview, rootPlayer, depth - 1, alpha, nextBeta));
+    nextBeta = Math.min(nextBeta, value);
+    if (alpha >= nextBeta) break;
+  }
+  return value;
+}
+
+export function playEasyTurn(state: GameState, player: Player = "red", options: AiTurnOptions = {}): GameState {
+  if (state.status !== "playing" || state.currentPlayer !== player) return state;
+  const rustState = rustPlayEasyTurn(
+    state,
+    player,
+    options.seed ?? 0,
+    Math.max(0, Math.min(options.variety ?? 0, 1)),
+    Math.max(1, options.timeBudgetMs ?? 10),
+  );
+  if (rustState) return rustState;
+
+  const repetitionCounts = recentStateCounts(state);
+  const recentMoves = lastMoveByPiece(state, player);
+  const choices = legalMoveChoices(state).flatMap((choice) => {
+    const piece = state.pieces.find((candidate) => candidate.id === choice.pieceId);
+    if (!piece) return [];
+    const score = minimaxScore(
+      choice.preview,
+      player,
+      easySearchDepth - 1,
+      Number.NEGATIVE_INFINITY,
+      Number.POSITIVE_INFINITY,
+    ) - loopPenalty(choice.preview, piece, choice.destination, repetitionCounts, recentMoves);
+    return [{ ...choice, score }];
+  });
+
+  if (choices.length === 0) return noLegalMoveState(state, player);
+  choices.sort((left, right) => right.score - left.score);
+
+  const variety = Math.max(0, Math.min(options.variety ?? 0, 1));
+  if (variety > 0) {
+    const leader = choices[0].score;
+    const candidateWindow = choices.filter((choice) => leader - choice.score <= 80 + variety * 180);
+    candidateWindow.sort((left, right) =>
+      (right.score + choiceNoise(right, state, player, options.seed ?? 0) * variety * 120)
+      - (left.score + choiceNoise(left, state, player, options.seed ?? 0) * variety * 120),
+    );
+    choices.splice(0, candidateWindow.length, ...candidateWindow);
+  }
+
+  return choices[0].preview;
 }
 
 export function playHeuristicTurn(state: GameState, player: Player = "red", options: AiTurnOptions = {}): GameState {

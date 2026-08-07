@@ -1,7 +1,7 @@
 import type { Coefficient, GameState, PieceType, Position } from "./types";
 
 export type NeuralPolicy = "neural-residual" | "neural-transformer";
-export type AiPolicy = "heuristic" | NeuralPolicy;
+export type AiPolicy = "easy" | "heuristic" | NeuralPolicy;
 
 const neuralEndpoints: Record<NeuralPolicy, string> = {
   "neural-residual": "http://127.0.0.1:8765/move",
@@ -18,6 +18,8 @@ export function policyLabel(policy: AiPolicy | "human"): string {
       return "Human";
     case "heuristic":
       return "Heuristic";
+    case "easy":
+      return "Easy";
     case "neural-residual":
       return "Neural residual";
     case "neural-transformer":

@@ -13,6 +13,7 @@ from wavefield.encoding import (
     SIDE_SIZE,
     decode_action,
     encode_state,
+    legal_tuning_actions,
 )
 from wavefield.analyze_model import effective_rank, fit_linear_probe
 from wavefield.engine import RustEngine, load_initial_state
@@ -99,6 +100,48 @@ class TrainingSmokeTest(unittest.TestCase):
         self.assertEqual(logits.shape, (1, ACTION_SIZE))
         self.assertEqual(value.shape, (1,))
         self.assertTrue(torch.isfinite(masked.max()))
+
+    def test_sequence_transformer_forward_pass_with_history(self) -> None:
+        state = load_initial_state()
+        actions = self.engine.legal_actions(state)
+        board, side, legal_mask = encode_state(state, self.engine, actions, input_view="piece_identity")
+        history_board = np.stack([np.zeros_like(board)] * 15 + [board])
+        history_side = np.stack([np.zeros_like(side)] * 15 + [side])
+
+        model = PolicyValueNet(
+            hidden_size=32,
+            board_channels=RICH_BOARD_CHANNELS,
+            side_size=SIDE_SIZE,
+            architecture="sequence_transformer",
+            history_plies=16,
+        )
+        kind_logits, move_logits, tune_logits = model.full_policy(
+            torch.tensor(board).unsqueeze(0),
+            torch.tensor(side).unsqueeze(0),
+            history_board=torch.tensor(history_board).unsqueeze(0),
+            history_side=torch.tensor(history_side).unsqueeze(0),
+        )
+        masked = masked_policy_logits(move_logits, torch.tensor(legal_mask).unsqueeze(0))
+
+        self.assertEqual(kind_logits.shape, (1, 2))
+        self.assertEqual(move_logits.shape, (1, ACTION_SIZE))
+        self.assertEqual(tune_logits.shape[0], 1)
+        self.assertTrue(torch.isfinite(masked.max()))
+
+    def test_encoding_accepts_shorter_ui_component_profiles(self) -> None:
+        state = load_initial_state()
+        for player in ("blue", "red"):
+            state["components"][player]["spy"] = state["components"][player]["spy"][:2]
+            state["components"][player]["king"] = state["components"][player]["king"][:2]
+        state["defaultComponents"]["spy"] = state["defaultComponents"]["spy"][:2]
+        state["defaultComponents"]["king"] = state["defaultComponents"]["king"][:2]
+
+        actions = self.engine.legal_actions(state)
+        _board, side, _legal_mask = encode_state(state, self.engine, actions, input_view="piece_identity")
+        tune_actions = legal_tuning_actions(state)
+
+        self.assertEqual(side.shape, (SIDE_SIZE,))
+        self.assertTrue(all(action["componentIndex"] < 2 for action in tune_actions if action["pieceType"] in ("spy", "king")))
 
     def test_decode_action_round_trip_shape(self) -> None:
         action = decode_action(0)
@@ -278,6 +321,32 @@ class TrainingSmokeTest(unittest.TestCase):
         self.assertEqual(actions[0]["type"], "tune")
         self.assertEqual(actions[-1]["type"], "move")
         self.assertEqual(response["tuningActions"], 1)
+
+    def test_local_model_server_encodes_browser_history_for_sequence_models(self) -> None:
+        server = ModelMoveServer.__new__(ModelMoveServer)
+        server.engine = self.engine
+        server.model = PolicyValueNet(
+            hidden_size=32,
+            board_channels=RICH_BOARD_CHANNELS,
+            side_size=SIDE_SIZE,
+            architecture="sequence_transformer",
+            history_plies=16,
+        )
+        server.device = torch.device("cpu")
+        server.input_view = "piece_identity"
+        state = load_initial_state()
+        snapshot = {
+            key: structured
+            for key, structured in state.items()
+            if key not in ("history", "defaultComponents")
+        }
+        state["history"] = [snapshot]
+
+        encoded = server._encoded_history(state)
+
+        self.assertEqual(len(encoded), 1)
+        self.assertEqual(encoded[0][0].shape, (RICH_BOARD_CHANNELS, 7, 7))
+        self.assertEqual(encoded[0][1].shape, (SIDE_SIZE,))
 
     def test_analysis_rank_and_linear_probe_helpers(self) -> None:
         torch.manual_seed(61)

@@ -16,7 +16,7 @@ from .selfplay import (
 from .train import resolve_device
 
 
-Policy = Literal["model", "heuristic", "random"]
+Policy = Literal["model", "heuristic", "easy", "random"]
 
 
 def parse_args() -> argparse.Namespace:
@@ -24,12 +24,13 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--games", type=int, default=10)
     parser.add_argument("--max-plies", type=int, default=150)
     parser.add_argument("--seed", type=int, default=90210)
-    parser.add_argument("--red", choices=("model", "heuristic", "random"), default="model")
-    parser.add_argument("--blue", choices=("model", "heuristic", "random"), default="heuristic")
+    parser.add_argument("--red", choices=("model", "heuristic", "easy", "random"), default="model")
+    parser.add_argument("--blue", choices=("model", "heuristic", "easy", "random"), default="heuristic")
     parser.add_argument("--checkpoint", type=Path, default=Path("training/checkpoints/rust_batch_2000x150_policy_value.pt"))
     parser.add_argument("--hidden-size", type=int, default=128)
-    parser.add_argument("--model-arch", choices=("conv", "residual", "transformer"), default=None)
+    parser.add_argument("--model-arch", choices=("conv", "residual", "transformer", "sequence_transformer"), default=None)
     parser.add_argument("--input-view", choices=("base", "piece_identity"), default=None)
+    parser.add_argument("--history-plies", type=int, default=None)
     parser.add_argument("--temperature", type=float, default=1.0)
     parser.add_argument("--device", default="auto")
     parser.add_argument("--full-policy", action="store_true", help="Let model turns choose tuning actions before moving.")
@@ -117,6 +118,7 @@ def play_match_game(
 ) -> GameRecord:
     state = load_initial_state()
     stats = GameStats()
+    encoded_history = []
     if model is not None:
         model.eval()
 
@@ -152,6 +154,8 @@ def play_match_game(
                     record_samples=False,
                     input_view=input_view,
                     max_tuning_actions=max_tuning_actions,
+                    history=encoded_history,
+                    history_plies=getattr(model, "history_plies", 1),
                 )
                 if next_state["status"] == "playing" and not engine.legal_actions(next_state):
                     next_state = _no_move_loss(next_state)
@@ -174,6 +178,8 @@ def play_match_game(
                         device=device,
                         record_sample=False,
                         input_view=input_view,
+                        history=encoded_history,
+                        history_plies=getattr(model, "history_plies", 1),
                     )
                     state = engine.apply_action(state, action, analyze_checkmate=False)
                 stats.ai_turns_by_player[player] += 1
@@ -191,6 +197,15 @@ def play_match_game(
             stats.effective_tune_changes_by_player[player] += tune_changes
             if tune_changes > 0:
                 stats.tune_turns_by_player[player] += 1
+        elif policy == "easy":
+            state = engine.play_easy_turn(
+                state,
+                player=player,
+                seed=seed + ply,
+                variety=0.0,
+                time_budget_ms=10,
+            )
+            stats.ai_turns_by_player[player] += 1
         else:
             actions = engine.legal_actions(state)
             if not actions:
@@ -214,6 +229,12 @@ def play_match_game(
             stats.max_loser_pieces = max(before_counts[loser], after_counts[loser])
 
         stats.plies = ply + 1
+        if getattr(model, "history_plies", 1) > 1:
+            from .encoding import encode_state
+            actions_for_history = engine.legal_actions(before_state)
+            board, side, _mask = encode_state(before_state, engine, actions_for_history, input_view=input_view)
+            encoded_history.append((board, side))
+            encoded_history = encoded_history[-(getattr(model, "history_plies", 1) - 1):]
 
     stats.status = state["status"]
     stats.winner = _winner(state["status"])
@@ -232,6 +253,7 @@ def main() -> None:
             device,
             model_arch=args.model_arch,
             input_view=args.input_view,
+            history_plies=args.history_plies,
         )
     else:
         model = None

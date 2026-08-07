@@ -18,7 +18,7 @@ from .encoding import (
 )
 from .eval import load_model
 from .model import masked_policy_logits
-from .selfplay import select_model_action
+from .selfplay import EncodedHistory, _history_arrays, select_model_action
 from .train import resolve_device
 
 
@@ -47,7 +47,29 @@ class ModelMoveServer:
             self.device,
         )
 
-    def _select_tuning_action(self, state: Dict[str, Any], temperature: float) -> TuningAction | None:
+    def _encoded_history(self, state: Dict[str, Any]) -> EncodedHistory:
+        history_plies = getattr(self.model, "history_plies", 1)
+        if history_plies <= 1:
+            return []
+        encoded = []
+        for snap in state.get("history", [])[-(history_plies - 1):]:
+            try:
+                history_state = dict(snap)
+                history_state.setdefault("defaultComponents", state.get("defaultComponents"))
+                history_state.setdefault("history", [])
+                actions = self.engine.legal_actions(history_state)
+                board, side, _mask = encode_state(history_state, self.engine, actions, input_view=self.input_view)
+                encoded.append((board, side))
+            except Exception:
+                continue
+        return encoded
+
+    def _select_tuning_action(
+        self,
+        state: Dict[str, Any],
+        temperature: float,
+        history: EncodedHistory | None = None,
+    ) -> TuningAction | None:
         actions = legal_tuning_actions(state)
         if not actions:
             return None
@@ -56,9 +78,25 @@ class ModelMoveServer:
         board_tensor = torch.tensor(board, dtype=torch.float32, device=self.device).unsqueeze(0)
         side_tensor = torch.tensor(side, dtype=torch.float32, device=self.device).unsqueeze(0)
         tune_mask = torch.tensor(legal_tuning_mask(actions), dtype=torch.float32, device=self.device).unsqueeze(0)
+        history_arrays = _history_arrays(board, side, history, getattr(self.model, "history_plies", 1))
+        history_board = (
+            torch.tensor(history_arrays[0], dtype=torch.float32, device=self.device).unsqueeze(0)
+            if history_arrays is not None
+            else None
+        )
+        history_side = (
+            torch.tensor(history_arrays[1], dtype=torch.float32, device=self.device).unsqueeze(0)
+            if history_arrays is not None
+            else None
+        )
 
         with torch.no_grad():
-            _kind_logits, _move_logits, tune_logits = self.model.full_policy(board_tensor, side_tensor)
+            _kind_logits, _move_logits, tune_logits = self.model.full_policy(
+                board_tensor,
+                side_tensor,
+                history_board=history_board,
+                history_side=history_side,
+            )
             masked = masked_policy_logits(tune_logits, tune_mask).squeeze(0)
             if temperature <= 0:
                 selected_index = int(masked.argmax().item())
@@ -71,7 +109,13 @@ class ModelMoveServer:
             selected_index = tuning_action_index(actions[0])
         return decode_tuning_action(selected_index)
 
-    def _should_tune(self, state: Dict[str, Any], tune_count: int, temperature: float) -> bool:
+    def _should_tune(
+        self,
+        state: Dict[str, Any],
+        tune_count: int,
+        temperature: float,
+        history: EncodedHistory | None = None,
+    ) -> bool:
         if tune_count < self.args.min_tuning_actions:
             return True
         if tune_count >= self.args.max_tuning_actions:
@@ -88,9 +132,25 @@ class ModelMoveServer:
         side_tensor = torch.tensor(side, dtype=torch.float32, device=self.device).unsqueeze(0)
         move_mask_tensor = torch.tensor(move_mask, dtype=torch.float32, device=self.device).unsqueeze(0)
         tune_mask_tensor = torch.tensor(legal_tuning_mask(tune_actions), dtype=torch.float32, device=self.device).unsqueeze(0)
+        history_arrays = _history_arrays(board, side, history, getattr(self.model, "history_plies", 1))
+        history_board = (
+            torch.tensor(history_arrays[0], dtype=torch.float32, device=self.device).unsqueeze(0)
+            if history_arrays is not None
+            else None
+        )
+        history_side = (
+            torch.tensor(history_arrays[1], dtype=torch.float32, device=self.device).unsqueeze(0)
+            if history_arrays is not None
+            else None
+        )
 
         with torch.no_grad():
-            kind_logits, _move_logits, _tune_logits = self.model.full_policy(board_tensor, side_tensor)
+            kind_logits, _move_logits, _tune_logits = self.model.full_policy(
+                board_tensor,
+                side_tensor,
+                history_board=history_board,
+                history_side=history_side,
+            )
             has_move = move_mask_tensor.sum(dim=1) > 0
             has_tune = tune_mask_tensor.sum(dim=1) > 0
             kind_mask = torch.stack([has_move, has_tune], dim=1).to(dtype=torch.float32)
@@ -107,8 +167,9 @@ class ModelMoveServer:
             tuning_temperature = action_temperature
         tuned_state = state
         tuning_actions: List[TuningAction] = []
-        while self._should_tune(tuned_state, len(tuning_actions), tuning_temperature):
-            action = self._select_tuning_action(tuned_state, tuning_temperature)
+        history = self._encoded_history(state)
+        while self._should_tune(tuned_state, len(tuning_actions), tuning_temperature, history=history):
+            action = self._select_tuning_action(tuned_state, tuning_temperature, history=history)
             if action is None:
                 break
             next_tuned_state = self.engine.apply_tuning(tuned_state, action)
@@ -140,6 +201,8 @@ class ModelMoveServer:
             device=self.device,
             record_sample=False,
             input_view=self.input_view,
+            history=history,
+            history_plies=getattr(self.model, "history_plies", 1),
         )
         move_action = {"type": "move", **action}
         return {
@@ -182,6 +245,7 @@ def make_handler(server_state: ModelMoveServer) -> type[BaseHTTPRequestHandler]:
                     "ok": True,
                     "checkpoint": str(server_state.args.checkpoint),
                     "inputView": server_state.input_view,
+                    "historyPlies": getattr(server_state.model, "history_plies", 1),
                     "device": str(server_state.device),
                 },
             )

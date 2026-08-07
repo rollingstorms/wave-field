@@ -9,6 +9,13 @@ export const DEFAULT_COMPONENTS: PlayerComponents = {
   king: [1, 1],
 };
 
+export const TRAINING_COMPONENTS: PlayerComponents = {
+  pawn: [1],
+  rook: [1, 1],
+  spy: [1, 0, 0],
+  king: [0, 1, 1],
+};
+
 export const DEBUG_DEFINITIONS: ComponentDefinitions = {
   pawn: [{ kind: "preset", name: "Checkerboard", preset: "checkerboard", decayBase: 2, originScale: 1 }],
   rook: [

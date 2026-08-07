@@ -133,7 +133,9 @@ fn resolve_own_turn_consequences_with_field(
 fn component_options(piece_type: PieceType, count: usize) -> Vec<Vec<i8>> {
     fn build(piece_type: PieceType, count: usize, values: &mut Vec<i8>, output: &mut Vec<Vec<i8>>) {
         if values.len() == count {
-            if values.iter().filter(|value| **value != 0).count() == tuning_strength(piece_type, count) {
+            if values.iter().filter(|value| **value != 0).count()
+                == tuning_strength(piece_type, count)
+            {
                 output.push(values.clone());
             }
             return;

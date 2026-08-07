@@ -23,15 +23,18 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--games", type=int, default=10)
     parser.add_argument("--max-plies", type=int, default=160)
     parser.add_argument("--seed", type=int, default=90210)
-    parser.add_argument("--policy", choices=("random", "model", "heuristic"), default="random")
+    parser.add_argument("--policy", choices=("random", "model", "heuristic", "easy"), default="random")
     parser.add_argument("--checkpoint", type=Path, default=Path("training/checkpoints/policy_value.pt"))
     parser.add_argument("--hidden-size", type=int, default=128)
-    parser.add_argument("--model-arch", choices=("conv", "residual", "transformer"), default=None)
+    parser.add_argument("--model-arch", choices=("conv", "residual", "transformer", "sequence_transformer"), default=None)
     parser.add_argument("--input-view", choices=("base", "piece_identity"), default=None)
+    parser.add_argument("--history-plies", type=int, default=None)
     parser.add_argument("--temperature", type=float, default=1.0)
     parser.add_argument("--device", default="auto")
     parser.add_argument("--session", action="store_true", help="Use fast Rust session rollout for model eval.")
     parser.add_argument("--no-pressure", action="store_true", help="Skip exact pressure during session eval for faster bulk runs.")
+    parser.add_argument("--full-policy", action="store_true", help="Let model choose tuning actions before moving.")
+    parser.add_argument("--max-tuning-actions", type=int, default=3)
     parser.add_argument("--rollout-batch-size", type=int, default=128)
     parser.add_argument("--json", action="store_true")
     return parser.parse_args()
@@ -43,16 +46,19 @@ def load_model(
     device: torch.device,
     model_arch: str | None = None,
     input_view: str | None = None,
+    history_plies: int | None = None,
 ) -> tuple[PolicyValueNet, str]:
     checkpoint = torch.load(path, map_location=device, weights_only=False)
     resolved_arch = model_arch or checkpoint.get("model_arch", "conv")
     resolved_view = input_view or checkpoint.get("input_view", "base")
     resolved_hidden = int(checkpoint.get("hidden_size", hidden_size))
+    resolved_history = int(history_plies or checkpoint.get("history_plies", 1))
     model = PolicyValueNet(
         hidden_size=resolved_hidden,
         board_channels=board_channels_for_view(resolved_view),
         side_size=SIDE_SIZE,
         architecture=resolved_arch,
+        history_plies=resolved_history,
     ).to(device)
     model.load_state_dict(checkpoint["model"], strict=False)
     model.eval()
@@ -205,6 +211,7 @@ def main() -> None:
             device,
             model_arch=args.model_arch,
             input_view=args.input_view,
+            history_plies=args.history_plies,
         )
     else:
         model = None
@@ -212,6 +219,8 @@ def main() -> None:
     if args.session:
         if policy != "model":
             raise ValueError("--session eval currently supports --policy model")
+        if getattr(model, "architecture", None) == "sequence_transformer":
+            raise ValueError("sequence_transformer eval requires Python full-policy history; omit --session and add --full-policy.")
         assert model is not None
         records = session_model_selfplay_records(
             engine,
@@ -237,6 +246,9 @@ def main() -> None:
             temperature=args.temperature,
             device=device,
             input_view=input_view,
+            full_policy=args.full_policy,
+            max_tuning_actions=args.max_tuning_actions,
+            history_plies=getattr(model, "history_plies", 1),
         )
     summary = aggregate(records)
     if args.json:

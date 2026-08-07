@@ -70,6 +70,24 @@ fn training_safety_matches_normal_move_acceptance_for_initial_moves() {
 }
 
 #[test]
+fn easy_ai_turn_moves_from_initial_state() {
+    let state = fixture();
+    let next = play_easy_turn(
+        state,
+        Player::Blue,
+        AiTurnOptions {
+            seed: Some(7),
+            variety: Some(0.0),
+            time_budget_ms: Some(10),
+        },
+    );
+
+    assert_eq!(next.status, GameStatus::Playing);
+    assert_eq!(next.current_player, Player::Red);
+    assert_eq!(next.history.len(), 1);
+}
+
+#[test]
 fn begin_turn_declares_loss_when_player_has_no_legal_move() {
     let mut state = fixture();
     state.current_player = Player::Blue;

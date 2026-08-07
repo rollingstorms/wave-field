@@ -102,7 +102,10 @@ def legal_tuning_actions(state: Dict[str, Any]) -> List[TuningAction]:
     player = state["currentPlayer"]
     actions: List[TuningAction] = []
     for piece_type, component_index in TUNING_SLOTS:
-        current = state["components"][player][piece_type][component_index]
+        components = state["components"][player][piece_type]
+        if component_index >= len(components):
+            continue
+        current = components[component_index]
         for value in TUNING_VALUES:
             if current == value:
                 continue
@@ -129,8 +132,10 @@ def _occupancy_channel(owner: str, piece_type: str) -> int:
 def _flat_components(state: Dict[str, Any]) -> List[float]:
     values: List[float] = []
     for player in PLAYERS:
-        for piece_type in PIECE_TYPES:
-            values.extend(float(value) for value in state["components"][player][piece_type])
+        for piece_type, component_index in TUNING_SLOTS:
+            components = state["components"][player][piece_type]
+            value = components[component_index] if component_index < len(components) else 0
+            values.append(float(value))
     values.append(1.0 if state["currentPlayer"] == "red" else -1.0)
     return values
 
