@@ -101,16 +101,16 @@ describe("field engine", () => {
     }
   });
 
-  it("rook +- applies strength and wave scale to the basis difference", () => {
+  it("rook +- scales after summing the component basis values", () => {
     const state = tuned("rook", [1, -1]);
     const piece = state.pieces[0];
     const square = { x: 5, y: 3 };
     const delta = { x: 2, y: 0 };
     const c1 = evaluateBasis(DEFAULT_DEFINITIONS.rook[0], delta);
     const c2 = -evaluateBasis(DEFAULT_DEFINITIONS.rook[1], delta);
-    const scale = (value: number) => value >= 0 ? state.waveScales.rook.friendly : state.waveScales.rook.hostile;
-    const scaled = c1 * scale(c1) + c2 * scale(c2);
-    const expected = 2 * scaled;
+    const rawValue = c1 + c2;
+    const scale = rawValue >= 0 ? state.waveScales.rook.friendly : state.waveScales.rook.hostile;
+    const expected = 2 * rawValue * scale;
     expect(evaluatePieceContribution(piece, square, state)).toBeCloseTo(expected);
   });
 

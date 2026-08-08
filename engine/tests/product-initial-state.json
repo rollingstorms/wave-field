@@ -226,7 +226,7 @@
         "geometry": "chebyshev",
         "ringValues": [
           0,
-          1,
+          0,
           1,
           -1
         ],

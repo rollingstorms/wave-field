@@ -248,21 +248,20 @@ pub fn evaluate_piece_contribution(piece: &Piece, square: Position, state: &Game
     }
     let coefficients = state.components.get(piece.owner).get(piece.piece_type);
     let definitions = state.definitions.get(piece.piece_type);
-    let contribution = coefficients
+    let raw_value = coefficients
         .iter()
         .enumerate()
         .map(|(index, coefficient)| {
-            let value = f64::from(*coefficient) * evaluate_basis(&definitions[index], delta);
-            let scale = state.wave_scales.get(piece.piece_type);
-            value
-                * if value >= 0.0 {
-                    scale.friendly
-                } else {
-                    scale.hostile
-                }
+            f64::from(*coefficient) * evaluate_basis(&definitions[index], delta)
         })
         .sum::<f64>();
-    piece_strength(piece.piece_type) * contribution
+    let scale = state.wave_scales.get(piece.piece_type);
+    let scale_value = if raw_value >= 0.0 {
+        scale.friendly
+    } else {
+        scale.hostile
+    };
+    piece_strength(piece.piece_type) * raw_value * scale_value
 }
 
 pub fn evaluate_field(state: &GameState) -> Field {

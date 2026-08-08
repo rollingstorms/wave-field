@@ -19,7 +19,7 @@ export const TRAINING_COMPONENTS: PlayerComponents = {
 export const DEBUG_DEFINITIONS: ComponentDefinitions = {
   pawn: [{ kind: "preset", name: "Checkerboard", preset: "checkerboard", decayBase: 2, originScale: 1 }],
   rook: [
-    { kind: "ring", name: "Push pairs", geometry: "chebyshev", ringValues: [0, 1, 1, -1], repeat: true, decayBase: 2, originScale: 1 },
+    { kind: "ring", name: "Push pairs", geometry: "chebyshev", ringValues: [0, 0, 1, -1], repeat: true, decayBase: 2, originScale: 1 },
     { kind: "ring", name: "Pull gap push", geometry: "chebyshev", ringValues: [0, 1, 0, -1], repeat: true, decayBase: 2, originScale: 1 },
   ],
   spy: [
