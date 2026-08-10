@@ -147,7 +147,7 @@ describe("stability and victory", () => {
     ];
     state.components.blue.pawn = [0];
     state.components.blue.spy = [1, 0, 0];
-    state.components.red.rook = [1, 0];
+    state.components.red.rook = [0, 1];
 
     const result = applyMove("blue-spy", { x: 0, y: 3 }, state);
 
