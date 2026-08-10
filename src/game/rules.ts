@@ -12,6 +12,7 @@ import {
   rustApplyTuning,
   rustBeginTurn,
   rustClosestPlayableConfiguration,
+  rustHintSearch,
   rustPlayableMoves,
   rustRandomizeTuning,
   rustResetTuning,
@@ -44,6 +45,26 @@ export interface PlayableConfigurationHint {
   destination: Position;
   changedComponents: number;
 }
+
+interface HintSearchSuccess {
+  ok: true;
+  state: GameState;
+  pieceID: string;
+  moves: Position[];
+  safe: boolean;
+  lossCount: number;
+  tuningDistance: number;
+  tunedKinds: PieceType[];
+  exhausted: boolean;
+}
+
+interface HintSearchFailure {
+  ok: false;
+  reason?: string;
+  exhausted: boolean;
+}
+
+type HintSearchResult = HintSearchSuccess | HintSearchFailure;
 
 interface RuleOptions {
   analyzeCheckmate?: boolean;
@@ -303,6 +324,37 @@ export function applyClosestPlayableHint(state: GameState): MoveResult {
       message: `Hint · ${changeText} · move ${pieceNameLower(hint.pieceType)} to ${boardCoordinate(hint.destination)}`,
     },
   };
+}
+
+export function applyHintSearch(state: GameState, focusedPieceId: string | null = state.selectedPieceId): MoveResult {
+  const rustResult = rustHintSearch<HintSearchResult>(state.currentPlayer, focusedPieceId, state, 160, 160);
+  if (rustResult) {
+    if (!rustResult.ok) {
+      return {
+        ok: false,
+        state,
+        reason: rustResult.reason ?? (rustResult.exhausted ? "Hint search stopped before finding an escape." : "No legal escape exists."),
+      };
+    }
+
+    const tunedKinds = rustResult.tunedKinds.map(pieceNameLower).join(", ");
+    const tuneText = rustResult.tuningDistance === 0
+      ? "Current tuning works"
+      : `${rustResult.tuningDistance} control${rustResult.tuningDistance === 1 ? "" : "s"} changed`;
+    const moveText = rustResult.moves.length === 1
+      ? boardCoordinate(rustResult.moves[0])
+      : `${rustResult.moves.length} candidate moves`;
+    return {
+      ok: true,
+      state: {
+        ...rustResult.state,
+        selectedPieceId: rustResult.pieceID,
+        message: `Hint · ${tuneText}${tunedKinds ? ` · tuned ${tunedKinds}` : ""} · ${rustResult.safe ? "safe" : `${rustResult.lossCount} loss`} · ${moveText}`,
+      },
+    };
+  }
+
+  return applyClosestPlayableHint(state);
 }
 
 export function randomizeTuning(state: GameState, random: () => number = Math.random): MoveResult {

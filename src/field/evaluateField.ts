@@ -14,12 +14,17 @@ export function evaluatePieceContribution(
   const bases = definitions[piece.type];
   const delta = offset(piece.position, square);
   if (delta.x === 0 && delta.y === 0) return state.homeEnergy[piece.type];
-  const rawValue = coefficients.reduce<number>(
-    (total, coefficient, index) => total + coefficient * evaluateComponentBasis(piece.type, bases[index], delta),
-    0,
+  const raw = coefficients.reduce(
+    (totals, coefficient, index) => {
+      const value = coefficient * evaluateComponentBasis(piece.type, bases[index], delta);
+      if (value > 0) totals.positive += value;
+      else if (value < 0) totals.negative += value;
+      return totals;
+    },
+    { positive: 0, negative: 0 },
   );
-  const scale = rawValue >= 0 ? state.waveScales[piece.type].friendly : state.waveScales[piece.type].hostile;
-  return PIECE_STRENGTH[piece.type] * rawValue * scale;
+  const scale = state.waveScales[piece.type];
+  return PIECE_STRENGTH[piece.type] * (raw.positive * scale.friendly + raw.negative * scale.hostile);
 }
 
 export function evaluateSignedPieceContribution(

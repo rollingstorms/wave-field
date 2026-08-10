@@ -22,6 +22,24 @@ pub fn closest_playable_configuration_json(player: &str, state_json: &str) -> St
 }
 
 #[wasm_bindgen]
+pub fn hint_search_json(
+    player: &str,
+    focused_piece_id: &str,
+    state_json: &str,
+    max_tuning_states: u32,
+    time_budget_ms: u32,
+) -> String {
+    api::hint_search_json(
+        player,
+        focused_piece_id,
+        state_json,
+        max_tuning_states,
+        time_budget_ms,
+    )
+    .expect("valid engine API call")
+}
+
+#[wasm_bindgen]
 pub fn apply_move_json(
     piece_id: &str,
     x: i32,

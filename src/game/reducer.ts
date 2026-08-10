@@ -3,7 +3,7 @@ import { DEBUG_COMPONENT_COUNT_LIMITS, DEFAULT_HOME_ENERGY, DEFAULT_WAVE_SCALES,
 import { playHeuristicTurn } from "./ai";
 import { createInitialState, fromSnapshot, snapshot } from "./initialState";
 import { pieceNameLower } from "./pieceLabels";
-import { applyClosestPlayableHint, applyMove, applyTuning, beginTurn, randomizeTuning, resetTuning, resignInCheck } from "./rules";
+import { applyHintSearch, applyMove, applyTuning, beginTurn, randomizeTuning, resetTuning, resignInCheck } from "./rules";
 import { activationOrdersForPlayers } from "./tuning";
 import type { BasisDefinition, Coefficient, GameState, PieceType, Player, Position } from "./types";
 
@@ -12,7 +12,7 @@ export type GameAction =
   | { type: "move"; pieceId: string; destination: Position }
   | { type: "tune"; pieceType: PieceType; componentIndex: number; value: Coefficient }
   | { type: "resign" }
-  | { type: "hint" }
+  | { type: "hint"; focusedPieceId?: string | null }
   | { type: "randomize-tuning" }
   | { type: "reset-tuning" }
   | { type: "ai-turn"; player?: Player; seed?: number; variety?: number }
@@ -92,7 +92,7 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
       return result.ok ? result.state : { ...state, message: result.reason ?? state.message };
     }
     case "hint": {
-      const result = applyClosestPlayableHint(state);
+      const result = applyHintSearch(state, action.focusedPieceId ?? state.selectedPieceId);
       return result.ok ? result.state : { ...state, message: result.reason ?? state.message };
     }
     case "randomize-tuning": {

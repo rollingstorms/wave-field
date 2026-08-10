@@ -65,6 +65,16 @@ pub extern "C" fn wf_evaluate_field_json(state_json: *const c_char) -> *mut c_ch
 }
 
 #[unsafe(no_mangle)]
+pub extern "C" fn wf_preview_move_json(
+    piece_id: *const c_char,
+    x: i32,
+    y: i32,
+    state_json: *const c_char,
+) -> *mut c_char {
+    call_json(|| api::preview_move_json(read_str(piece_id)?, x, y, read_str(state_json)?))
+}
+
+#[unsafe(no_mangle)]
 pub extern "C" fn wf_piece_pattern_json(
     player: *const c_char,
     piece_type: *const c_char,
@@ -101,6 +111,25 @@ pub extern "C" fn wf_closest_playable_configuration_json(
     state_json: *const c_char,
 ) -> *mut c_char {
     call_json(|| api::closest_playable_configuration_json(read_str(player)?, read_str(state_json)?))
+}
+
+#[unsafe(no_mangle)]
+pub extern "C" fn wf_hint_search_json(
+    player: *const c_char,
+    focused_piece_id: *const c_char,
+    state_json: *const c_char,
+    max_tuning_states: u32,
+    time_budget_ms: u32,
+) -> *mut c_char {
+    call_json(|| {
+        api::hint_search_json(
+            read_str(player)?,
+            read_str(focused_piece_id)?,
+            read_str(state_json)?,
+            max_tuning_states,
+            time_budget_ms,
+        )
+    })
 }
 
 #[unsafe(no_mangle)]

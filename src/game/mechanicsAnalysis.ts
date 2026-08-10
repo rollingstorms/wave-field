@@ -501,12 +501,17 @@ export function enumerateProfiles(pieceType: PieceType): Coefficient[][] {
 
 function profileContribution(pieceType: PieceType, profile: readonly Coefficient[], delta: Position, state: GameState): number {
   if (delta.x === 0 && delta.y === 0) return state.homeEnergy[pieceType];
-  const rawValue = profile.reduce<number>(
-    (total, coefficient, index) => total + coefficient * evaluateComponentBasis(pieceType, state.definitions[pieceType][index], delta),
-    0,
+  const raw = profile.reduce(
+    (totals, coefficient, index) => {
+      const value = coefficient * evaluateComponentBasis(pieceType, state.definitions[pieceType][index], delta);
+      if (value > 0) totals.positive += value;
+      else if (value < 0) totals.negative += value;
+      return totals;
+    },
+    { positive: 0, negative: 0 },
   );
-  const scale = rawValue >= 0 ? state.waveScales[pieceType].friendly : state.waveScales[pieceType].hostile;
-  return PIECE_STRENGTH[pieceType] * rawValue * scale;
+  const scale = state.waveScales[pieceType];
+  return PIECE_STRENGTH[pieceType] * (raw.positive * scale.friendly + raw.negative * scale.hostile);
 }
 
 function gridForPiece(piece: ComboPiece, state: GameState): number[][] {

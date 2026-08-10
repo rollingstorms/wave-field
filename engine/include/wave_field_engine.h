@@ -13,6 +13,7 @@ void wf_string_free(char *value);
 char *wf_new_game_json(void);
 char *wf_undo_json(const char *state_json);
 char *wf_evaluate_field_json(const char *state_json);
+char *wf_preview_move_json(const char *piece_id, int32_t x, int32_t y, const char *state_json);
 char *wf_piece_pattern_json(
     const char *player,
     const char *piece_type,
@@ -21,6 +22,13 @@ char *wf_piece_pattern_json(
 char *wf_legal_moves_json(const char *piece_id, const char *state_json);
 char *wf_playable_moves_json(const char *piece_id, const char *state_json);
 char *wf_closest_playable_configuration_json(const char *player, const char *state_json);
+char *wf_hint_search_json(
+    const char *player,
+    const char *focused_piece_id,
+    const char *state_json,
+    uint32_t max_tuning_states,
+    uint32_t time_budget_ms
+);
 char *wf_apply_move_json(
     const char *piece_id,
     int32_t x,

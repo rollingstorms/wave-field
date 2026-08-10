@@ -8,6 +8,7 @@ interface RustBindings {
   apply_tuning_json: (player: Player, pieceType: PieceType, componentIndex: number, value: Coefficient, state: string) => string;
   begin_turn_json: (state: string, analyzeCheckmate: boolean) => string;
   closest_playable_configuration_json: (player: Player, state: string) => string;
+  hint_search_json: (player: Player, focusedPieceId: string, state: string, maxTuningStates: number, timeBudgetMs: number) => string;
   evaluate_field_json: (state: string) => string;
   king_unprotected_json: (player: Player, state: string) => boolean;
   legal_moves_json: (pieceId: string, state: string) => string;
@@ -80,6 +81,17 @@ export function rustPlayableMoves(pieceId: string, state: GameState): Position[]
 
 export function rustClosestPlayableConfiguration<T>(player: Player, state: GameState): T | null {
   return callRust(() => JSON.parse(bindings!.closest_playable_configuration_json(player, stateJson(state))) as T);
+}
+
+export function rustHintSearch<T>(
+  player: Player,
+  focusedPieceId: string | null,
+  state: GameState,
+  maxTuningStates: number,
+  timeBudgetMs: number,
+): T | null {
+  return callRust(() =>
+    JSON.parse(bindings!.hint_search_json(player, focusedPieceId ?? "", stateJson(state), maxTuningStates, timeBudgetMs)) as T);
 }
 
 export function rustApplyMove(

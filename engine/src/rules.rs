@@ -95,7 +95,7 @@ impl TrainingSafetyContext {
     }
 }
 
-fn resolve_own_turn_consequences(
+pub(crate) fn resolve_own_turn_consequences(
     player: Player,
     previous: &GameState,
     candidate: GameState,

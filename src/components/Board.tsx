@@ -1,5 +1,5 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
-import { Flag, Lightbulb } from "lucide-react";
+import { Flag, Lightbulb, Search } from "lucide-react";
 import type {
   CSSProperties,
   MouseEvent as ReactMouseEvent,
@@ -33,7 +33,7 @@ interface BoardProps {
   onSelect: (pieceId: string | null) => void;
   onMove: (pieceId: string, destination: Position) => void;
   onResign: () => void;
-  onHint: () => void;
+  onHint: (focusedPieceId?: string | null) => void;
   hintSearching?: boolean;
   onToggleEnergyChannel: (pieceType: keyof EnergyChannelState) => void;
 }
@@ -83,7 +83,7 @@ export function Board({ state, field, typeFields, continuousField, showTypeSums,
     () => !locked && interactionPiece ? getLegalMoves(interactionPiece.id, state, field) : [],
     [field, interactionPiece, locked, state],
   );
-  const legalMoves = useMemo(
+  const playableMoves = useMemo(
     () => !locked && interactionPiece ? getPlayableMoves(interactionPiece.id, state, field) : [],
     [field, interactionPiece, locked, state],
   );
@@ -134,19 +134,43 @@ export function Board({ state, field, typeFields, continuousField, showTypeSums,
     () => new Set(lossPops.map((pop) => `${pop.position.x}:${pop.position.y}`)),
     [lossPops],
   );
-  const riskyMoveKeys = useMemo(() => {
-    if (!selectedPiece) return new Set<string>();
-    const ownPieceIds = new Set(state.pieces.filter((piece) => piece.owner === state.currentPlayer).map((piece) => piece.id));
-    return new Set(legalMoves.flatMap((move) => {
-      const result = applyMove(selectedPiece.id, move, state, { analyzeCheckmate: false });
+  const riskyMoveLossCounts = useMemo(() => {
+    if (!interactionPiece) return new Map<string, number>();
+    const ownPieceIds = new Set(state.pieces.filter((piece) => piece.owner === interactionPiece.owner).map((piece) => piece.id));
+    return new Map(playableMoves.flatMap((move) => {
+      const result = applyMove(interactionPiece.id, move, state, { analyzeCheckmate: false });
       if (!result.ok) return [];
-      const remainingIds = new Set(result.state.pieces.map((piece) => piece.id));
-      return [...ownPieceIds].some((id) => !remainingIds.has(id)) ? [`${move.x}:${move.y}`] : [];
+      const survivingOwnIds = new Set(result.state.pieces.filter((piece) => piece.owner === interactionPiece.owner).map((piece) => piece.id));
+      const lossCount = [...ownPieceIds].filter((id) => !survivingOwnIds.has(id)).length;
+      return lossCount > 0 ? [[`${move.x}:${move.y}`, lossCount] as const] : [];
     }));
-  }, [legalMoves, selectedPiece, state]);
+  }, [interactionPiece, playableMoves, state]);
+  const legalMoves = useMemo(() => {
+    const safeMoves = playableMoves.filter((move) => !riskyMoveLossCounts.has(`${move.x}:${move.y}`));
+    if (safeMoves.length > 0 || playableMoves.length === 0) return playableMoves;
+    const minimumLoss = Math.min(...playableMoves.map((move) => riskyMoveLossCounts.get(`${move.x}:${move.y}`) ?? 0));
+    return playableMoves.filter((move) => (riskyMoveLossCounts.get(`${move.x}:${move.y}`) ?? 0) === minimumLoss);
+  }, [playableMoves, riskyMoveLossCounts]);
+  const riskyMoveKeys = useMemo(
+    () => new Set(legalMoves.flatMap((move) => riskyMoveLossCounts.has(`${move.x}:${move.y}`) ? [`${move.x}:${move.y}`] : [])),
+    [legalMoves, riskyMoveLossCounts],
+  );
   const playableMoveKeys = useMemo(
-    () => new Set(legalMoves.map((move) => `${move.x}:${move.y}`)),
-    [legalMoves],
+    () => new Set(playableMoves.map((move) => `${move.x}:${move.y}`)),
+    [playableMoves],
+  );
+  const safeMoves = useMemo(
+    () => playableMoves.filter((move) => !riskyMoveLossCounts.has(`${move.x}:${move.y}`)),
+    [playableMoves, riskyMoveLossCounts],
+  );
+  const showStuckHint = Boolean(
+    !locked
+      && !energyView
+      && !draggingPieceId
+      && selectedPiece
+      && selectedPiece.owner === state.currentPlayer
+      && playableMoves.length > 0
+      && safeMoves.length === 0,
   );
   const kingBlockedMoveKeys = useMemo(() => {
     if (!interactionPiece) return new Set<string>();
@@ -222,13 +246,31 @@ export function Board({ state, field, typeFields, continuousField, showTypeSums,
     return x >= 0 && x < BOARD_SIZE && y >= 0 && y < BOARD_SIZE ? position : null;
   }
 
+  function displayedPlayableMovesFor(pieceId: string): Position[] {
+    const piece = state.pieces.find((candidate) => candidate.id === pieceId);
+    if (!piece) return [];
+    const moves = getPlayableMoves(pieceId, state, field);
+    const ownPieceIds = new Set(state.pieces.filter((candidate) => candidate.owner === piece.owner).map((candidate) => candidate.id));
+    const lossCounts = new Map(moves.flatMap((move) => {
+      const result = applyMove(pieceId, move, state, { analyzeCheckmate: false });
+      if (!result.ok) return [];
+      const survivingOwnIds = new Set(result.state.pieces.filter((candidate) => candidate.owner === piece.owner).map((candidate) => candidate.id));
+      const lossCount = [...ownPieceIds].filter((id) => !survivingOwnIds.has(id)).length;
+      return lossCount > 0 ? [[`${move.x}:${move.y}`, lossCount] as const] : [];
+    }));
+    const safe = moves.filter((move) => !lossCounts.has(`${move.x}:${move.y}`));
+    if (safe.length > 0 || moves.length === 0) return moves;
+    const minimumLoss = Math.min(...moves.map((move) => lossCounts.get(`${move.x}:${move.y}`) ?? 0));
+    return moves.filter((move) => (lossCounts.get(`${move.x}:${move.y}`) ?? 0) === minimumLoss);
+  }
+
   function startDrag(contactId: number, input: ActiveDrag["input"], clientX: number, clientY: number) {
     if (locked || state.status !== "playing" || dragRef.current) return false;
     const position = positionFromPointer(clientX, clientY);
     const piece = position ? getPieceAt(state, position) : undefined;
     if (!piece || piece.owner !== state.currentPlayer) return false;
 
-    const moves = getPlayableMoves(piece.id, state, field);
+    const moves = displayedPlayableMovesFor(piece.id);
     dragRef.current = { pieceId: piece.id, contactId, input, start: piece.position, legalMoves: moves };
     setDraggingPieceId(piece.id);
     setDragPreview(piece.position);
@@ -455,6 +497,27 @@ export function Board({ state, field, typeFields, continuousField, showTypeSums,
               );
             }),
           )}
+          {showStuckHint && selectedPiece && (
+            <button
+              type="button"
+              className="stuck-hint-button"
+              style={{
+                "--hint-x": selectedPiece.position.x,
+                "--hint-y": visualY(selectedPiece.position.y),
+              } as CSSProperties}
+              disabled={hintSearching}
+              title="Find hint"
+              aria-label="Find hint"
+              onPointerDown={(event) => event.stopPropagation()}
+              onTouchStart={(event) => event.stopPropagation()}
+              onClick={(event) => {
+                event.stopPropagation();
+                onHint(selectedPiece.id);
+              }}
+            >
+              <Search size={20} aria-hidden="true" />
+            </button>
+          )}
         </div>
         <div className="ranks right">{RANK_LABELS.map((rank) => <span key={rank}>{rank}</span>)}</div>
       </div>
@@ -490,7 +553,7 @@ export function Board({ state, field, typeFields, continuousField, showTypeSums,
           </div>
           {selectedPiece.type === "king" && selectedPiece.owner === state.currentPlayer && (
             <div className="check-actions">
-              <button type="button" className="hint-button" disabled={hintSearching} onClick={onHint}>
+              <button type="button" className="hint-button" disabled={hintSearching} onClick={() => onHint(selectedPiece.id)}>
                 <Lightbulb size={15} aria-hidden="true" />
                 {hintSearching ? "Searching..." : "Hint"}
               </button>

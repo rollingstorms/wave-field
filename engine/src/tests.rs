@@ -88,6 +88,92 @@ fn easy_ai_turn_moves_from_initial_state() {
 }
 
 #[test]
+fn hint_search_returns_current_safe_move() {
+    let state = fixture();
+    let result = hint_search(Player::Blue, None, &state, 128, 100);
+    let HintSearchResult::Success(hint) = result else {
+        panic!("expected a hint search result");
+    };
+
+    assert!(hint.ok);
+    assert!(hint.safe);
+    assert_eq!(hint.loss_count, 0);
+    assert_eq!(hint.tuning_distance, 0);
+    assert!(hint.moves.len() >= 1);
+    assert!(hint.tuned_kinds.is_empty());
+    assert_eq!(hint.state.components, state.components);
+    assert_eq!(
+        hint.state
+            .pieces
+            .iter()
+            .find(|piece| piece.id == hint.piece_id)
+            .map(|piece| piece.owner),
+        Some(Player::Blue)
+    );
+}
+
+#[test]
+fn hint_search_honors_focused_piece() {
+    let state = fixture();
+    let result = hint_search(Player::Blue, Some("blue-spy-1"), &state, 128, 100);
+    let HintSearchResult::Success(hint) = result else {
+        panic!("expected a focused hint search result");
+    };
+
+    assert_eq!(hint.piece_id, "blue-spy-1");
+    assert!(hint.moves.len() >= 1);
+}
+
+#[test]
+fn hint_search_falls_back_to_any_safe_piece_when_focus_has_no_result() {
+    let state = fixture();
+    let result = hint_search(Player::Blue, Some("blue-missing-piece"), &state, 128, 100);
+    let HintSearchResult::Success(hint) = result else {
+        panic!("expected a global hint search result");
+    };
+
+    assert!(hint.safe);
+    assert_eq!(hint.loss_count, 0);
+    assert_ne!(hint.piece_id, "blue-missing-piece");
+    assert!(hint.moves.len() >= 1);
+}
+
+#[test]
+fn hint_search_reports_exhausted_when_state_cap_stops_search() {
+    let mut state = fixture();
+    state.current_player = Player::Blue;
+    state.pieces = (0..49)
+        .map(|index| Piece {
+            id: if index == 24 {
+                "blue-king".to_owned()
+            } else {
+                format!("blue-pawn-{index}")
+            },
+            owner: Player::Blue,
+            piece_type: if index == 24 {
+                PieceType::King
+            } else {
+                PieceType::Pawn
+            },
+            position: Position {
+                x: index % 7,
+                y: index / 7,
+            },
+            unstable: false,
+        })
+        .collect();
+
+    let result = hint_search(Player::Blue, None, &state, 1, 0);
+    let HintSearchResult::Failure(failure) = result else {
+        panic!("expected no playable moves");
+    };
+
+    assert!(!failure.ok);
+    assert_eq!(failure.reason, "no playable moves");
+    assert!(failure.exhausted);
+}
+
+#[test]
 fn begin_turn_declares_loss_when_player_has_no_legal_move() {
     let mut state = fixture();
     state.current_player = Player::Blue;

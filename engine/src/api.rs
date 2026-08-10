@@ -57,6 +57,22 @@ pub fn evaluate_field_json(state_json: &str) -> ApiResult {
     json(&evaluate_field(&parse_state(state_json)?))
 }
 
+pub fn preview_move_json(piece_id: &str, x: i32, y: i32, state_json: &str) -> ApiResult {
+    let state = parse_state(state_json)?;
+    let destination = Position { x, y };
+    let result = apply_move(piece_id, destination, state.clone(), false);
+    if result.ok {
+        return json(&result.state);
+    }
+
+    let mut preview = state;
+    if let Some(piece) = preview.pieces.iter_mut().find(|piece| piece.id == piece_id) {
+        piece.position = destination;
+    }
+    let field = evaluate_field(&preview);
+    json(&mark_instability(preview, &field))
+}
+
 pub fn piece_pattern_json(player: &str, piece_type: &str, state_json: &str) -> ApiResult {
     let player: Player = parse_token(player, "player")?;
     let piece_type: PieceType = parse_token(piece_type, "piece type")?;
@@ -90,6 +106,28 @@ pub fn closest_playable_configuration_json(player: &str, state_json: &str) -> Ap
     json(&find_closest_playable_configuration(
         player,
         &parse_state(state_json)?,
+    ))
+}
+
+pub fn hint_search_json(
+    player: &str,
+    focused_piece_id: &str,
+    state_json: &str,
+    max_tuning_states: u32,
+    time_budget_ms: u32,
+) -> ApiResult {
+    let player = parse_token(player, "player")?;
+    let focused_piece_id = if focused_piece_id.is_empty() {
+        None
+    } else {
+        Some(focused_piece_id)
+    };
+    json(&hint_search(
+        player,
+        focused_piece_id,
+        &parse_state(state_json)?,
+        max_tuning_states,
+        time_budget_ms,
     ))
 }
 

@@ -69,9 +69,9 @@ use a larger value such as `4` or `8` to send remote energy without disabling
 decay for every pattern.
 
 Each piece type also has friendly and hostile scale parameters. A piece's active
-components first combine into one raw wave value for a square; a net value that
-supports its owner uses the friendly scale, and a net value that opposes its
-owner uses the hostile scale. Current defaults are Round Hat `4/1`, Tower `3/1`, Triangle Hat
+components first combine into positive and negative raw energy buckets for a
+square. Positive energy uses the friendly scale, and negative energy uses the
+hostile scale before the two buckets are added. Current defaults are Round Hat `4/1`, Tower `3/1`, Triangle Hat
 `3/0`, and Big Hat `4/2` for friendly/hostile. Round Hats therefore have a first ring
 of `+2` on friendly cells and `-1/2` on hostile cells for Red, with signs
 reversed for Blue.

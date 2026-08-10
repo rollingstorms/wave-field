@@ -194,11 +194,11 @@ export function App() {
     dispatch({ type: "undo" });
   }
 
-  function requestHint() {
+  function requestHint(focusedPieceId: string | null = state.selectedPieceId) {
     if (hintSearching) return;
     setHintSearching(true);
     globalThis.setTimeout(() => {
-      dispatch({ type: "hint" });
+      dispatch({ type: "hint", focusedPieceId });
       setHintSearching(false);
     }, 40);
   }

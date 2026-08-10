@@ -101,16 +101,19 @@ describe("field engine", () => {
     }
   });
 
-  it("rook +- scales after summing the component basis values", () => {
+  it("rook +- scales positive and negative component buckets separately", () => {
     const state = tuned("rook", [1, -1]);
     const piece = state.pieces[0];
     const square = { x: 5, y: 3 };
     const delta = { x: 2, y: 0 };
     const c1 = evaluateBasis(DEFAULT_DEFINITIONS.rook[0], delta);
     const c2 = -evaluateBasis(DEFAULT_DEFINITIONS.rook[1], delta);
-    const rawValue = c1 + c2;
-    const scale = rawValue >= 0 ? state.waveScales.rook.friendly : state.waveScales.rook.hostile;
-    const expected = 2 * rawValue * scale;
+    const positiveRaw = [c1, c2].filter((value) => value > 0).reduce((total, value) => total + value, 0);
+    const negativeRaw = [c1, c2].filter((value) => value < 0).reduce((total, value) => total + value, 0);
+    const expected = 2 * (
+      positiveRaw * state.waveScales.rook.friendly
+      + negativeRaw * state.waveScales.rook.hostile
+    );
     expect(evaluatePieceContribution(piece, square, state)).toBeCloseTo(expected);
   });
 
