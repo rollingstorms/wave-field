@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { isKingUnprotected, getUnstablePieces, removeUnrescuedPieces } from "../game/victory";
 import { createInitialState } from "../game/initialState";
-import { applyClosestPlayableHint, applyMove, beginTurn, findClosestPlayableConfiguration, getPlayableMoves, resignInCheck } from "../game/rules";
+import { applyClosestPlayableHint, applyHintSearch, applyMove, beginTurn, findClosestPlayableConfiguration, getPlayableMoves, resignInCheck } from "../game/rules";
 import type { GameState } from "../game/types";
 import { evaluateField } from "../field/evaluateField";
 
@@ -193,6 +193,17 @@ describe("stability and victory", () => {
     expect(result.ok).toBe(false);
     expect(result.reason).toContain("unprotected");
     expect(getPlayableMoves("blue-spy", state)).not.toContainEqual({ x: 2, y: 0 });
+  });
+
+  it("focused hint search works without Rust bindings", () => {
+    const state = createInitialState();
+    state.selectedPieceId = "blue-spy-1";
+
+    const result = applyHintSearch(state, state.selectedPieceId);
+
+    expect(result.ok).toBe(true);
+    expect(result.state.selectedPieceId).toBeTruthy();
+    expect(result.state.message).toContain("Hint");
   });
 
   it("a move that leaves the opposing king unprotected gives a rescue turn when possible", () => {

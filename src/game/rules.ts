@@ -70,6 +70,23 @@ interface RuleOptions {
   analyzeCheckmate?: boolean;
 }
 
+interface HintSearchCandidate {
+  state: GameState;
+  pieceId: string;
+  moves: Position[];
+  primary: Position;
+  lossCount: number;
+  sameLossMoves: number;
+  tuningDistance: number;
+  sequence: number;
+}
+
+interface HintMoveEvaluation {
+  pieceId: string;
+  destination: Position;
+  lossCount: number;
+}
+
 function componentOptions(pieceType: PieceType, count: number): Coefficient[][] {
   const options: Coefficient[][] = [];
   function build(values: Coefficient[]) {
@@ -87,6 +104,44 @@ function movePiece(state: GameState, pieceId: string, destination: Position): Ga
   return {
     ...state,
     pieces: state.pieces.map((piece) => piece.id === pieceId ? { ...piece, position: destination } : piece),
+  };
+}
+
+function tunePieceProfile(
+  state: GameState,
+  player: Player,
+  pieceType: PieceType,
+  componentIndex: number,
+  value: Coefficient,
+): GameState | null {
+  const profile = [...state.components[player][pieceType]];
+  const currentValue = profile[componentIndex];
+  if (currentValue === undefined || currentValue === value) return null;
+
+  const activeIndices = profile.flatMap((coefficient, index) => coefficient === 0 ? [] : [index]);
+  const order = state.activationOrders[player][pieceType]
+    .filter((index) => activeIndices.includes(index) && index !== componentIndex);
+  for (const index of activeIndices) {
+    if (index !== componentIndex && !order.includes(index)) order.push(index);
+  }
+
+  if (currentValue === 0 && activeIndices.length >= tuningStrengthFor(pieceType, profile.length) && order.length > 0) {
+    const evicted = order.shift();
+    if (evicted !== undefined) profile[evicted] = 0;
+  }
+
+  profile[componentIndex] = value;
+  order.push(componentIndex);
+
+  const components = structuredClone(state.components);
+  components[player][pieceType] = profile;
+  const activationOrders = structuredClone(state.activationOrders);
+  activationOrders[player][pieceType] = order;
+  return {
+    ...state,
+    components,
+    activationOrders,
+    selectedPieceId: null,
   };
 }
 
@@ -116,6 +171,101 @@ function lostOwnPieces(player: Player, before: GameState, after: GameState): str
 function componentDistance(left: PlayerComponents, right: PlayerComponents): number {
   return pieceTypes.reduce((distance, pieceType) =>
     distance + left[pieceType].filter((value, index) => value !== right[pieceType][index]).length, 0);
+}
+
+function tuningKey(state: GameState, player: Player): string {
+  return JSON.stringify([state.components[player], state.activationOrders[player]]);
+}
+
+function tuningNeighbors(state: GameState, player: Player): GameState[] {
+  return pieceTypes.flatMap((pieceType) =>
+    state.components[player][pieceType].flatMap((_, componentIndex) =>
+      coefficientValues.flatMap((value) => {
+        if (value === 0) return [];
+        const next = tunePieceProfile(state, player, pieceType, componentIndex, value);
+        return next ? [next] : [];
+      }),
+    ),
+  );
+}
+
+function ownLossCount(player: Player, before: GameState, after: GameState): number {
+  const remainingIds = new Set(after.pieces.map((piece) => piece.id));
+  return before.pieces.filter((piece) => piece.owner === player && !remainingIds.has(piece.id)).length;
+}
+
+function playableEvaluations(player: Player, state: GameState, focusedPieceId: string | null): HintMoveEvaluation[] {
+  const field = evaluateField(state);
+  return state.pieces
+    .filter((piece) => piece.owner === player && (!focusedPieceId || piece.id === focusedPieceId))
+    .flatMap((piece) => getLegalMoves(piece.id, state, field).flatMap((destination) => {
+      const resolved = resolveOwnTurnConsequences(player, state, movePiece(state, piece.id, destination));
+      if (isKingUnprotected(player, resolved, evaluateField(resolved))) return [];
+      return [{
+        pieceId: piece.id,
+        destination,
+        lossCount: ownLossCount(player, state, resolved),
+      }];
+    }));
+}
+
+function groupedHintCandidate(
+  state: GameState,
+  evaluations: HintMoveEvaluation[],
+  lossCount: number,
+  tuningDistance: number,
+  sequence: number,
+): HintSearchCandidate | null {
+  const sameLoss = evaluations.filter((evaluation) => evaluation.lossCount === lossCount);
+  const primary = sameLoss[0];
+  if (!primary) return null;
+  return {
+    state,
+    pieceId: primary.pieceId,
+    moves: sameLoss
+      .filter((evaluation) => evaluation.pieceId === primary.pieceId)
+      .map((evaluation) => evaluation.destination),
+    primary: primary.destination,
+    lossCount,
+    sameLossMoves: sameLoss.length,
+    tuningDistance,
+    sequence,
+  };
+}
+
+function betterLeastLossCandidate(left: HintSearchCandidate, right: HintSearchCandidate): boolean {
+  return left.lossCount !== right.lossCount
+    ? left.lossCount < right.lossCount
+    : left.sameLossMoves !== right.sameLossMoves
+      ? left.sameLossMoves > right.sameLossMoves
+      : left.tuningDistance !== right.tuningDistance
+        ? left.tuningDistance < right.tuningDistance
+        : left.sequence !== right.sequence
+          ? left.sequence < right.sequence
+          : left.pieceId !== right.pieceId
+            ? left.pieceId < right.pieceId
+            : left.primary.y !== right.primary.y
+              ? left.primary.y < right.primary.y
+              : left.primary.x < right.primary.x;
+}
+
+function tunedKinds(current: PlayerComponents, tuned: PlayerComponents): PieceType[] {
+  return pieceTypes.filter((pieceType) =>
+    current[pieceType].some((coefficient, index) => coefficient !== tuned[pieceType][index]));
+}
+
+function hintSearchSuccess(player: Player, current: PlayerComponents, candidate: HintSearchCandidate, safe: boolean, exhausted: boolean): HintSearchSuccess {
+  return {
+    ok: true,
+    state: candidate.state,
+    pieceID: candidate.pieceId,
+    moves: candidate.moves,
+    safe,
+    lossCount: candidate.lossCount,
+    tuningDistance: candidate.tuningDistance,
+    tunedKinds: tunedKinds(current, candidate.state.components[player]),
+    exhausted,
+  };
 }
 
 function allComponentOptions(state: GameState, player: Player): PlayerComponents[] {
@@ -173,6 +323,78 @@ export function findClosestPlayableConfiguration(player: Player, state: GameStat
     }
   }
   return null;
+}
+
+function hintSearchScope(
+  player: Player,
+  focusedPieceId: string | null,
+  state: GameState,
+  maxTuningStates: number,
+  timeBudgetMs: number,
+): HintSearchResult {
+  if (state.status !== "playing") return { ok: false, reason: "no playable moves", exhausted: false };
+
+  const current = structuredClone(state.components[player]);
+  const maxStates = maxTuningStates === 0 ? Number.POSITIVE_INFINITY : maxTuningStates;
+  const startedAt = globalThis.performance?.now?.() ?? Date.now();
+  const enforceDeadline = timeBudgetMs > 0;
+  let exhausted = false;
+  let inspected = 0;
+  let sequence = 0;
+  let best: HintSearchCandidate | null = null;
+  const queue: Array<{ state: GameState; distance: number }> = [{ state, distance: 0 }];
+  const seen = new Set([tuningKey(state, player)]);
+
+  while (queue.length > 0) {
+    if (inspected >= maxStates) {
+      exhausted = true;
+      break;
+    }
+    inspected += 1;
+
+    const node = queue.shift()!;
+    const tuned = markInstability(node.state, evaluateField(node.state));
+    const evaluations = playableEvaluations(player, tuned, focusedPieceId);
+    if (evaluations.some((evaluation) => evaluation.lossCount === 0)) {
+      const candidate = groupedHintCandidate(tuned, evaluations, 0, node.distance, sequence);
+      if (candidate) return hintSearchSuccess(player, current, candidate, true, exhausted);
+    }
+
+    const lossCounts = evaluations.map((evaluation) => evaluation.lossCount);
+    if (lossCounts.length > 0) {
+      const candidate = groupedHintCandidate(tuned, evaluations, Math.min(...lossCounts), node.distance, sequence);
+      if (candidate && (!best || betterLeastLossCandidate(candidate, best))) best = candidate;
+    }
+
+    for (const neighbor of tuningNeighbors(node.state, player)) {
+      const key = tuningKey(neighbor, player);
+      if (!seen.has(key)) {
+        seen.add(key);
+        queue.push({ state: neighbor, distance: node.distance + 1 });
+      }
+    }
+
+    sequence += 1;
+    const now = globalThis.performance?.now?.() ?? Date.now();
+    if (enforceDeadline && now - startedAt >= timeBudgetMs) {
+      exhausted = true;
+      break;
+    }
+  }
+
+  if (best) return hintSearchSuccess(player, current, best, false, exhausted);
+  return { ok: false, reason: "no playable moves", exhausted };
+}
+
+function hintSearch(player: Player, focusedPieceId: string | null, state: GameState, maxTuningStates: number, timeBudgetMs: number): HintSearchResult {
+  if (!focusedPieceId) return hintSearchScope(player, null, state, maxTuningStates, timeBudgetMs);
+
+  const focused = hintSearchScope(player, focusedPieceId, state, maxTuningStates, timeBudgetMs);
+  if (focused.ok && focused.safe) return focused;
+
+  const global = hintSearchScope(player, null, state, maxTuningStates, timeBudgetMs);
+  if (global.ok && global.safe) return global;
+  return global;
 }
 
 function hasPlayableMoveInCurrentConfiguration(player: Player, state: GameState, field: number[][]): boolean {
@@ -327,34 +549,31 @@ export function applyClosestPlayableHint(state: GameState): MoveResult {
 }
 
 export function applyHintSearch(state: GameState, focusedPieceId: string | null = state.selectedPieceId): MoveResult {
-  const rustResult = rustHintSearch<HintSearchResult>(state.currentPlayer, focusedPieceId, state, 160, 160);
-  if (rustResult) {
-    if (!rustResult.ok) {
-      return {
-        ok: false,
-        state,
-        reason: rustResult.reason ?? (rustResult.exhausted ? "Hint search stopped before finding an escape." : "No legal escape exists."),
-      };
-    }
-
-    const tunedKinds = rustResult.tunedKinds.map(pieceNameLower).join(", ");
-    const tuneText = rustResult.tuningDistance === 0
-      ? "Current tuning works"
-      : `${rustResult.tuningDistance} control${rustResult.tuningDistance === 1 ? "" : "s"} changed`;
-    const moveText = rustResult.moves.length === 1
-      ? boardCoordinate(rustResult.moves[0])
-      : `${rustResult.moves.length} candidate moves`;
+  const result = rustHintSearch<HintSearchResult>(state.currentPlayer, focusedPieceId, state, 160, 160)
+    ?? hintSearch(state.currentPlayer, focusedPieceId, state, 160, 160);
+  if (!result.ok) {
     return {
-      ok: true,
-      state: {
-        ...rustResult.state,
-        selectedPieceId: rustResult.pieceID,
-        message: `Hint · ${tuneText}${tunedKinds ? ` · tuned ${tunedKinds}` : ""} · ${rustResult.safe ? "safe" : `${rustResult.lossCount} loss`} · ${moveText}`,
-      },
+      ok: false,
+      state,
+      reason: result.reason ?? (result.exhausted ? "Hint search stopped before finding an escape." : "No legal escape exists."),
     };
   }
 
-  return applyClosestPlayableHint(state);
+  const tunedKindsText = result.tunedKinds.map(pieceNameLower).join(", ");
+  const tuneText = result.tuningDistance === 0
+    ? "Current tuning works"
+    : `${result.tuningDistance} control${result.tuningDistance === 1 ? "" : "s"} changed`;
+  const moveText = result.moves.length === 1
+    ? boardCoordinate(result.moves[0])
+    : `${result.moves.length} candidate moves`;
+  return {
+    ok: true,
+    state: {
+      ...result.state,
+      selectedPieceId: result.pieceID,
+      message: `Hint · ${tuneText}${tunedKindsText ? ` · tuned ${tunedKindsText}` : ""} · ${result.safe ? "safe" : `${result.lossCount} loss`} · ${moveText}`,
+    },
+  };
 }
 
 export function randomizeTuning(state: GameState, random: () => number = Math.random): MoveResult {
