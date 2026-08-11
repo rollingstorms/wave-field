@@ -159,25 +159,6 @@ export function Board({ state, field, typeFields, continuousField, showTypeSums,
     () => new Set(playableMoves.map((move) => `${move.x}:${move.y}`)),
     [playableMoves],
   );
-  const safeMoves = useMemo(
-    () => playableMoves.filter((move) => !riskyMoveLossCounts.has(`${move.x}:${move.y}`)),
-    [playableMoves, riskyMoveLossCounts],
-  );
-  const noSafePlayableMoves = playableMoves.length > 0 && safeMoves.length === 0;
-  const bigHatNeedsHint = selectedPiece?.type === "king"
-    && selectedPiece.owner === state.currentPlayer
-    && selectedPiece.unstable;
-  const noApparentBigHatOption = selectedPiece?.type === "king"
-    && reachableMoves.length > 0
-    && playableMoves.length === 0;
-  const showStuckHint = Boolean(
-    !locked
-      && !energyView
-      && !draggingPieceId
-      && selectedPiece
-      && selectedPiece.owner === state.currentPlayer
-      && (noSafePlayableMoves || noApparentBigHatOption || bigHatNeedsHint),
-  );
   const kingBlockedMoveKeys = useMemo(() => {
     if (!interactionPiece) return new Set<string>();
     return new Set(reachableMoves.flatMap((move) => {
@@ -187,6 +168,25 @@ export function Board({ state, field, typeFields, continuousField, showTypeSums,
       return result.reason?.toLowerCase().includes("big hat unprotected") || result.reason?.toLowerCase().includes("king unprotected") ? [key] : [];
     }));
   }, [interactionPiece, playableMoveKeys, reachableMoves, state]);
+  const safeMoves = useMemo(
+    () => playableMoves.filter((move) => !riskyMoveLossCounts.has(`${move.x}:${move.y}`)),
+    [playableMoves, riskyMoveLossCounts],
+  );
+  const noSafePlayableMoves = playableMoves.length > 0 && safeMoves.length === 0;
+  const bigHatNeedsHint = selectedPiece?.type === "king"
+    && selectedPiece.owner === state.currentPlayer
+    && selectedPiece.unstable;
+  const onlyBigHatBlockedMoves = reachableMoves.length > 0
+    && playableMoves.length === 0
+    && kingBlockedMoveKeys.size === reachableMoves.length;
+  const showStuckHint = Boolean(
+    !locked
+      && !energyView
+      && !draggingPieceId
+      && selectedPiece
+      && selectedPiece.owner === state.currentPlayer
+      && (noSafePlayableMoves || onlyBigHatBlockedMoves || bigHatNeedsHint),
+  );
 
   useLayoutEffect(() => {
     const previousPieces = previousPiecesRef.current;
