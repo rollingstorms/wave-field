@@ -163,14 +163,17 @@ export function Board({ state, field, typeFields, continuousField, showTypeSums,
     () => playableMoves.filter((move) => !riskyMoveLossCounts.has(`${move.x}:${move.y}`)),
     [playableMoves, riskyMoveLossCounts],
   );
+  const noSafePlayableMoves = playableMoves.length > 0 && safeMoves.length === 0;
+  const noApparentBigHatOption = selectedPiece?.type === "king"
+    && reachableMoves.length > 0
+    && playableMoves.length === 0;
   const showStuckHint = Boolean(
     !locked
       && !energyView
       && !draggingPieceId
       && selectedPiece
       && selectedPiece.owner === state.currentPlayer
-      && playableMoves.length > 0
-      && safeMoves.length === 0,
+      && (noSafePlayableMoves || noApparentBigHatOption),
   );
   const kingBlockedMoveKeys = useMemo(() => {
     if (!interactionPiece) return new Set<string>();
