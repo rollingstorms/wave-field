@@ -120,7 +120,7 @@ describe("heuristic opponent", () => {
     state.currentPlayer = "red";
     state.pieces = [
       { id: "red-king", owner: "red", type: "king", position: { x: 0, y: 0 }, unstable: false },
-      { id: "red-spy", owner: "red", type: "spy", position: { x: 1, y: 1 }, unstable: false },
+      { id: "red-spy", owner: "red", type: "spy", position: { x: 2, y: 2 }, unstable: false },
       { id: "blue-king", owner: "blue", type: "king", position: { x: 6, y: 6 }, unstable: false },
     ];
     state.components.red.king = [0, 0, 0];
