@@ -1,4 +1,5 @@
 use crate::model::*;
+use serde::Serialize;
 
 fn piece_strength(piece_type: PieceType) -> f64 {
     match piece_type {
@@ -238,6 +239,49 @@ pub fn evaluate_basis(definition: &BasisDefinition, delta: Position) -> f64 {
     sign * multiplier
 }
 
+#[derive(Clone, Debug, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct InfluenceContributor {
+    #[serde(rename = "pieceID")]
+    pub piece_id: String,
+    pub owner: Player,
+    pub kind: PieceType,
+    pub position: Position,
+    pub value: f64,
+    pub magnitude: f64,
+    pub share_of_total_magnitude: f64,
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SquareInfluenceContributors {
+    pub position: Position,
+    pub total: f64,
+    pub contributors: Vec<InfluenceContributor>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub highest_negative_contributor: Option<InfluenceContributor>,
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct InstabilityInfluenceLink {
+    pub target: Position,
+    #[serde(rename = "targetPieceID")]
+    pub target_piece_id: String,
+    pub target_owner: Player,
+    pub target_kind: PieceType,
+    pub contributor: InfluenceContributor,
+}
+
+fn signed_piece_contribution(piece: &Piece, square: Position, state: &GameState) -> f64 {
+    let sign = if piece.owner == Player::Red {
+        1.0
+    } else {
+        -1.0
+    };
+    sign * evaluate_piece_contribution(piece, square, state)
+}
+
 pub fn evaluate_piece_contribution(piece: &Piece, square: Position, state: &GameState) -> f64 {
     let delta = Position {
         x: square.x - piece.position.x,
@@ -263,6 +307,103 @@ pub fn evaluate_piece_contribution(piece: &Piece, square: Position, state: &Game
         * (positive_raw * scale.friendly + negative_raw * scale.hostile)
 }
 
+pub fn influence_contributors_at(
+    position: Position,
+    state: &GameState,
+) -> SquareInfluenceContributors {
+    let raw = state
+        .pieces
+        .iter()
+        .map(|piece| (piece, signed_piece_contribution(piece, position, state)))
+        .filter(|(_, value)| value.abs() > FIELD_EPSILON)
+        .collect::<Vec<_>>();
+    let total = raw.iter().map(|(_, value)| *value).sum::<f64>();
+    let total_magnitude = raw.iter().map(|(_, value)| value.abs()).sum::<f64>();
+    let contributors = raw
+        .into_iter()
+        .map(|(piece, value)| {
+            let magnitude = value.abs();
+            InfluenceContributor {
+                piece_id: piece.id.clone(),
+                owner: piece.owner,
+                kind: piece.piece_type,
+                position: piece.position,
+                value,
+                magnitude,
+                share_of_total_magnitude: if total_magnitude > FIELD_EPSILON {
+                    magnitude / total_magnitude
+                } else {
+                    0.0
+                },
+            }
+        })
+        .collect::<Vec<_>>();
+    let highest_negative_contributor = contributors
+        .iter()
+        .filter(|contributor| contributor.value < -FIELD_EPSILON)
+        .min_by(|left, right| {
+            left.value
+                .total_cmp(&right.value)
+                .then_with(|| left.piece_id.cmp(&right.piece_id))
+        })
+        .cloned();
+
+    SquareInfluenceContributors {
+        position,
+        total,
+        contributors,
+        highest_negative_contributor,
+    }
+}
+
+pub fn all_influence_contributors(state: &GameState) -> Vec<Vec<SquareInfluenceContributors>> {
+    (0..BOARD_SIZE)
+        .map(|y| {
+            (0..BOARD_SIZE)
+                .map(|x| influence_contributors_at(Position { x, y }, state))
+                .collect()
+        })
+        .collect()
+}
+
+pub fn instability_influence_links(
+    threshold: f64,
+    state: &GameState,
+) -> Vec<InstabilityInfluenceLink> {
+    let threshold = threshold.max(0.0);
+    state
+        .pieces
+        .iter()
+        .filter_map(|target_piece| {
+            let square = influence_contributors_at(target_piece.position, state);
+            let hostile = match target_piece.owner {
+                Player::Red => square.total < -FIELD_EPSILON,
+                Player::Blue => square.total > FIELD_EPSILON,
+            };
+            hostile.then_some((target_piece, square))
+        })
+        .flat_map(|(target_piece, square)| {
+            square
+                .contributors
+                .into_iter()
+                .filter(move |contributor| {
+                    let hostile_contribution = match target_piece.owner {
+                        Player::Red => contributor.value < -FIELD_EPSILON,
+                        Player::Blue => contributor.value > FIELD_EPSILON,
+                    };
+                    hostile_contribution && contributor.share_of_total_magnitude >= threshold
+                })
+                .map(move |contributor| InstabilityInfluenceLink {
+                    target: target_piece.position,
+                    target_piece_id: target_piece.id.clone(),
+                    target_owner: target_piece.owner,
+                    target_kind: target_piece.piece_type,
+                    contributor,
+                })
+        })
+        .collect()
+}
+
 pub fn evaluate_field(state: &GameState) -> Field {
     (0..BOARD_SIZE)
         .map(|y| {
@@ -271,14 +412,7 @@ pub fn evaluate_field(state: &GameState) -> Field {
                     state
                         .pieces
                         .iter()
-                        .map(|piece| {
-                            let sign = if piece.owner == Player::Red {
-                                1.0
-                            } else {
-                                -1.0
-                            };
-                            sign * evaluate_piece_contribution(piece, Position { x, y }, state)
-                        })
+                        .map(|piece| signed_piece_contribution(piece, Position { x, y }, state))
                         .sum()
                 })
                 .collect()

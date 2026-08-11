@@ -128,3 +128,28 @@ export interface MoveResult {
   state: GameState;
   reason?: string;
 }
+
+export interface InfluenceContributor {
+  pieceID: string;
+  owner: Player;
+  kind: PieceType;
+  position: Position;
+  value: number;
+  magnitude: number;
+  shareOfTotalMagnitude: number;
+}
+
+export interface SquareInfluenceContributors {
+  position: Position;
+  total: number;
+  contributors: InfluenceContributor[];
+  highestNegativeContributor?: InfluenceContributor;
+}
+
+export interface InstabilityInfluenceLink {
+  target: Position;
+  targetPieceID: string;
+  targetOwner: Player;
+  targetKind: PieceType;
+  contributor: InfluenceContributor;
+}

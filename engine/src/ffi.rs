@@ -65,6 +65,28 @@ pub extern "C" fn wf_evaluate_field_json(state_json: *const c_char) -> *mut c_ch
 }
 
 #[unsafe(no_mangle)]
+pub extern "C" fn wf_influence_contributors_json(
+    x: i32,
+    y: i32,
+    state_json: *const c_char,
+) -> *mut c_char {
+    call_json(|| api::influence_contributors_json(x, y, read_str(state_json)?))
+}
+
+#[unsafe(no_mangle)]
+pub extern "C" fn wf_all_influence_contributors_json(state_json: *const c_char) -> *mut c_char {
+    call_json(|| api::all_influence_contributors_json(read_str(state_json)?))
+}
+
+#[unsafe(no_mangle)]
+pub extern "C" fn wf_instability_influence_links_json(
+    threshold: f64,
+    state_json: *const c_char,
+) -> *mut c_char {
+    call_json(|| api::instability_influence_links_json(threshold, read_str(state_json)?))
+}
+
+#[unsafe(no_mangle)]
 pub extern "C" fn wf_preview_move_json(
     piece_id: *const c_char,
     x: i32,

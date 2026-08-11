@@ -1,5 +1,14 @@
 import { BIG_BOARD_SIZE, BOARD_SIZE } from "./constants";
-import type { Coefficient, GameState, MoveResult, PieceType, Player, Position } from "./types";
+import type {
+  Coefficient,
+  GameState,
+  InstabilityInfluenceLink,
+  MoveResult,
+  PieceType,
+  Player,
+  Position,
+  SquareInfluenceContributors,
+} from "./types";
 
 interface RustBindings {
   default: () => Promise<unknown>;
@@ -10,6 +19,9 @@ interface RustBindings {
   closest_playable_configuration_json: (player: Player, state: string) => string;
   hint_search_json: (player: Player, focusedPieceId: string, state: string, maxTuningStates: number, timeBudgetMs: number) => string;
   evaluate_field_json: (state: string) => string;
+  influence_contributors_json: (x: number, y: number, state: string) => string;
+  all_influence_contributors_json: (state: string) => string;
+  instability_influence_links_json: (threshold: number, state: string) => string;
   king_unprotected_json: (player: Player, state: string) => boolean;
   legal_moves_json: (pieceId: string, state: string) => string;
   mark_instability_json: (state: string) => string;
@@ -69,6 +81,21 @@ function callRust<T>(operation: () => T): T | null {
 
 export function rustEvaluateField(state: GameState): number[][] | null {
   return callRust(() => JSON.parse(bindings!.evaluate_field_json(stateJson(state))) as number[][]);
+}
+
+export function rustInfluenceContributors(position: Position, state: GameState): SquareInfluenceContributors | null {
+  return callRust(() =>
+    JSON.parse(bindings!.influence_contributors_json(position.x, position.y, stateJson(state))) as SquareInfluenceContributors);
+}
+
+export function rustAllInfluenceContributors(state: GameState): SquareInfluenceContributors[][] | null {
+  return callRust(() =>
+    JSON.parse(bindings!.all_influence_contributors_json(stateJson(state))) as SquareInfluenceContributors[][]);
+}
+
+export function rustInstabilityInfluenceLinks(threshold: number, state: GameState): InstabilityInfluenceLink[] | null {
+  return callRust(() =>
+    JSON.parse(bindings!.instability_influence_links_json(threshold, stateJson(state))) as InstabilityInfluenceLink[]);
 }
 
 export function rustLegalMoves(pieceId: string, state: GameState): Position[] | null {

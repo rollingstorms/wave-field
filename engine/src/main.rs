@@ -3,10 +3,11 @@ use std::io::{self, BufRead};
 use serde_json::json;
 use wave_field_engine::{
     AiTurnOptions, GameState, PieceType, Player, Position, RolloutAction, RolloutSessionStore,
-    apply_closest_playable_hint, apply_move, apply_tuning, begin_turn, evaluate_field,
-    generate_random_training_batch, get_legal_moves, get_playable_moves, is_king_unprotected,
-    play_easy_turn, play_heuristic_turn, profile_random_games, profile_random_training_batch,
-    randomize_tuning, reset_tuning, resign_in_check, simulate_ai_games, simulate_random_games,
+    all_influence_contributors, apply_closest_playable_hint, apply_move, apply_tuning, begin_turn,
+    evaluate_field, generate_random_training_batch, get_legal_moves, get_playable_moves,
+    influence_contributors_at, instability_influence_links, is_king_unprotected, play_easy_turn,
+    play_heuristic_turn, profile_random_games, profile_random_training_batch, randomize_tuning,
+    reset_tuning, resign_in_check, simulate_ai_games, simulate_random_games,
     simulate_random_lean_games, unstable_pieces,
 };
 
@@ -24,6 +25,19 @@ fn main() {
             serde_json::from_value(request["state"].clone()).expect("valid state");
         let result = match method {
             "evaluateField" => serde_json::to_value(evaluate_field(&state)).unwrap(),
+            "influenceContributors" => {
+                let position: Position =
+                    serde_json::from_value(request["position"].clone()).unwrap();
+                serde_json::to_value(influence_contributors_at(position, &state)).unwrap()
+            }
+            "allInfluenceContributors" => {
+                serde_json::to_value(all_influence_contributors(&state)).unwrap()
+            }
+            "instabilityInfluenceLinks" => serde_json::to_value(instability_influence_links(
+                request["threshold"].as_f64().unwrap_or(0.2),
+                &state,
+            ))
+            .unwrap(),
             "legalMoves" => {
                 let field = evaluate_field(&state);
                 serde_json::to_value(get_legal_moves(

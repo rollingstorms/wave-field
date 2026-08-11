@@ -57,6 +57,24 @@ pub fn evaluate_field_json(state_json: &str) -> ApiResult {
     json(&evaluate_field(&parse_state(state_json)?))
 }
 
+pub fn influence_contributors_json(x: i32, y: i32, state_json: &str) -> ApiResult {
+    json(&influence_contributors_at(
+        Position { x, y },
+        &parse_state(state_json)?,
+    ))
+}
+
+pub fn all_influence_contributors_json(state_json: &str) -> ApiResult {
+    json(&all_influence_contributors(&parse_state(state_json)?))
+}
+
+pub fn instability_influence_links_json(threshold: f64, state_json: &str) -> ApiResult {
+    json(&instability_influence_links(
+        threshold,
+        &parse_state(state_json)?,
+    ))
+}
+
 pub fn preview_move_json(piece_id: &str, x: i32, y: i32, state_json: &str) -> ApiResult {
     let state = parse_state(state_json)?;
     let destination = Position { x, y };

@@ -13,6 +13,9 @@ void wf_string_free(char *value);
 char *wf_new_game_json(void);
 char *wf_undo_json(const char *state_json);
 char *wf_evaluate_field_json(const char *state_json);
+char *wf_influence_contributors_json(int32_t x, int32_t y, const char *state_json);
+char *wf_all_influence_contributors_json(const char *state_json);
+char *wf_instability_influence_links_json(double threshold, const char *state_json);
 char *wf_preview_move_json(const char *piece_id, int32_t x, int32_t y, const char *state_json);
 char *wf_piece_pattern_json(
     const char *player,

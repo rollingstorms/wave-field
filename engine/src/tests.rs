@@ -15,6 +15,123 @@ fn initial_field_is_rotationally_antisymmetric() {
 }
 
 #[test]
+fn influence_contributors_sum_to_field_with_magnitude_shares() {
+    let state = fixture();
+    let position = Position { x: 3, y: 4 };
+    let square = influence_contributors_at(position, &state);
+    let field = evaluate_field(&state);
+    let total_magnitude = square
+        .contributors
+        .iter()
+        .map(|contributor| contributor.magnitude)
+        .sum::<f64>();
+
+    assert!((square.total - field[position.y as usize][position.x as usize]).abs() < 1e-9);
+    assert!(square.contributors.iter().all(|contributor| {
+        contributor.value.abs() > FIELD_EPSILON
+            && contributor.magnitude == contributor.value.abs()
+            && (contributor.share_of_total_magnitude - contributor.magnitude / total_magnitude)
+                .abs()
+                < 1e-9
+    }));
+    assert_eq!(square.position, position);
+}
+
+#[test]
+fn all_influence_contributors_returns_board_shaped_breakdowns() {
+    let state = fixture();
+    let breakdowns = all_influence_contributors(&state);
+
+    assert_eq!(breakdowns.len(), BOARD_SIZE as usize);
+    assert!(
+        breakdowns
+            .iter()
+            .all(|row| row.len() == BOARD_SIZE as usize)
+    );
+    assert_eq!(
+        breakdowns[4][3],
+        influence_contributors_at(Position { x: 3, y: 4 }, &state)
+    );
+}
+
+#[test]
+fn instability_links_use_hostile_contributors_and_stable_magnitude_denominator() {
+    let mut state = fixture();
+    for components in [&mut state.components.red, &mut state.components.blue] {
+        for values in [
+            &mut components.pawn,
+            &mut components.rook,
+            &mut components.spy,
+            &mut components.king,
+        ] {
+            values.fill(0);
+        }
+    }
+    state.home_energy = PieceTypeMap {
+        pawn: 1.0,
+        rook: 0.0,
+        spy: 0.0,
+        king: 0.0,
+    };
+    state.pieces = vec![
+        Piece {
+            id: "red-spy-target".to_owned(),
+            owner: Player::Red,
+            piece_type: PieceType::Spy,
+            position: Position { x: 3, y: 3 },
+            unstable: false,
+        },
+        Piece {
+            id: "blue-pawn-a".to_owned(),
+            owner: Player::Blue,
+            piece_type: PieceType::Pawn,
+            position: Position { x: 3, y: 3 },
+            unstable: false,
+        },
+        Piece {
+            id: "blue-pawn-b".to_owned(),
+            owner: Player::Blue,
+            piece_type: PieceType::Pawn,
+            position: Position { x: 3, y: 3 },
+            unstable: false,
+        },
+        Piece {
+            id: "red-pawn-cancel".to_owned(),
+            owner: Player::Red,
+            piece_type: PieceType::Pawn,
+            position: Position { x: 3, y: 3 },
+            unstable: false,
+        },
+    ];
+
+    let square = influence_contributors_at(Position { x: 3, y: 3 }, &state);
+    assert!((square.total + 1.0).abs() < 1e-9);
+    assert!((square.contributors[0].share_of_total_magnitude - (1.0 / 3.0)).abs() < 1e-9);
+    assert_eq!(
+        square
+            .highest_negative_contributor
+            .as_ref()
+            .map(|contributor| contributor.piece_id.as_str()),
+        Some("blue-pawn-a")
+    );
+
+    let links = instability_influence_links(0.3, &state)
+        .into_iter()
+        .filter(|link| link.target_piece_id == "red-spy-target")
+        .collect::<Vec<_>>();
+    let contributor_ids = links
+        .iter()
+        .map(|link| link.contributor.piece_id.as_str())
+        .collect::<Vec<_>>();
+    assert_eq!(contributor_ids, vec!["blue-pawn-a", "blue-pawn-b"]);
+    assert!(links.iter().all(|link| {
+        link.contributor.value < 0.0 && link.contributor.share_of_total_magnitude >= 0.3
+    }));
+
+    assert!(instability_influence_links(0.34, &state).is_empty());
+}
+
+#[test]
 fn initial_moves_match_golden_fixture() {
     let state = fixture();
     let field = evaluate_field(&state);

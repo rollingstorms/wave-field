@@ -7,6 +7,21 @@ pub fn evaluate_field_json(state_json: &str) -> String {
 }
 
 #[wasm_bindgen]
+pub fn influence_contributors_json(x: i32, y: i32, state_json: &str) -> String {
+    api::influence_contributors_json(x, y, state_json).expect("valid engine API call")
+}
+
+#[wasm_bindgen]
+pub fn all_influence_contributors_json(state_json: &str) -> String {
+    api::all_influence_contributors_json(state_json).expect("valid engine API call")
+}
+
+#[wasm_bindgen]
+pub fn instability_influence_links_json(threshold: f64, state_json: &str) -> String {
+    api::instability_influence_links_json(threshold, state_json).expect("valid engine API call")
+}
+
+#[wasm_bindgen]
 pub fn legal_moves_json(piece_id: &str, state_json: &str) -> String {
     api::legal_moves_json(piece_id, state_json).expect("valid engine API call")
 }
