@@ -281,11 +281,12 @@
     "king": [
       {
         "kind": "ring",
-        "name": "Three alternating rings",
+        "name": "Big Hat c1 rings",
         "geometry": "chebyshev",
         "ringValues": [
           1,
           1,
+          -1,
           -1,
           1
         ],

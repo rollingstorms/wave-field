@@ -28,7 +28,7 @@ export const DEBUG_DEFINITIONS: ComponentDefinitions = {
     { kind: "preset", name: "Axis favor", preset: "axis-favor", decayBase: 2, originScale: 1 },
   ],
   king: [
-    { kind: "ring", name: "Three alternating rings", geometry: "chebyshev", ringValues: [1, 1, -1, 1], repeat: true, decayBase: 2, originScale: 1 },
+    { kind: "ring", name: "Big Hat c1 rings", geometry: "chebyshev", ringValues: [1, 1, -1, -1, 1], repeat: true, decayBase: 2, originScale: 1 },
     { kind: "preset", name: "Horizontal mode", preset: "horizontal-versus-vertical", decayBase: 2, originScale: 1 },
     { kind: "preset", name: "Block checker", preset: "block-checker", decayBase: 2, originScale: 1 },
   ],
