@@ -13,6 +13,8 @@ export interface OptimizedGameConfig {
   homeEnergy: HomeEnergy;
 }
 
+export type GameVariantId = "balanced-pressure" | "easy-mobility";
+
 export function openingTerritoryRowsMatchOriginal(config: OptimizedGameConfig): boolean {
   const state = createInitialState(config.components, config.definitions, config.waveScales, config.homeEnergy);
   const field = evaluateField(state);
@@ -26,7 +28,7 @@ export function openingTerritoryRowsMatchOriginal(config: OptimizedGameConfig): 
   );
 }
 
-export function createOptimTestConfig(): OptimizedGameConfig {
+function createBalancedPressureConfig(): OptimizedGameConfig {
   const definitions = cloneDefinitions();
   definitions.rook[0] = {
     ...definitions.rook[0],
@@ -76,4 +78,41 @@ export function createOptimTestConfig(): OptimizedGameConfig {
     },
     homeEnergy: structuredClone(DEFAULT_HOME_ENERGY),
   };
+}
+
+function createEasyMobilityConfig(): OptimizedGameConfig {
+  const definitions = cloneDefinitions();
+  definitions.spy[1] = {
+    ...definitions.spy[1],
+    name: "Easy Triangle diagonal favor",
+    kind: "preset",
+    preset: "diagonal-favor",
+  };
+  definitions.king[2] = {
+    ...definitions.king[2],
+    name: "Easy Big Hat astigmatism",
+    kind: "preset",
+    preset: "astigmatism",
+  };
+
+  return {
+    name: "easy-mobility",
+    components: structuredClone(DEFAULT_COMPONENTS),
+    definitions,
+    waveScales: structuredClone(DEFAULT_WAVE_SCALES),
+    homeEnergy: structuredClone(DEFAULT_HOME_ENERGY),
+  };
+}
+
+export function createGameVariantConfig(variant: GameVariantId): OptimizedGameConfig {
+  switch (variant) {
+    case "easy-mobility":
+      return createEasyMobilityConfig();
+    case "balanced-pressure":
+      return createBalancedPressureConfig();
+  }
+}
+
+export function createOptimTestConfig(): OptimizedGameConfig {
+  return createGameVariantConfig("balanced-pressure");
 }

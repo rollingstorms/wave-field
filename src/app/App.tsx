@@ -16,7 +16,7 @@ import { BOARD_SIZE } from "../game/constants";
 import { createInitialState } from "../game/initialState";
 import { isNeuralPolicy, policyLabel, requestNeuralTurn } from "../game/neuralAi";
 import type { AiPolicy } from "../game/neuralAi";
-import { createOptimTestConfig } from "../game/optimizedConfig";
+import { createGameVariantConfig } from "../game/optimizedConfig";
 import { gameReducer } from "../game/reducer";
 import type { CSSProperties } from "react";
 import type { BasisDefinition, PieceType, Player, PlayerComponents, Position } from "../game/types";
@@ -26,14 +26,15 @@ const localNeuralArenaEnabled = import.meta.env.DEV
   && (routePath.endsWith("/local-arena") || import.meta.env.MODE === "arena");
 const arenaEnabled = routePath.endsWith("/arena") || localNeuralArenaEnabled;
 const optimTestEnabled = routePath.endsWith("/optim-test");
+const easyTestEnabled = routePath.endsWith("/easy-test");
 type SidePolicy = AiPolicy | "human";
 type AiStats = Record<Player, { turns: number; tuneActions: number; lastTurnTunes: number }>;
 const pieceTypes: PieceType[] = ["pawn", "rook", "spy", "king"];
 const createArenaInitialState = () => localNeuralArenaEnabled
   ? createInitialState(TRAINING_COMPONENTS)
-  : optimTestEnabled
+  : optimTestEnabled || easyTestEnabled
     ? (() => {
-      const config = createOptimTestConfig();
+      const config = createGameVariantConfig(easyTestEnabled ? "easy-mobility" : "balanced-pressure");
       return createInitialState(config.components, config.definitions, config.waveScales, config.homeEnergy);
     })()
   : createInitialState();

@@ -6,3 +6,5 @@ await mkdir("dist/big", { recursive: true });
 await copyFile("dist/index.html", "dist/big/index.html");
 await mkdir("dist/optim-test", { recursive: true });
 await copyFile("dist/index.html", "dist/optim-test/index.html");
+await mkdir("dist/easy-test", { recursive: true });
+await copyFile("dist/index.html", "dist/easy-test/index.html");
