@@ -2,6 +2,7 @@ import { build } from "esbuild";
 import { pathToFileURL } from "node:url";
 
 const full = process.argv.includes("--full");
+const reportLimit = Number(process.env.MECHANICS_LIMIT ?? (full ? 20 : 12));
 const outfile = "/tmp/wave-field-mechanics-report.mjs";
 
 await build({
@@ -16,6 +17,7 @@ await build({
         complexitySnapshot,
         componentPatternMetrics,
         enumerateProfiles,
+        evaluateCombinedParameterCandidate,
         evaluateDefaultComponentSet,
         evaluateHomeEnergySet,
         evaluateWaveScaleSet,
@@ -34,9 +36,11 @@ await build({
         searchWaveScaleOptions,
       } from "./src/game/mechanicsAnalysis.ts";
       import { DEFAULT_HOME_ENERGY, DEFAULT_WAVE_SCALES } from "./src/game/constants.ts";
-      import { DEFAULT_COMPONENTS } from "./src/field/componentDefinitions.ts";
+      import { DEFAULT_COMPONENTS, cloneDefinitions } from "./src/field/componentDefinitions.ts";
+      import { createInitialState } from "./src/game/initialState.ts";
 
       const full = ${JSON.stringify(full)};
+      const reportLimit = ${JSON.stringify(reportLimit)};
       const sampledPositions = [
         { x: 1, y: 1 },
         { x: 3, y: 1 },
@@ -109,6 +113,132 @@ await build({
         return match;
       }
 
+      function ringReplacement(pieceType, componentIndex, values, name) {
+        const definitions = cloneDefinitions();
+        const current = definitions[pieceType][componentIndex];
+        if (current.kind !== "ring") throw new Error(pieceType + " C" + componentIndex + " is not a ring definition");
+        return {
+          pieceType,
+          componentIndex,
+          definition: {
+            ...current,
+            name,
+            ringValues: values,
+          },
+        };
+      }
+
+      function stateForCandidate(candidate) {
+        const definitions = cloneDefinitions();
+        for (const replacement of candidate.replacements ?? []) {
+          definitions[replacement.pieceType][replacement.componentIndex] = structuredClone(replacement.definition);
+        }
+        return createInitialState(
+          structuredClone(candidate.components ?? DEFAULT_COMPONENTS),
+          definitions,
+          structuredClone(candidate.scales ?? DEFAULT_WAVE_SCALES),
+          structuredClone(candidate.homeEnergy ?? DEFAULT_HOME_ENERGY),
+        );
+      }
+
+      function configSummary(candidate) {
+        const state = stateForCandidate(candidate);
+        const wave = evaluateWaveScaleSet(state.waveScales, state);
+        const defaults = evaluateDefaultComponentSet(state.defaultComponents, state);
+        const home = evaluateHomeEnergySet(state.homeEnergy, state);
+        const snapshot = complexitySnapshot(state, 0);
+        const kingPower = profilePowerMetrics(state)
+          .filter((metric) => metric.pieceType === "king")
+          .map((metric) => normalizedPowerRow(metric));
+        const kingMobility = profileMobilityDiagnostics(state)
+          .filter((metric) => metric.pieceType === "king");
+        const allMobility = profileMobilityDiagnostics(state);
+        const deadProfiles = allMobility.filter((metric) =>
+          metric.pieceType !== "spy" && (metric.averageMoves < 4 || metric.deadOrigins > 0)
+        );
+        const worstPower = profilePowerMetrics(state)
+          .map((metric) => normalizedPowerRow(metric))
+          .sort((left, right) => right.normalizedRatio - left.normalizedRatio)[0];
+        const kingWorst = kingPower.sort((left, right) => right.normalizedRatio - left.normalizedRatio)[0];
+        return {
+          name: candidate.name,
+          score: evaluateCombinedParameterCandidate(candidate).score,
+          wave,
+          defaults,
+          home,
+          snapshot,
+          deadProfiles,
+          worstPower,
+          kingWorst,
+          kingMinMobility: Math.min(...kingMobility.map((metric) => metric.averageMoves)),
+          kingMaxMobility: Math.max(...kingMobility.map((metric) => metric.averageMoves)),
+        };
+      }
+
+      function normalizedPowerRow(metric) {
+        const ratio = metric.polarityL1Ratio;
+        return {
+          pieceType: metric.pieceType,
+          profile: metric.profile,
+          ratio,
+          normalizedRatio: Math.max(ratio, 1 / Math.max(ratio, Number.EPSILON)),
+          netDelta: metric.polarityNetDelta,
+        };
+      }
+
+      function delta(current, previous, key) {
+        return round(current[key] - previous[key]);
+      }
+
+      function comparisonLine(row, previous) {
+        const snapshot = row.snapshot;
+        const move = snapshot.moveConsequences;
+        const values = {
+          score: row.score,
+          dead: row.deadProfiles.length,
+          maxRatio: row.wave.maxPolarityRatio,
+          kingRatio: row.kingWorst.normalizedRatio,
+          kingMinMob: row.kingMinMobility,
+          moves: row.defaults.openingMoves.blue + row.defaults.openingMoves.red,
+          mobility: snapshot.mobility.total,
+          avgL1: move.averageFieldL1Delta,
+          signChanges: move.averageSignChanges,
+          mobSwing: move.averageMobilitySwing,
+          minMargin: snapshot.minSafetyMargin,
+          bigHat: row.home.bigHatMargins.blue,
+        };
+        const deltaText = previous
+          ? [
+            "Δscore=" + delta(values, previous.values, "score"),
+            "Δdead=" + delta(values, previous.values, "dead"),
+            "ΔkingRatio=" + delta(values, previous.values, "kingRatio"),
+            "ΔkingMinMob=" + delta(values, previous.values, "kingMinMob"),
+            "Δmoves=" + delta(values, previous.values, "moves"),
+            "ΔavgL1=" + delta(values, previous.values, "avgL1"),
+            "ΔmobSwing=" + delta(values, previous.values, "mobSwing"),
+          ].join("  ")
+          : "";
+        return {
+          values,
+          text: [
+            row.name.padEnd(24),
+            "score=" + round(values.score),
+            "dead=" + values.dead,
+            "maxRatio=" + round(values.maxRatio),
+            "kingRatio=" + round(values.kingRatio),
+            "kingMinMob=" + round(values.kingMinMob),
+            "openingMoves=" + values.moves,
+            "mobility=" + values.mobility,
+            "avgL1=" + round(values.avgL1),
+            "avgSignΔ=" + round(values.signChanges),
+            "avgMobSwing=" + round(values.mobSwing),
+            "minMargin=" + round(values.minMargin),
+            "bigHat=" + round(values.bigHat),
+            deltaText,
+          ].filter(Boolean).join("  "),
+        };
+      }
+
       function resultLine(result) {
         return [
           "score=" + round(result.score),
@@ -132,7 +262,7 @@ await build({
       console.log("Profile polarity imbalance");
       for (const metric of [...metrics].sort((left, right) =>
         Math.abs(Math.log(right.polarityL1Ratio)) - Math.abs(Math.log(left.polarityL1Ratio))
-      ).slice(0, 12)) {
+      ).slice(0, reportLimit)) {
         console.log([
           metric.pieceType.padEnd(5),
           profileLabel(metric.profile).padEnd(9),
@@ -219,7 +349,7 @@ await build({
       console.log("\\nLoss impact diagnostics");
       for (const row of lossMobilityImpacts().sort((left, right) =>
         Math.abs(right.totalMobilityDelta) - Math.abs(left.totalMobilityDelta)
-      ).slice(0, 8)) {
+      ).slice(0, reportLimit)) {
         console.log([
           pieceLabel(row.removedPieceId).padEnd(12),
           "totalΔ=" + row.totalMobilityDelta,
@@ -302,7 +432,7 @@ await build({
       const currentResult = evaluateWaveScaleSet(DEFAULT_WAVE_SCALES);
       console.log("current  " + resultLine(currentResult));
       console.log("         " + deadProfileLine(currentResult));
-      const candidates = searchWaveScaleOptions(scaleOptions, 10);
+      const candidates = searchWaveScaleOptions(scaleOptions, reportLimit);
       candidates.forEach((candidate, index) => {
         console.log(String(index + 1).padStart(2) + ".       " + resultLine(candidate));
         console.log("         " + deadProfileLine(candidate));
@@ -318,7 +448,7 @@ await build({
         "minMob=" + round(currentDefaults.selectedProfileMinMobility),
         componentsLabel(currentDefaults.components),
       ].join("  "));
-      searchDefaultComponentSets(10).forEach((candidate, index) => {
+      searchDefaultComponentSets(reportLimit).forEach((candidate, index) => {
         console.log([
           String(index + 1).padStart(2) + ".",
           "score=" + round(candidate.score),
@@ -346,7 +476,7 @@ await build({
         spy: [0, 0.5, 1],
         king: [0, 0.25, 0.5, 1],
       };
-      searchHomeEnergyOptions(homeEnergyOptions, 10).forEach((candidate, index) => {
+      searchHomeEnergyOptions(homeEnergyOptions, reportLimit).forEach((candidate, index) => {
         console.log([
           String(index + 1).padStart(2) + ".",
           "score=" + round(candidate.score),
@@ -365,7 +495,7 @@ await build({
         { pieceType: "king", componentIndex: 0 },
         { pieceType: "king", componentIndex: 2 },
       ];
-      searchDefinitionVariants(variantTargets, 12).forEach((candidate, index) => {
+      searchDefinitionVariants(variantTargets, reportLimit).forEach((candidate, index) => {
         console.log([
           String(index + 1).padStart(2) + ".",
           candidate.pieceType + " C" + (candidate.componentIndex + 1),
@@ -392,7 +522,7 @@ await build({
           { pieceType: "king", componentIndex: 2 },
         ],
       ];
-      searchDefinitionSetVariants(coupledTargets, 12).forEach((candidate, index) => {
+      searchDefinitionSetVariants(coupledTargets, reportLimit).forEach((candidate, index) => {
         const names = candidate.replacements.map((replacement) =>
           replacement.pieceType + " C" + (replacement.componentIndex + 1) + "=" + replacement.definition.name
         ).join(" | ");
@@ -446,12 +576,16 @@ await build({
       const userBigHatAstigmatism = [
         { pieceType: "king", componentIndex: 2, definition: presetVariant("king", 2, "astigmatism") },
       ];
+      const yesterdayBigHatC1 = [
+        ringReplacement("king", 0, [1, 1, -1, 1], "Yesterday Big Hat c1 rings"),
+      ];
       const kingAstigmatic = [
-        { pieceType: "king", componentIndex: 0, definition: ringVariant("king", 0, [0, 1, -1, -1, 0, 1]) },
+        ringReplacement("king", 0, [1, 1, -1, -1, 1], "Big Hat c1 rings"),
         { pieceType: "king", componentIndex: 2, definition: presetVariant("king", 2, "astigmatism") },
       ];
       const combinedCandidates = [
         { name: "current" },
+        { name: "yesterday-big-hat-c1", replacements: yesterdayBigHatC1 },
         { name: "mixed-defaults", components: mixedDefaults },
         { name: "softened-scales", scales: softenedScales },
         { name: "zero-hostile-diagnostic", scales: neutralFirstRingScales },
@@ -486,6 +620,21 @@ await build({
           "repl=" + replacements,
         ].join("  "));
       });
+
+      console.log("\\nYesterday vs today config comparison");
+      const comparisonRows = [
+        { name: "yesterday-big-hat-c1", replacements: yesterdayBigHatC1 },
+        { name: "today-current" },
+        { name: "today+big-hat-c3", replacements: userBigHatAstigmatism },
+        { name: "today+tower", replacements: userTowerAction },
+        { name: "today+tower+big-hat-c3", replacements: [...userTowerAction, ...userBigHatAstigmatism] },
+      ].map(configSummary);
+      let previousComparison = null;
+      for (const row of comparisonRows) {
+        const line = comparisonLine(row, previousComparison);
+        console.log(line.text);
+        previousComparison = line;
+      }
 
       console.log("\\nPairwise combo outliers" + (full ? " (full board)" : " (sampled positions; pass --full for exhaustive board)"));
       const outliers = findComboOutliers(undefined, 5, full ? {} : { positions: sampledPositions });

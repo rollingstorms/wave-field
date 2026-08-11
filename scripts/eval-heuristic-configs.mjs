@@ -42,6 +42,21 @@ await build({
         return match;
       }
 
+      function ringReplacement(pieceType, componentIndex, values, name) {
+        const definitions = cloneDefinitions();
+        const current = definitions[pieceType][componentIndex];
+        if (current.kind !== "ring") throw new Error(pieceType + " C" + componentIndex + " is not a ring definition");
+        return {
+          pieceType,
+          componentIndex,
+          definition: {
+            ...current,
+            name,
+            ringValues: values,
+          },
+        };
+      }
+
       function definitionsWith(replacements) {
         const definitions = cloneDefinitions();
         for (const replacement of replacements) {
@@ -202,8 +217,12 @@ await build({
       const bigHatC3Astigmatism = [
         { pieceType: "king", componentIndex: 2, definition: presetVariant("king", 2, "astigmatism") },
       ];
+      const yesterdayBigHatC1 = [
+        ringReplacement("king", 0, [1, 1, -1, 1], "Yesterday Big Hat c1 rings"),
+      ];
       const configs = [
-        { name: "current" },
+        { name: "yesterday-big-hat-c1", replacements: yesterdayBigHatC1 },
+        { name: "today-current" },
         { name: "big-hat-c3-astigmatism", replacements: bigHatC3Astigmatism },
         { name: "tower-[0+-][+0-]", replacements: towerUser },
         { name: "tower+big-hat-c3", replacements: [...towerUser, ...bigHatC3Astigmatism] },
