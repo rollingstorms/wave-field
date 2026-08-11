@@ -552,6 +552,8 @@ export function applyHintSearch(state: GameState, focusedPieceId: string | null 
   const result = rustHintSearch<HintSearchResult>(state.currentPlayer, focusedPieceId, state, 160, 160)
     ?? hintSearch(state.currentPlayer, focusedPieceId, state, 160, 160);
   if (!result.ok) {
+    const resolved = beginTurn(state);
+    if (resolved.status !== state.status) return { ok: true, state: resolved };
     return {
       ok: false,
       state,

@@ -1,5 +1,5 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
-import { Flag, Lightbulb, Search } from "lucide-react";
+import { Flag, Search } from "lucide-react";
 import type {
   CSSProperties,
   MouseEvent as ReactMouseEvent,
@@ -164,6 +164,9 @@ export function Board({ state, field, typeFields, continuousField, showTypeSums,
     [playableMoves, riskyMoveLossCounts],
   );
   const noSafePlayableMoves = playableMoves.length > 0 && safeMoves.length === 0;
+  const bigHatNeedsHint = selectedPiece?.type === "king"
+    && selectedPiece.owner === state.currentPlayer
+    && selectedPiece.unstable;
   const noApparentBigHatOption = selectedPiece?.type === "king"
     && reachableMoves.length > 0
     && playableMoves.length === 0;
@@ -173,7 +176,7 @@ export function Board({ state, field, typeFields, continuousField, showTypeSums,
       && !draggingPieceId
       && selectedPiece
       && selectedPiece.owner === state.currentPlayer
-      && (noSafePlayableMoves || noApparentBigHatOption),
+      && (noSafePlayableMoves || noApparentBigHatOption || bigHatNeedsHint),
   );
   const kingBlockedMoveKeys = useMemo(() => {
     if (!interactionPiece) return new Set<string>();
@@ -556,10 +559,6 @@ export function Board({ state, field, typeFields, continuousField, showTypeSums,
           </div>
           {selectedPiece.type === "king" && selectedPiece.owner === state.currentPlayer && (
             <div className="check-actions">
-              <button type="button" className="hint-button" disabled={hintSearching} onClick={() => onHint(selectedPiece.id)}>
-                <Lightbulb size={15} aria-hidden="true" />
-                {hintSearching ? "Searching..." : "Hint"}
-              </button>
               <button type="button" className="resign-button" onClick={onResign}>
                 <Flag size={15} aria-hidden="true" />
                 Resign
