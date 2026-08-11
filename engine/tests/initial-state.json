@@ -281,14 +281,13 @@
     "king": [
       {
         "kind": "ring",
-        "name": "Four alternating rings",
+        "name": "Three alternating rings",
         "geometry": "chebyshev",
         "ringValues": [
           1,
           1,
           -1,
-          1,
-          -1
+          1
         ],
         "repeat": true,
         "decayBase": 2,
