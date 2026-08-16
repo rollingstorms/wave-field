@@ -279,6 +279,68 @@ emits legal action indexes, and returns the batch to Python for PyTorch updates.
 Model-driven self-play still runs through Python because PyTorch selects moves
 at each ply, but inference is batched across active games.
 
+## Tactical Eval
+
+Use tactical evals to measure whether a checkpoint ranks heuristic tactical
+targets highly without paying for long full-game evals:
+
+```bash
+PYTHONPATH=training python3 -m wavefield.tactical_eval \
+  --checkpoint training/runs/transformer-256-tactical-long/checkpoint.pt \
+  --model-arch transformer \
+  --input-view piece_identity \
+  --games 64 \
+  --scenarios opening,midgame,low_material,rescue
+```
+
+Use policy inspection when you want concrete examples of what the model is
+considering:
+
+```bash
+PYTHONPATH=training python3 -m wavefield.policy_inspect \
+  --checkpoint training/runs/transformer-256-tactical-long/checkpoint.pt \
+  --model-arch transformer \
+  --input-view piece_identity \
+  --positions 8 \
+  --top-k 5
+```
+
+Long pretrain template:
+
+```bash
+PYTHONPATH=training python3 -m wavefield.experiment \
+  --run-dir training/runs/transformer-256-tactical-long \
+  --hidden-size 256 \
+  --model-arch transformer \
+  --input-view piece_identity \
+  --heuristic-bootstrap-games 200 \
+  --heuristic-bootstrap-per-iteration 32 \
+  --model-games 160 \
+  --scenario-games-per-iteration 48 \
+  --scenario-bootstrap-per-iteration 24 \
+  --iterations 240 \
+  --epochs 6 \
+  --batch-size 128 \
+  --rollout-batch-size 128 \
+  --temperature 0.9 \
+  --kind-temperature 1.1 \
+  --tuning-temperature 1.4 \
+  --force-first-tune-prob 0.25 \
+  --full-policy \
+  --max-tuning-actions 3 \
+  --eval-every 20 \
+  --eval-games 25 \
+  --eval-max-plies 180 \
+  --scenario-eval-games 24 \
+  --tactical-eval-games 64 \
+  --baseline-eval-games 10 \
+  --baseline-eval-max-plies 240 \
+  --baseline-opponents heuristic \
+  --source-weights heuristic_bootstrap=2,python_model_full_policy=1 \
+  --phase-weights endgame=2,midgame=1,opening=1 \
+  --progress
+```
+
 ## Model Analysis
 
 Use `wavefield.analyze_model` to inspect a checkpoint without running an

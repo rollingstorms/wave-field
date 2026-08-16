@@ -26,9 +26,17 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--seed", type=int, default=90210)
     parser.add_argument("--resume-checkpoint", type=Path, default=None)
     parser.add_argument("--hidden-size", type=int, default=128)
-    parser.add_argument("--model-arch", choices=("conv", "residual", "transformer", "sequence_transformer"), default="conv")
+    parser.add_argument(
+        "--model-arch",
+        choices=("conv", "residual", "transformer", "sequence_transformer", "encoder_sequence"),
+        default="conv",
+    )
     parser.add_argument("--input-view", choices=("base", "piece_identity"), default="base")
-    parser.add_argument("--history-plies", type=int, default=1, help="State history window for sequence_transformer models.")
+    parser.add_argument("--history-plies", type=int, default=1, help="State history window for sequence models.")
+    parser.add_argument("--encoder-checkpoint", type=Path, default=None, help="State-model checkpoint for encoder_sequence.")
+    parser.add_argument("--encoder-arch", choices=("conv", "residual", "transformer"), default=None)
+    parser.add_argument("--encoder-hidden-size", type=int, default=None)
+    parser.add_argument("--unfreeze-encoder", action="store_true", help="Fine-tune encoder_sequence state encoder.")
     parser.add_argument("--lr", type=float, default=1.0e-3)
     parser.add_argument("--device", default="auto")
     parser.add_argument("--max-plies", type=int, default=120)
@@ -40,12 +48,22 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--scenario-games-per-iteration", type=int, default=0)
     parser.add_argument("--scenario-bootstrap-per-iteration", type=int, default=0)
     parser.add_argument("--scenario-eval-games", type=int, default=0)
+    parser.add_argument("--tactical-eval-games", type=int, default=0)
+    parser.add_argument("--tactical-eval-max-plies", type=int, default=1)
     parser.add_argument("--scenarios", default=",".join(DEFAULT_SCENARIOS))
     parser.add_argument("--iterations", type=int, default=1)
     parser.add_argument("--epochs", type=int, default=3)
     parser.add_argument("--batch-size", type=int, default=128)
     parser.add_argument("--rollout-batch-size", type=int, default=128)
     parser.add_argument("--temperature", type=float, default=1.0)
+    parser.add_argument("--kind-temperature", type=float, default=None, help="Training self-play temperature for tune-vs-move kind sampling.")
+    parser.add_argument("--tuning-temperature", type=float, default=None, help="Training self-play temperature for tuning action sampling.")
+    parser.add_argument(
+        "--force-first-tune-prob",
+        type=float,
+        default=0.0,
+        help="Training self-play probability of forcing the first eligible full-policy action to be tuning.",
+    )
     parser.add_argument("--full-policy", action="store_true", help="Train model turns with learned tune/move heads.")
     parser.add_argument("--max-tuning-actions", type=int, default=3)
     parser.add_argument("--eval-every", type=int, default=1)
@@ -139,6 +157,59 @@ def serializable_config(args: argparse.Namespace) -> Dict[str, Any]:
         key: str(value) if isinstance(value, Path) else value
         for key, value in vars(args).items()
     }
+
+
+def encoder_config_from_checkpoint(args: argparse.Namespace, device: torch.device) -> Dict[str, Any]:
+    if args.model_arch != "encoder_sequence":
+        return {}
+
+    checkpoint: Dict[str, Any] = {}
+    if args.encoder_checkpoint is not None:
+        checkpoint = torch.load(args.encoder_checkpoint, map_location=device, weights_only=False)
+
+    encoder_arch = args.encoder_arch or checkpoint.get("model_arch", "transformer")
+    if encoder_arch == "encoder_sequence":
+        raise ValueError("encoder_sequence requires a state-only encoder checkpoint or encoder arch.")
+    encoder_hidden_size = int(args.encoder_hidden_size or checkpoint.get("hidden_size", args.hidden_size))
+    encoder_input_view = checkpoint.get("input_view", args.input_view)
+    if encoder_input_view != args.input_view:
+        raise ValueError(
+            f"encoder checkpoint input_view={encoder_input_view!r} does not match --input-view={args.input_view!r}"
+        )
+    encoder_board_channels = int(checkpoint.get("board_channels", board_channels_for_view(args.input_view)))
+    if encoder_board_channels != board_channels_for_view(args.input_view):
+        raise ValueError(
+            f"encoder checkpoint board_channels={encoder_board_channels} does not match --input-view={args.input_view!r}"
+        )
+    return {
+        "checkpoint": checkpoint,
+        "encoder_arch": encoder_arch,
+        "encoder_hidden_size": encoder_hidden_size,
+        "freeze_encoder": not args.unfreeze_encoder,
+    }
+
+
+def load_encoder_checkpoint(model: PolicyValueNet, checkpoint: Dict[str, Any]) -> None:
+    if not checkpoint:
+        return
+    if getattr(model, "state_encoder", None) is None:
+        raise ValueError("--encoder-checkpoint can only be used with --model-arch encoder_sequence")
+    missing, unexpected = model.state_encoder.load_state_dict(checkpoint["model"], strict=False)
+    allowed_unexpected = {
+        "policy.weight",
+        "policy.bias",
+        "action_kind.weight",
+        "action_kind.bias",
+        "tuning_policy.weight",
+        "tuning_policy.bias",
+        "value.0.weight",
+        "value.0.bias",
+    }
+    unexpected = [key for key in unexpected if key not in allowed_unexpected]
+    if unexpected:
+        raise ValueError(f"Unexpected encoder checkpoint keys: {unexpected[:5]}")
+    if missing:
+        raise ValueError(f"Encoder checkpoint is missing keys: {missing[:5]}")
 
 
 def sample_metadata_summary(samples: List[Sample]) -> Dict[str, Any]:
@@ -437,6 +508,41 @@ def run_baseline_eval(
             )
 
 
+def run_tactical_eval_phase(
+    engine: RustEngine,
+    model: PolicyValueNet,
+    args: argparse.Namespace,
+    device: torch.device,
+    iteration: int,
+    logger: JsonlLogger,
+    progress: TerminalProgress,
+    scenarios: List[str],
+) -> None:
+    if args.tactical_eval_games <= 0:
+        return
+
+    from .tactical_eval import run_tactical_eval
+
+    progress.phase(iteration, "tactical_eval", f"{args.tactical_eval_games} games")
+    summary = run_tactical_eval(
+        engine,
+        model,
+        device,
+        input_view=args.input_view,
+        scenarios=scenarios,
+        games=args.tactical_eval_games,
+        seed=args.seed + 110_000 + iteration,
+        max_plies=args.tactical_eval_max_plies,
+    )
+    logger.write(
+        {
+            "event": "tactical_eval",
+            "iteration": iteration,
+            "summary": summary,
+        }
+    )
+
+
 def save_checkpoint(
     model: PolicyValueNet,
     optimizer: torch.optim.Optimizer,
@@ -456,6 +562,9 @@ def save_checkpoint(
             "model_arch": args.model_arch,
             "input_view": args.input_view,
             "history_plies": args.history_plies,
+            "encoder_arch": getattr(model, "encoder_arch", None),
+            "encoder_hidden_size": getattr(model, "encoder_hidden_size", None),
+            "freeze_encoder": getattr(model, "freeze_encoder", None),
             "iteration": iteration,
             "config": serializable_config(args),
         },
@@ -473,18 +582,21 @@ def main() -> None:
     baseline_opponents = parse_baseline_opponents(args.baseline_opponents)
     if args.input_view != "base" and (args.pretrain_random_games > 0 or args.random_games_per_iteration > 0):
         raise ValueError("Rust random training batches currently support only --input-view base")
-    if args.model_arch == "sequence_transformer" and not args.full_policy:
-        raise ValueError("sequence_transformer experiments currently require --full-policy Python rollouts.")
-    if args.model_arch == "sequence_transformer" and args.history_plies < 2:
-        raise ValueError("sequence_transformer requires --history-plies >= 2.")
-    if args.model_arch == "sequence_transformer" and (
+    if args.model_arch in ("sequence_transformer", "encoder_sequence") and not args.full_policy:
+        raise ValueError(f"{args.model_arch} experiments currently require --full-policy Python rollouts.")
+    if args.model_arch in ("sequence_transformer", "encoder_sequence") and args.history_plies < 2:
+        raise ValueError(f"{args.model_arch} requires --history-plies >= 2.")
+    if args.model_arch in ("sequence_transformer", "encoder_sequence") and (
         args.pretrain_random_games > 0
         or args.random_games_per_iteration > 0
-        or args.heuristic_bootstrap_games > 0
-        or args.heuristic_bootstrap_per_iteration > 0
-        or args.scenario_bootstrap_per_iteration > 0
     ):
-        raise ValueError("sequence_transformer currently supports model/session and scenario model samples only.")
+        raise ValueError(f"{args.model_arch} currently does not support Rust random encoded batches.")
+    if args.encoder_checkpoint is not None and args.model_arch != "encoder_sequence":
+        raise ValueError("--encoder-checkpoint requires --model-arch encoder_sequence.")
+    if args.model_arch == "encoder_sequence" and args.encoder_checkpoint is None and not args.unfreeze_encoder:
+        raise ValueError("encoder_sequence needs --encoder-checkpoint unless --unfreeze-encoder trains it from scratch.")
+    if not 0.0 <= args.force_first_tune_prob <= 1.0:
+        raise ValueError("--force-first-tune-prob must be between 0 and 1.")
     if args.resume_checkpoint is not None and (args.pretrain_random_games > 0 or args.heuristic_bootstrap_games > 0):
         raise ValueError("Resume runs should use per-iteration generation, not bootstrap phases.")
     torch.manual_seed(args.seed)
@@ -494,14 +606,20 @@ def main() -> None:
     logger = JsonlLogger(args.run_dir / "events.jsonl", progress)
 
     engine = RustEngine()
+    encoder_config = encoder_config_from_checkpoint(args, device)
     model = PolicyValueNet(
         hidden_size=args.hidden_size,
         board_channels=board_channels_for_view(args.input_view),
         side_size=SIDE_SIZE,
         architecture=args.model_arch,
         history_plies=args.history_plies,
+        encoder_arch=encoder_config.get("encoder_arch") or args.encoder_arch or "transformer",
+        encoder_hidden_size=encoder_config.get("encoder_hidden_size") or args.encoder_hidden_size,
+        freeze_encoder=bool(encoder_config.get("freeze_encoder", not args.unfreeze_encoder)),
     ).to(device)
-    optimizer = torch.optim.AdamW(model.parameters(), lr=args.lr)
+    load_encoder_checkpoint(model, encoder_config.get("checkpoint", {}))
+    trainable_parameters = [parameter for parameter in model.parameters() if parameter.requires_grad]
+    optimizer = torch.optim.AdamW(trainable_parameters, lr=args.lr)
     if args.resume_checkpoint is not None:
         checkpoint = torch.load(args.resume_checkpoint, map_location=device, weights_only=False)
         model.load_state_dict(checkpoint["model"], strict=False)
@@ -525,6 +643,11 @@ def main() -> None:
                 "start_iteration": start_iteration,
                 "final_iteration": start_iteration + args.iterations,
                 "history_plies": args.history_plies,
+                "encoder_arch": getattr(model, "encoder_arch", None),
+                "encoder_hidden_size": getattr(model, "encoder_hidden_size", None),
+                "freeze_encoder": getattr(model, "freeze_encoder", None),
+                "encoder_checkpoint": str(args.encoder_checkpoint) if args.encoder_checkpoint is not None else None,
+                "trainable_parameters": sum(parameter.numel() for parameter in trainable_parameters),
             },
         }
     )
@@ -587,6 +710,7 @@ def main() -> None:
             cap_value=args.cap_value,
             input_view=args.input_view,
             collect_metrics=False,
+            history_plies=args.history_plies,
         )
         samples = [sample for record in records for sample in record.samples]
         logger.write(
@@ -637,6 +761,7 @@ def main() -> None:
                 cap_value=args.cap_value,
                 input_view=args.input_view,
                 collect_metrics=False,
+                history_plies=args.history_plies,
             )
             bootstrap_samples = [sample for record in records for sample in record.samples]
             iteration_samples.extend(bootstrap_samples)
@@ -688,6 +813,9 @@ def main() -> None:
                     policy="model",
                     model=model,
                     temperature=args.temperature,
+                    kind_temperature=args.kind_temperature,
+                    tuning_temperature=args.tuning_temperature,
+                    force_first_tune_prob=args.force_first_tune_prob,
                     device=device,
                     cap_value=args.cap_value,
                     collect_metrics=False,
@@ -742,6 +870,7 @@ def main() -> None:
                 input_view=args.input_view,
                 initial_states=scenario_states,
                 collect_metrics=False,
+                history_plies=args.history_plies,
             )
             bootstrap_samples = [sample for record in records for sample in record.samples]
             iteration_samples.extend(bootstrap_samples)
@@ -776,6 +905,9 @@ def main() -> None:
                     policy="model",
                     model=model,
                     temperature=args.temperature,
+                    kind_temperature=args.kind_temperature,
+                    tuning_temperature=args.tuning_temperature,
+                    force_first_tune_prob=args.force_first_tune_prob,
                     device=device,
                     cap_value=args.cap_value,
                     collect_metrics=False,
@@ -839,6 +971,7 @@ def main() -> None:
         if args.eval_every > 0 and iteration % args.eval_every == 0:
             run_session_eval(engine, model, args, device, iteration, logger, progress)
             run_baseline_eval(engine, model, args, device, iteration, logger, progress, baseline_opponents)
+            run_tactical_eval_phase(engine, model, args, device, iteration, logger, progress, scenarios)
             if args.scenario_eval_games > 0:
                 progress.phase(iteration, "scenario_eval_build", f"{args.scenario_eval_games} games")
                 scenario_eval_states = build_scenario_states(

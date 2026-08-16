@@ -26,7 +26,11 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--policy", choices=("random", "model", "heuristic", "easy"), default="random")
     parser.add_argument("--checkpoint", type=Path, default=Path("training/checkpoints/policy_value.pt"))
     parser.add_argument("--hidden-size", type=int, default=128)
-    parser.add_argument("--model-arch", choices=("conv", "residual", "transformer", "sequence_transformer"), default=None)
+    parser.add_argument(
+        "--model-arch",
+        choices=("conv", "residual", "transformer", "sequence_transformer", "encoder_sequence"),
+        default=None,
+    )
     parser.add_argument("--input-view", choices=("base", "piece_identity"), default=None)
     parser.add_argument("--history-plies", type=int, default=None)
     parser.add_argument("--temperature", type=float, default=1.0)
@@ -53,12 +57,18 @@ def load_model(
     resolved_view = input_view or checkpoint.get("input_view", "base")
     resolved_hidden = int(checkpoint.get("hidden_size", hidden_size))
     resolved_history = int(history_plies or checkpoint.get("history_plies", 1))
+    resolved_encoder_arch = checkpoint.get("encoder_arch", "transformer")
+    resolved_encoder_hidden = int(checkpoint.get("encoder_hidden_size", resolved_hidden))
+    resolved_freeze_encoder = bool(checkpoint.get("freeze_encoder", True))
     model = PolicyValueNet(
         hidden_size=resolved_hidden,
         board_channels=board_channels_for_view(resolved_view),
         side_size=SIDE_SIZE,
         architecture=resolved_arch,
         history_plies=resolved_history,
+        encoder_arch=resolved_encoder_arch,
+        encoder_hidden_size=resolved_encoder_hidden,
+        freeze_encoder=resolved_freeze_encoder,
     ).to(device)
     model.load_state_dict(checkpoint["model"], strict=False)
     model.eval()
@@ -219,8 +229,8 @@ def main() -> None:
     if args.session:
         if policy != "model":
             raise ValueError("--session eval currently supports --policy model")
-        if getattr(model, "architecture", None) == "sequence_transformer":
-            raise ValueError("sequence_transformer eval requires Python full-policy history; omit --session and add --full-policy.")
+        if getattr(model, "architecture", None) in ("sequence_transformer", "encoder_sequence"):
+            raise ValueError(f"{model.architecture} eval requires Python full-policy history; omit --session and add --full-policy.")
         assert model is not None
         records = session_model_selfplay_records(
             engine,

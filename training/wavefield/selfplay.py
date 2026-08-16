@@ -221,6 +221,19 @@ def _update_tuning_stats(stats: GameStats, player: str, tune_actions: int, effec
         stats.tune_turns_by_player[player] += 1
 
 
+def _annotate_turn_samples(
+    samples: List[Sample],
+    state: Dict[str, Any],
+    ply: int,
+    scenario: str | None = None,
+) -> None:
+    scenario = scenario or str(state.get("metadata", {}).get("scenario", "initial"))
+    phase = _phase_for_ply(ply)
+    for sample in samples:
+        sample.metadata.setdefault("scenario", scenario)
+        sample.metadata.setdefault("phase", phase)
+
+
 def _assign_values(samples: List[Sample], state: Dict[str, Any], cap_value: CapValueMode) -> None:
     for sample in samples:
         value = result_value(state["status"], sample.player)
@@ -409,6 +422,8 @@ def _heuristic_tuning_samples(
     target_state: Dict[str, Any],
     engine: RustEngine,
     input_view: InputView = "base",
+    history: EncodedHistory | None = None,
+    history_plies: int = 1,
 ) -> Tuple[Dict[str, Any], List[Sample]]:
     player = state["currentPlayer"]
     probe = state
@@ -437,6 +452,8 @@ def _heuristic_tuning_samples(
                     tune_actions,
                     action,
                     input_view=input_view,
+                    history=history,
+                    history_plies=history_plies,
                 )
                 sample.metadata["source"] = "heuristic_bootstrap"
                 samples.append(sample)
@@ -465,15 +482,25 @@ def heuristic_bootstrap_game(
     heuristic_variety: float = 0.55,
     heuristic_time_budget_ms: int = 10,
     collect_metrics: bool = True,
+    history_plies: int = 1,
 ) -> GameRecord:
     state = initial_state or load_initial_state()
     samples: List[Sample] = []
     stats = GameStats()
+    encoded_history: List[Tuple[np.ndarray, np.ndarray]] = []
+    scenario = str(state.get("metadata", {}).get("scenario", "initial"))
 
     for ply in range(max_plies):
         if state["status"] != "playing":
             break
         current_player = state["currentPlayer"]
+        history_actions = engine.legal_actions(state)
+        history_board, history_side, _history_mask = encode_state(
+            state,
+            engine,
+            history_actions,
+            input_view=input_view,
+        )
         before_pieces = _piece_map(state)
         before_unstable = _unstable_ids_for_player(state, current_player)
         before_counts = _piece_counts(state)
@@ -496,15 +523,27 @@ def heuristic_bootstrap_game(
             heuristic_state,
             engine,
             input_view=input_view,
+            history=encoded_history,
+            history_plies=history_plies,
         )
         samples.extend(tune_samples)
+        _annotate_turn_samples(tune_samples, state, ply, scenario=scenario)
         move_action = _heuristic_move_action(tuned_state, heuristic_state, current_player)
         if move_action is not None:
             move_actions = engine.legal_actions(tuned_state)
             legal_indexes = {action_index(action) for action in move_actions}
             if action_index(move_action) in legal_indexes:
-                sample = _sample_from_model_move_action(tuned_state, engine, move_actions, move_action, input_view=input_view)
+                sample = _sample_from_model_move_action(
+                    tuned_state,
+                    engine,
+                    move_actions,
+                    move_action,
+                    input_view=input_view,
+                    history=encoded_history,
+                    history_plies=history_plies,
+                )
                 sample.metadata["source"] = "heuristic_bootstrap"
+                _annotate_turn_samples([sample], state, ply, scenario=scenario)
                 samples.append(sample)
 
         _update_tuning_stats(
@@ -538,6 +577,9 @@ def heuristic_bootstrap_game(
             stats.max_loser_pieces = max(before_counts[loser], _piece_counts(heuristic_state)[loser])
 
         stats.plies = ply + 1
+        encoded_history.append((history_board, history_side))
+        if len(encoded_history) >= history_plies:
+            encoded_history = encoded_history[-(history_plies - 1):] if history_plies > 1 else []
         state = heuristic_state
 
     stats.status = state["status"]
@@ -556,6 +598,7 @@ def heuristic_bootstrap_records(
     input_view: InputView = "base",
     initial_states: List[Dict[str, Any]] | None = None,
     collect_metrics: bool = True,
+    history_plies: int = 1,
 ) -> List[GameRecord]:
     if initial_states is not None and len(initial_states) != games:
         raise ValueError("initial_states length must match games")
@@ -568,6 +611,7 @@ def heuristic_bootstrap_records(
             cap_value=cap_value,
             input_view=input_view,
             collect_metrics=collect_metrics,
+            history_plies=history_plies,
         )
         for game in range(games)
     ]
@@ -585,6 +629,10 @@ def select_model_full_turn(
     state: Dict[str, Any],
     engine: RustEngine,
     temperature: float = 1.0,
+    kind_temperature: float | None = None,
+    tuning_temperature: float | None = None,
+    force_first_tune_prob: float = 0.0,
+    rng: random.Random | None = None,
     device: torch.device | str = "cpu",
     record_samples: bool = True,
     input_view: InputView = "base",
@@ -595,6 +643,9 @@ def select_model_full_turn(
     samples: List[Sample] = []
     tuned_state = state
     tune_count = 0
+    kind_temp = temperature if kind_temperature is None else kind_temperature
+    tune_temp = temperature if tuning_temperature is None else tuning_temperature
+    chooser = rng or random.Random()
 
     while True:
         move_actions = engine.legal_actions(tuned_state)
@@ -629,10 +680,11 @@ def select_model_full_turn(
                 history_side=history_side_tensor,
             )
             kind_mask = torch.tensor([[1.0 if move_actions else 0.0, 1.0 if can_tune else 0.0]], dtype=torch.float32, device=device)
-            kind = _select_index(masked_policy_logits(kind_logits, kind_mask).squeeze(0), temperature)
+            force_tune = can_tune and tune_count == 0 and force_first_tune_prob > 0 and chooser.random() < force_first_tune_prob
+            kind = 1 if force_tune else _select_index(masked_policy_logits(kind_logits, kind_mask).squeeze(0), kind_temp)
 
             if kind == 1 and can_tune:
-                selected_index = _select_index(masked_policy_logits(tune_logits, tune_mask_tensor).squeeze(0), temperature)
+                selected_index = _select_index(masked_policy_logits(tune_logits, tune_mask_tensor).squeeze(0), tune_temp)
                 legal_indexes = {tuning_action_index(action) for action in tune_actions}
                 if selected_index not in legal_indexes:
                     selected_index = tuning_action_index(tune_actions[0])
@@ -726,6 +778,9 @@ def play_game(
     policy: PolicyMode = "random",
     model: PolicyValueNet | None = None,
     temperature: float = 1.0,
+    kind_temperature: float | None = None,
+    tuning_temperature: float | None = None,
+    force_first_tune_prob: float = 0.0,
     device: torch.device | str = "cpu",
     cap_value: CapValueMode = "material",
     collect_metrics: bool = True,
@@ -745,6 +800,7 @@ def play_game(
     samples: List[Sample] = []
     stats = GameStats()
     encoded_history: List[Tuple[np.ndarray, np.ndarray]] = []
+    scenario = str(state.get("metadata", {}).get("scenario", "initial"))
 
     if model is not None:
         model.eval()
@@ -781,6 +837,10 @@ def play_game(
                     state,
                     engine,
                     temperature=temperature,
+                    kind_temperature=kind_temperature,
+                    tuning_temperature=tuning_temperature,
+                    force_first_tune_prob=force_first_tune_prob,
+                    rng=rng,
                     device=device,
                     record_samples=record_samples,
                     input_view=input_view,
@@ -788,6 +848,7 @@ def play_game(
                     history=encoded_history,
                     history_plies=history_plies,
                 )
+                _annotate_turn_samples(turn_samples, state, ply, scenario=scenario)
                 if next_state["status"] == "playing" and not engine.legal_actions(next_state):
                     next_state = _no_move_loss(next_state)
                 samples.extend(turn_samples)
@@ -811,6 +872,7 @@ def play_game(
                     history_plies=history_plies,
                 )
                 if sample is not None:
+                    _annotate_turn_samples([sample], state, ply, scenario=scenario)
                     samples.append(sample)
                 next_state = engine.apply_action(state, action, analyze_checkmate=False)
                 _update_tuning_stats(stats, current_player, 0, 0)
@@ -836,7 +898,9 @@ def play_game(
         else:
             action = rng.choice(actions)
             if record_samples:
-                samples.append(_sample_from_action(state, engine, actions, action, input_view=input_view))
+                sample = _sample_from_action(state, engine, actions, action, input_view=input_view)
+                _annotate_turn_samples([sample], state, ply, scenario=scenario)
+                samples.append(sample)
             next_state = engine.apply_action(state, action, analyze_checkmate=False)
             _update_tuning_stats(stats, current_player, 0, 0)
 
@@ -953,6 +1017,9 @@ def selfplay_records(
     policy: PolicyMode = "random",
     model: PolicyValueNet | None = None,
     temperature: float = 1.0,
+    kind_temperature: float | None = None,
+    tuning_temperature: float | None = None,
+    force_first_tune_prob: float = 0.0,
     device: torch.device | str = "cpu",
     cap_value: CapValueMode = "material",
     collect_metrics: bool = True,
@@ -974,6 +1041,9 @@ def selfplay_records(
             policy=policy,
             model=model,
             temperature=temperature,
+            kind_temperature=kind_temperature,
+            tuning_temperature=tuning_temperature,
+            force_first_tune_prob=force_first_tune_prob,
             device=device,
             cap_value=cap_value,
             collect_metrics=collect_metrics,

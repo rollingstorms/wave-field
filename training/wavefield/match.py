@@ -28,7 +28,11 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--blue", choices=("model", "heuristic", "easy", "random"), default="heuristic")
     parser.add_argument("--checkpoint", type=Path, default=Path("training/checkpoints/rust_batch_2000x150_policy_value.pt"))
     parser.add_argument("--hidden-size", type=int, default=128)
-    parser.add_argument("--model-arch", choices=("conv", "residual", "transformer", "sequence_transformer"), default=None)
+    parser.add_argument(
+        "--model-arch",
+        choices=("conv", "residual", "transformer", "sequence_transformer", "encoder_sequence"),
+        default=None,
+    )
     parser.add_argument("--input-view", choices=("base", "piece_identity"), default=None)
     parser.add_argument("--history-plies", type=int, default=None)
     parser.add_argument("--temperature", type=float, default=1.0)

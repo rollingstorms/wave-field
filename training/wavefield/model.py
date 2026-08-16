@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from contextlib import nullcontext
+
 import torch
 from torch import nn
 
@@ -31,14 +33,22 @@ class PolicyValueNet(nn.Module):
         side_size: int = SIDE_SIZE,
         architecture: str = "conv",
         history_plies: int = 1,
+        encoder_arch: str = "transformer",
+        encoder_hidden_size: int | None = None,
+        freeze_encoder: bool = True,
     ) -> None:
         super().__init__()
         self.board_channels = board_channels
         self.side_size = side_size
         self.architecture = architecture
         self.history_plies = max(1, int(history_plies))
+        self.encoder_arch = encoder_arch
+        self.encoder_hidden_size = int(encoder_hidden_size or hidden_size)
+        self.freeze_encoder = bool(freeze_encoder)
         self.transformer = None
         self.temporal_transformer = None
+        self.state_encoder = None
+        self.encoder_projection = None
         if architecture == "conv":
             board_features = 64
             self.board = nn.Sequential(
@@ -99,9 +109,39 @@ class PolicyValueNet(nn.Module):
             )
             self.temporal_transformer = nn.TransformerEncoder(temporal_layer, num_layers=2)
             self.board = nn.Flatten()
+        elif architecture == "encoder_sequence":
+            if encoder_arch == "encoder_sequence":
+                raise ValueError("encoder_sequence cannot be used as its own nested encoder.")
+            board_features = hidden_size
+            heads = 4 if hidden_size % 4 == 0 else 1
+            self.state_encoder = PolicyValueNet(
+                hidden_size=self.encoder_hidden_size,
+                board_channels=board_channels,
+                side_size=side_size,
+                architecture=encoder_arch,
+                history_plies=1,
+            )
+            if self.freeze_encoder:
+                for parameter in self.state_encoder.parameters():
+                    parameter.requires_grad = False
+            if self.encoder_hidden_size == hidden_size:
+                self.encoder_projection = nn.Identity()
+            else:
+                self.encoder_projection = nn.Linear(self.encoder_hidden_size, hidden_size)
+            self.temporal_position_embedding = nn.Parameter(torch.zeros(1, self.history_plies, hidden_size))
+            temporal_layer = nn.TransformerEncoderLayer(
+                d_model=hidden_size,
+                nhead=heads,
+                dim_feedforward=hidden_size * 4,
+                dropout=0.0,
+                batch_first=True,
+                activation="gelu",
+            )
+            self.temporal_transformer = nn.TransformerEncoder(temporal_layer, num_layers=2)
+            self.board = nn.Flatten()
         else:
             raise ValueError(f"Unknown model architecture '{architecture}'")
-        if architecture not in ("transformer", "sequence_transformer"):
+        if architecture not in ("transformer", "sequence_transformer", "encoder_sequence"):
             self.side = nn.Sequential(
                 nn.Linear(side_size, 32),
                 nn.ReLU(),
@@ -111,7 +151,7 @@ class PolicyValueNet(nn.Module):
                 board_features * (BOARD_TOKEN_COUNT + 1)
                 if architecture == "transformer"
                 else board_features
-                if architecture == "sequence_transformer"
+                if architecture in ("sequence_transformer", "encoder_sequence")
                 else board_features * 7 * 7 + 32,
                 hidden_size,
             ),
@@ -179,6 +219,20 @@ class PolicyValueNet(nn.Module):
             flat_side = history_side.reshape(batch * steps, history_side.shape[-1])
             state_tokens = self._encode_board_tokens(flat_board, flat_side)
             state_embeddings = state_tokens[:, 0, :].reshape(batch, steps, -1)
+            temporal_tokens = state_embeddings + self.temporal_position_embedding[:, -steps:, :]
+            assert self.temporal_transformer is not None
+            embedding = self.temporal_transformer(temporal_tokens)[:, -1, :]
+        elif self.architecture == "encoder_sequence":
+            history_board, history_side = self._sequence_inputs(board, side, history_board, history_side)
+            batch, steps = history_board.shape[:2]
+            flat_board = history_board.reshape(batch * steps, *history_board.shape[2:])
+            flat_side = history_side.reshape(batch * steps, history_side.shape[-1])
+            assert self.state_encoder is not None
+            assert self.encoder_projection is not None
+            context = torch.no_grad() if self.freeze_encoder else nullcontext()
+            with context:
+                state_embeddings = self.state_encoder.encode_hidden(flat_board, flat_side)
+            state_embeddings = self.encoder_projection(state_embeddings).reshape(batch, steps, -1)
             temporal_tokens = state_embeddings + self.temporal_position_embedding[:, -steps:, :]
             assert self.temporal_transformer is not None
             embedding = self.temporal_transformer(temporal_tokens)[:, -1, :]

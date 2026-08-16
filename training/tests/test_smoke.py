@@ -21,15 +21,19 @@ from wavefield.eval import aggregate
 from wavefield.experiment import parse_weights, replay_weight_samples, sample_metadata_summary
 from wavefield.match import play_match_game
 from wavefield.model import PolicyValueNet, masked_policy_logits
+from wavefield.policy_inspect import inspect_positions
 from wavefield.scenarios import DEFAULT_SCENARIOS, build_scenario_states
 from wavefield.serve_model import ModelMoveServer
 from wavefield.selfplay import (
     Sample,
     batched_model_selfplay_records,
+    heuristic_bootstrap_records,
     play_game,
     random_selfplay_game,
+    select_model_full_turn,
     session_model_selfplay_records,
 )
+from wavefield.tactical_eval import run_tactical_eval
 
 
 class TrainingSmokeTest(unittest.TestCase):
@@ -128,6 +132,38 @@ class TrainingSmokeTest(unittest.TestCase):
         self.assertEqual(tune_logits.shape[0], 1)
         self.assertTrue(torch.isfinite(masked.max()))
 
+    def test_encoder_sequence_forward_pass_freezes_state_encoder(self) -> None:
+        state = load_initial_state()
+        actions = self.engine.legal_actions(state)
+        board, side, legal_mask = encode_state(state, self.engine, actions, input_view="piece_identity")
+        history_board = np.stack([np.zeros_like(board)] * 3 + [board])
+        history_side = np.stack([np.zeros_like(side)] * 3 + [side])
+
+        model = PolicyValueNet(
+            hidden_size=32,
+            board_channels=RICH_BOARD_CHANNELS,
+            side_size=SIDE_SIZE,
+            architecture="encoder_sequence",
+            history_plies=4,
+            encoder_arch="transformer",
+            encoder_hidden_size=32,
+            freeze_encoder=True,
+        )
+        kind_logits, move_logits, tune_logits = model.full_policy(
+            torch.tensor(board).unsqueeze(0),
+            torch.tensor(side).unsqueeze(0),
+            history_board=torch.tensor(history_board).unsqueeze(0),
+            history_side=torch.tensor(history_side).unsqueeze(0),
+        )
+        masked = masked_policy_logits(move_logits, torch.tensor(legal_mask).unsqueeze(0))
+        trainable_names = [name for name, parameter in model.named_parameters() if parameter.requires_grad]
+
+        self.assertEqual(kind_logits.shape, (1, 2))
+        self.assertEqual(move_logits.shape, (1, ACTION_SIZE))
+        self.assertEqual(tune_logits.shape[0], 1)
+        self.assertTrue(torch.isfinite(masked.max()))
+        self.assertFalse(any(name.startswith("state_encoder.") for name in trainable_names))
+
     def test_encoding_accepts_shorter_ui_component_profiles(self) -> None:
         state = load_initial_state()
         for player in ("blue", "red"):
@@ -162,6 +198,25 @@ class TrainingSmokeTest(unittest.TestCase):
         self.assertEqual(summary["games"], 1)
         self.assertIn("avg_pressure", summary)
         self.assertIn("ply_distribution", summary)
+
+    def test_full_policy_can_force_first_tuning_exploration(self) -> None:
+        state = load_initial_state()
+        model = PolicyValueNet(hidden_size=32)
+
+        _next_state, samples, tune_actions = select_model_full_turn(
+            model,
+            state,
+            self.engine,
+            temperature=0.9,
+            tuning_temperature=1.5,
+            force_first_tune_prob=1.0,
+            device="cpu",
+            max_tuning_actions=1,
+        )
+
+        self.assertGreaterEqual(tune_actions, 1)
+        self.assertGreater(len(samples), 0)
+        self.assertEqual(samples[0].action_kind, 1)
 
     def test_head_to_head_match_generates_rich_stats(self) -> None:
         model = PolicyValueNet(hidden_size=32)
@@ -257,6 +312,27 @@ class TrainingSmokeTest(unittest.TestCase):
         ]
         self.assertTrue(tagged)
         self.assertTrue(set(tagged).issubset(set(DEFAULT_SCENARIOS)))
+
+    def test_heuristic_bootstrap_can_emit_history_samples(self) -> None:
+        states = build_scenario_states(self.engine, ["rescue"], games=1, seed=59)
+        records = heuristic_bootstrap_records(
+            self.engine,
+            games=1,
+            max_plies=2,
+            seed=59,
+            input_view="piece_identity",
+            initial_states=states,
+            history_plies=4,
+            collect_metrics=False,
+        )
+        samples = [sample for record in records for sample in record.samples]
+
+        self.assertGreater(len(samples), 0)
+        self.assertTrue(all(sample.history_board is not None for sample in samples))
+        self.assertTrue(all(sample.history_side is not None for sample in samples))
+        self.assertEqual(samples[0].history_board.shape[0], 4)
+        self.assertEqual(samples[0].metadata["history_plies"], 4)
+        self.assertEqual({sample.metadata["scenario"] for sample in samples}, {"rescue"})
 
     def test_rust_training_batch_generates_encoded_samples(self) -> None:
         batch = self.engine.generate_random_training_batch(load_initial_state(), games=1, max_plies=2, seed=31)
@@ -369,6 +445,43 @@ class TrainingSmokeTest(unittest.TestCase):
         )
         self.assertEqual(result["status"], "ok")
         self.assertGreaterEqual(result["accuracy"], result["majority_baseline"])
+
+    def test_tactical_eval_ranks_heuristic_targets(self) -> None:
+        model = PolicyValueNet(hidden_size=32)
+        summary = run_tactical_eval(
+            self.engine,
+            model,
+            torch.device("cpu"),
+            input_view="base",
+            scenarios=["opening", "rescue"],
+            games=2,
+            seed=71,
+            max_plies=1,
+        )
+
+        self.assertGreater(summary["samples"], 0)
+        self.assertIn("all", summary["groups"])
+        self.assertIn("target_top1", summary["groups"]["all"])
+        self.assertIn("kind_top1", summary["groups"]["all"])
+
+    def test_policy_inspection_reports_top_actions(self) -> None:
+        model = PolicyValueNet(hidden_size=32)
+        result = inspect_positions(
+            self.engine,
+            model,
+            torch.device("cpu"),
+            input_view="base",
+            scenarios=["opening"],
+            positions=1,
+            seed=73,
+            top_k=3,
+        )
+
+        self.assertEqual(result["positions"], 1)
+        self.assertEqual(result["topK"], 3)
+        self.assertIn("topMoves", result["rows"][0])
+        self.assertIn("topTunes", result["rows"][0])
+        self.assertLessEqual(len(result["rows"][0]["topMoves"]), 3)
 
 
 if __name__ == "__main__":
