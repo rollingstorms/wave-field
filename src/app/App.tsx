@@ -24,7 +24,8 @@ import type { BasisDefinition, PieceType, Player, PlayerComponents, Position } f
 const routePath = globalThis.location?.pathname.replace(/\/$/, "") ?? "";
 const localNeuralArenaEnabled = import.meta.env.DEV
   && (routePath.endsWith("/local-arena") || import.meta.env.MODE === "arena");
-const arenaEnabled = routePath.endsWith("/arena") || localNeuralArenaEnabled;
+const hardRouteEnabled = routePath.endsWith("/hard");
+const arenaEnabled = routePath.endsWith("/arena") || hardRouteEnabled || localNeuralArenaEnabled;
 const optimTestEnabled = routePath.endsWith("/optim-test");
 const easyTestEnabled = routePath.endsWith("/easy-test");
 type SidePolicy = AiPolicy | "human";
@@ -60,7 +61,9 @@ export function App() {
   const [energyChannels, setEnergyChannels] = useState<EnergyChannelState>({ ...ALL_ENERGY_CHANNELS });
   const [showRules, setShowRules] = useState(false);
   const [sidePolicies, setSidePolicies] = useState<Record<Player, SidePolicy>>(() => arenaEnabled
-    ? { blue: "easy", red: "easy" }
+    ? hardRouteEnabled
+      ? { blue: "human", red: "hard" }
+      : { blue: "easy", red: "easy" }
     : { blue: "human", red: "easy" });
   const [duelRunning, setDuelRunning] = useState(false);
   const [duelSpeedMs, setDuelSpeedMs] = useState(450);
