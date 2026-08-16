@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { playEasyTurn, playHeuristicTurn } from "../game/ai";
+import { playEasyTurn, playHardTurn, playHeuristicTurn } from "../game/ai";
 import { createInitialState, snapshot } from "../game/initialState";
 import { applyMove } from "../game/rules";
 import type { GameState, PieceType } from "../game/types";
@@ -46,6 +46,15 @@ describe("heuristic opponent", () => {
     const opening = createInitialState();
 
     const result = playHeuristicTurn(opening, "blue");
+
+    expect(result.currentPlayer === "red" || result.status === "blue-won").toBe(true);
+    expect(result.history).toHaveLength(opening.history.length + 1);
+  });
+
+  it("hard opponent completes a legal blue turn", () => {
+    const opening = createInitialState();
+
+    const result = playHardTurn(opening, "blue", { timeBudgetMs: 50 });
 
     expect(result.currentPlayer === "red" || result.status === "blue-won").toBe(true);
     expect(result.history).toHaveLength(opening.history.length + 1);

@@ -264,6 +264,25 @@ pub extern "C" fn wf_play_heuristic_turn_json(
 }
 
 #[unsafe(no_mangle)]
+pub extern "C" fn wf_play_hard_turn_json(
+    player: *const c_char,
+    state_json: *const c_char,
+    seed: u32,
+    variety: f64,
+    time_budget_ms: u32,
+) -> *mut c_char {
+    call_json(|| {
+        api::play_hard_turn_json(
+            read_str(player)?,
+            read_str(state_json)?,
+            seed,
+            variety,
+            time_budget_ms,
+        )
+    })
+}
+
+#[unsafe(no_mangle)]
 pub extern "C" fn wf_play_easy_turn_json(
     player: *const c_char,
     state_json: *const c_char,

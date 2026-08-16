@@ -6,8 +6,8 @@ use wave_field_engine::{
     all_influence_contributors, apply_closest_playable_hint, apply_move, apply_tuning, begin_turn,
     evaluate_field, generate_random_training_batch, get_legal_moves, get_playable_moves,
     influence_contributors_at, instability_influence_links, is_king_unprotected, play_easy_turn,
-    play_heuristic_turn, profile_random_games, profile_random_training_batch, randomize_tuning,
-    reset_tuning, resign_in_check, simulate_ai_games, simulate_random_games,
+    play_hard_turn, play_heuristic_turn, profile_random_games, profile_random_training_batch,
+    randomize_tuning, reset_tuning, resign_in_check, simulate_ai_games, simulate_random_games,
     simulate_random_lean_games, unstable_pieces,
 };
 
@@ -121,6 +121,19 @@ fn main() {
             "playHeuristicTurn" => {
                 let player: Player = serde_json::from_value(request["player"].clone()).unwrap();
                 serde_json::to_value(play_heuristic_turn(
+                    state,
+                    player,
+                    AiTurnOptions {
+                        seed: request["seed"].as_u64().map(|value| value as u32),
+                        variety: request["variety"].as_f64(),
+                        time_budget_ms: request["timeBudgetMs"].as_u64(),
+                    },
+                ))
+                .unwrap()
+            }
+            "playHardTurn" => {
+                let player: Player = serde_json::from_value(request["player"].clone()).unwrap();
+                serde_json::to_value(play_hard_turn(
                     state,
                     player,
                     AiTurnOptions {

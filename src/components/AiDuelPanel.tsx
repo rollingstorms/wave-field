@@ -88,6 +88,7 @@ export function AiDuelPanel({
               <option value="human">Human</option>
               <option value="easy">Easy</option>
               <option value="heuristic">Heuristic</option>
+              <option value="hard">Hard</option>
               {neuralEnabled && <option value="neural-residual">{policyLabel("neural-residual")}</option>}
               {neuralEnabled && <option value="neural-transformer">{policyLabel("neural-transformer")}</option>}
             </select>

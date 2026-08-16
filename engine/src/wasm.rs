@@ -131,6 +131,18 @@ pub fn play_heuristic_turn_json(
 }
 
 #[wasm_bindgen]
+pub fn play_hard_turn_json(
+    player: &str,
+    state_json: &str,
+    seed: u32,
+    variety: f64,
+    time_budget_ms: u32,
+) -> String {
+    api::play_hard_turn_json(player, state_json, seed, variety, time_budget_ms)
+        .expect("valid engine API call")
+}
+
+#[wasm_bindgen]
 pub fn play_easy_turn_json(
     player: &str,
     state_json: &str,

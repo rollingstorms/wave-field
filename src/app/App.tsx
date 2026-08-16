@@ -11,7 +11,7 @@ import { definitionForSlot, TRAINING_COMPONENTS } from "../field/componentDefini
 import { ALL_ENERGY_CHANNELS } from "../field/cmykEnergy";
 import type { EnergyChannelState } from "../field/cmykEnergy";
 import { evaluateField, evaluateTypeFields } from "../field/evaluateField";
-import { playEasyTurn, playHeuristicTurn } from "../game/ai";
+import { playEasyTurn, playHardTurn, playHeuristicTurn } from "../game/ai";
 import { BOARD_SIZE } from "../game/constants";
 import { createInitialState } from "../game/initialState";
 import { isNeuralPolicy, policyLabel, requestNeuralTurn } from "../game/neuralAi";
@@ -92,12 +92,14 @@ export function App() {
     setAiThinking(true);
     setAiStatus(`${policyLabel(policy)} thinking`);
     const run = async () => {
-      if (policy === "easy" || policy === "heuristic") {
+      if (policy === "easy" || policy === "heuristic" || policy === "hard") {
         const player = state.currentPlayer;
         const variety = policy === "heuristic" && bothAutomated ? 0.55 : 0;
         const preview = policy === "easy"
           ? playEasyTurn(state, player, { seed: duelSeed, variety })
-          : playHeuristicTurn(state, player, { seed: duelSeed, variety });
+          : policy === "hard"
+            ? playHardTurn(state, player, { seed: duelSeed, variety, timeBudgetMs: 1_500 })
+            : playHeuristicTurn(state, player, { seed: duelSeed, variety });
         const tuneCount = componentChangeCount(state.components[player], preview.components[player]);
         setAiStats((stats) => ({
           ...stats,

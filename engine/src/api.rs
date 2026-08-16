@@ -245,6 +245,25 @@ pub fn play_heuristic_turn_json(
     ))
 }
 
+pub fn play_hard_turn_json(
+    player: &str,
+    state_json: &str,
+    seed: u32,
+    variety: f64,
+    time_budget_ms: u32,
+) -> ApiResult {
+    let player = parse_token(player, "player")?;
+    json(&play_hard_turn(
+        parse_state(state_json)?,
+        player,
+        AiTurnOptions {
+            seed: Some(seed),
+            variety: Some(variety),
+            time_budget_ms: Some(u64::from(time_budget_ms)),
+        },
+    ))
+}
+
 pub fn play_easy_turn_json(
     player: &str,
     state_json: &str,

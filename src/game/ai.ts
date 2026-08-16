@@ -4,7 +4,7 @@ import { tuningStrengthFor } from "./constants";
 import { snapshot } from "./initialState";
 import { getLegalMoves } from "./movement";
 import { applyMove, opponent } from "./rules";
-import { rustPlayEasyTurn, rustPlayHeuristicTurn } from "./rustEngine";
+import { rustPlayEasyTurn, rustPlayHardTurn, rustPlayHeuristicTurn } from "./rustEngine";
 import { activationOrderForProfile } from "./tuning";
 import type { Coefficient, GameSnapshot, GameState, Piece, PieceType, Player, PlayerComponents, Position } from "./types";
 import { getUnstablePieces, isKingUnprotected, markInstability } from "./victory";
@@ -437,4 +437,21 @@ export function playHeuristicTurn(state: GameState, player: Player = "red", opti
   return fallback
     ? { ...fallback, history: [...state.history, snapshot(state)] }
     : { ...state, message: `${player === "red" ? "Red" : "Blue"} has no legal move` };
+}
+
+export function playHardTurn(state: GameState, player: Player = "red", options: AiTurnOptions = {}): GameState {
+  if (state.status !== "playing" || state.currentPlayer !== player) return state;
+  const rustState = rustPlayHardTurn(
+    state,
+    player,
+    options.seed ?? 0,
+    Math.max(0, Math.min(options.variety ?? 0, 1)),
+    Math.max(50, options.timeBudgetMs ?? 1_500),
+  );
+  if (rustState) return rustState;
+
+  return playHeuristicTurn(state, player, {
+    ...options,
+    timeBudgetMs: Math.max(options.timeBudgetMs ?? 300, 300),
+  });
 }

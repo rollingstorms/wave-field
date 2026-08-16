@@ -15,6 +15,13 @@ const REPETITION_LOOKBACK: usize = 18;
 const REPEATED_STATE_PENALTY: f64 = 900.0;
 const IMMEDIATE_REVERSAL_PENALTY: f64 = 500.0;
 const EASY_SEARCH_DEPTH: u8 = 2;
+const HARD_DEFAULT_TIME_BUDGET_MS: u64 = 1_500;
+const HARD_MAX_DEPTH: u8 = 4;
+const HARD_ROOT_ACTION_LIMIT: usize = 18;
+const HARD_BRANCH_ACTION_LIMIT: usize = 10;
+const HARD_QUIESCENCE_ACTION_LIMIT: usize = 6;
+const HARD_PROFILE_LIMIT: usize = 14;
+const HARD_QUIESCENCE_DEPTH: u8 = 1;
 
 #[cfg(not(target_arch = "wasm32"))]
 type SearchStartedAt = Instant;
@@ -445,6 +452,22 @@ struct Choice {
     score: f64,
 }
 
+#[derive(Clone, Copy)]
+struct CacheEntry {
+    depth: u8,
+    value: f64,
+}
+
+struct HardSearchContext {
+    root_player: Player,
+    started_at: SearchStartedAt,
+    deadline: Duration,
+    repetition_counts: HashMap<String, usize>,
+    recent_moves: HashMap<String, (Position, Position)>,
+    transpositions: HashMap<String, CacheEntry>,
+    nodes: usize,
+}
+
 #[derive(Clone)]
 struct MoveChoice {
     piece_id: String,
@@ -476,6 +499,199 @@ fn sort_choices(choices: &mut [Choice]) {
             .partial_cmp(&left.score)
             .unwrap_or(Ordering::Equal)
     });
+}
+
+fn hard_action_choices(
+    state: &GameState,
+    player: Player,
+    profile_limit: usize,
+    action_limit: usize,
+    repetition_counts: &HashMap<String, usize>,
+    recent_moves: &HashMap<String, (Position, Position)>,
+) -> Vec<Choice> {
+    let mut choices = Vec::new();
+    let current_field = evaluate_field(state);
+    let current_unstable_count = unstable_pieces(player, state, &current_field).len();
+
+    for profile in tuning_candidates(state, player, profile_limit) {
+        let mut tuned_base = state.clone();
+        *tuned_base.components.get_mut(player) = profile;
+        *tuned_base.activation_orders.get_mut(player) =
+            activation_order_for_profile(tuned_base.components.get(player));
+        tuned_base.selected_piece_id = None;
+        let tuned_base_field = evaluate_field(&tuned_base);
+        let tuned = mark_instability(tuned_base, &tuned_base_field);
+
+        for piece in tuned
+            .pieces
+            .iter()
+            .filter(|piece| piece.owner == player)
+            .cloned()
+            .collect::<Vec<_>>()
+        {
+            for destination in get_legal_moves(&piece.id, &tuned, &tuned_base_field) {
+                let result = apply_move(&piece.id, destination, tuned.clone(), false);
+                if !result.ok {
+                    continue;
+                }
+                let field = evaluate_field(&result.state);
+                let tactical_bonus = if result.state.status == win_status(player) {
+                    500_000.0
+                } else if is_king_unprotected(player.opponent(), &result.state, &field) {
+                    120_000.0
+                } else {
+                    0.0
+                };
+                let rescue_bonus = if current_unstable_count == 0 {
+                    0.0
+                } else {
+                    let after = unstable_pieces(player, &result.state, &field).len();
+                    current_unstable_count.saturating_sub(after) as f64 * 2_000.0
+                };
+                let score =
+                    score_state(&result.state, player, &field) + tactical_bonus + rescue_bonus
+                        - loop_penalty(
+                            &result.state,
+                            &piece,
+                            destination,
+                            repetition_counts,
+                            recent_moves,
+                        );
+                choices.push(Choice {
+                    tuned: tuned.clone(),
+                    piece_id: piece.id.clone(),
+                    destination,
+                    preview: result.state,
+                    score,
+                });
+            }
+        }
+    }
+
+    sort_choices(&mut choices);
+    choices.truncate(action_limit);
+    choices
+}
+
+fn hard_position_is_volatile(state: &GameState) -> bool {
+    if state.status != GameStatus::Playing {
+        return false;
+    }
+    let field = evaluate_field(state);
+    is_king_unprotected(state.current_player, state, &field)
+        || is_king_unprotected(state.current_player.opponent(), state, &field)
+        || !unstable_pieces(state.current_player, state, &field).is_empty()
+        || !unstable_pieces(state.current_player.opponent(), state, &field).is_empty()
+}
+
+fn hard_cache_key(state: &GameState, depth: u8, quiescence_depth: u8) -> String {
+    format!("{}|{}|{}", depth, quiescence_depth, state_key(state))
+}
+
+fn hard_search_score(
+    state: &GameState,
+    depth: u8,
+    quiescence_depth: u8,
+    mut alpha: f64,
+    mut beta: f64,
+    context: &mut HardSearchContext,
+) -> f64 {
+    context.nodes += 1;
+    if context.nodes > 1 && deadline_reached(&context.started_at, context.deadline) {
+        let field = evaluate_field(state);
+        return score_state(state, context.root_player, &field);
+    }
+
+    if state.status != GameStatus::Playing {
+        let field = evaluate_field(state);
+        return score_state(state, context.root_player, &field);
+    }
+
+    let extending = depth == 0 && quiescence_depth > 0 && hard_position_is_volatile(state);
+    let effective_depth = if extending { 1 } else { depth };
+    let next_quiescence_depth = if extending {
+        quiescence_depth.saturating_sub(1)
+    } else {
+        quiescence_depth
+    };
+
+    if effective_depth == 0 {
+        let field = evaluate_field(state);
+        return score_state(state, context.root_player, &field);
+    }
+
+    let cache_key = hard_cache_key(state, effective_depth, next_quiescence_depth);
+    if let Some(entry) = context.transpositions.get(&cache_key) {
+        if entry.depth >= effective_depth {
+            return entry.value;
+        }
+    }
+
+    let action_limit = if extending {
+        HARD_QUIESCENCE_ACTION_LIMIT
+    } else {
+        HARD_BRANCH_ACTION_LIMIT
+    };
+    let choices = hard_action_choices(
+        state,
+        state.current_player,
+        HARD_PROFILE_LIMIT,
+        action_limit,
+        &context.repetition_counts,
+        &context.recent_moves,
+    );
+    if choices.is_empty() {
+        return if state.current_player == context.root_player {
+            -1_000_000.0
+        } else {
+            1_000_000.0
+        };
+    }
+
+    let value = if state.current_player == context.root_player {
+        let mut value = f64::NEG_INFINITY;
+        for choice in choices {
+            value = value.max(hard_search_score(
+                &choice.preview,
+                effective_depth - 1,
+                next_quiescence_depth,
+                alpha,
+                beta,
+                context,
+            ));
+            alpha = alpha.max(value);
+            if alpha >= beta {
+                break;
+            }
+        }
+        value
+    } else {
+        let mut value = f64::INFINITY;
+        for choice in choices {
+            value = value.min(hard_search_score(
+                &choice.preview,
+                effective_depth - 1,
+                next_quiescence_depth,
+                alpha,
+                beta,
+                context,
+            ));
+            beta = beta.min(value);
+            if alpha >= beta {
+                break;
+            }
+        }
+        value
+    };
+
+    context.transpositions.insert(
+        cache_key,
+        CacheEntry {
+            depth: effective_depth,
+            value,
+        },
+    );
+    value
 }
 
 fn legal_move_choices(state: &GameState) -> Vec<MoveChoice> {
@@ -832,4 +1048,137 @@ pub fn play_heuristic_turn(state: GameState, player: Player, options: AiTurnOpti
     let mut next = state;
     next.message = format!("{} has no legal move", player_name(player));
     next
+}
+
+pub fn play_hard_turn(state: GameState, player: Player, options: AiTurnOptions) -> GameState {
+    if state.status != GameStatus::Playing || state.current_player != player {
+        return state;
+    }
+
+    let deadline = Duration::from_millis(
+        options
+            .time_budget_ms
+            .unwrap_or(HARD_DEFAULT_TIME_BUDGET_MS)
+            .max(50),
+    );
+    let mut context = HardSearchContext {
+        root_player: player,
+        started_at: search_started_at(),
+        deadline,
+        repetition_counts: recent_state_counts(&state),
+        recent_moves: last_move_by_piece(&state, player),
+        transpositions: HashMap::new(),
+        nodes: 0,
+    };
+
+    let mut root_choices = hard_action_choices(
+        &state,
+        player,
+        HARD_PROFILE_LIMIT,
+        HARD_ROOT_ACTION_LIMIT,
+        &context.repetition_counts,
+        &context.recent_moves,
+    );
+    if root_choices.is_empty() {
+        return no_legal_move_state(state, player);
+    }
+
+    let seed = options.seed.unwrap_or(0);
+    let variety = options.variety.unwrap_or(0.0).clamp(0.0, 1.0);
+    if variety > 0.0 {
+        let leader = root_choices[0].score;
+        let mut candidate_window = root_choices
+            .iter()
+            .filter(|choice| leader - choice.score <= 80.0 + variety * 180.0)
+            .cloned()
+            .collect::<Vec<_>>();
+        candidate_window.sort_by(|left, right| {
+            let right_value =
+                right.score + choice_noise(right, &state, player, seed) * variety * 80.0;
+            let left_value = left.score + choice_noise(left, &state, player, seed) * variety * 80.0;
+            right_value
+                .partial_cmp(&left_value)
+                .unwrap_or(Ordering::Equal)
+        });
+        for (index, choice) in candidate_window.into_iter().enumerate() {
+            root_choices[index] = choice;
+        }
+    }
+
+    let mut best_choice = root_choices[0].clone();
+    let mut best_score = f64::NEG_INFINITY;
+
+    for depth in 1..=HARD_MAX_DEPTH {
+        if deadline_reached(&context.started_at, context.deadline) {
+            break;
+        }
+
+        let mut depth_best_choice = None;
+        let mut depth_best_score = f64::NEG_INFINITY;
+        let mut completed_depth = true;
+
+        for choice in &root_choices {
+            let score = hard_search_score(
+                &choice.preview,
+                depth.saturating_sub(1),
+                HARD_QUIESCENCE_DEPTH,
+                f64::NEG_INFINITY,
+                f64::INFINITY,
+                &mut context,
+            );
+            if score > depth_best_score {
+                depth_best_score = score;
+                depth_best_choice = Some(choice.clone());
+            }
+            if deadline_reached(&context.started_at, context.deadline) {
+                completed_depth = false;
+                break;
+            }
+        }
+
+        if completed_depth || depth_best_choice.is_some() && best_score == f64::NEG_INFINITY {
+            if let Some(choice) = depth_best_choice {
+                best_choice = choice;
+                best_score = depth_best_score;
+            }
+        }
+
+        if completed_depth {
+            for choice in &mut root_choices {
+                choice.score = hard_search_score(
+                    &choice.preview,
+                    depth.saturating_sub(1),
+                    HARD_QUIESCENCE_DEPTH,
+                    f64::NEG_INFINITY,
+                    f64::INFINITY,
+                    &mut context,
+                );
+            }
+            sort_choices(&mut root_choices);
+        }
+    }
+
+    let result = apply_move(
+        &best_choice.piece_id,
+        best_choice.destination,
+        best_choice.tuned,
+        true,
+    );
+    if result.ok {
+        let mut next = result.state;
+        next.history = {
+            let mut history = state.history.clone();
+            history.push(state.snapshot());
+            history
+        };
+        return next;
+    }
+
+    let mut fallback = best_choice.preview;
+    fallback.history = {
+        let mut history = state.history.clone();
+        history.push(state.snapshot());
+        history
+    };
+    fallback
 }
