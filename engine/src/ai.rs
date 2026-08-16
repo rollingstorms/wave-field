@@ -226,6 +226,36 @@ fn score_state(state: &GameState, player: Player, field: &Field) -> f64 {
     score
 }
 
+fn material_points(state: &GameState, player: Player) -> f64 {
+    state
+        .pieces
+        .iter()
+        .filter(|piece| piece.owner == player)
+        .map(|piece| material_value(piece.piece_type))
+        .sum()
+}
+
+fn hard_score_state(state: &GameState, player: Player) -> f64 {
+    let field = evaluate_field(state);
+    if state.status != GameStatus::Playing {
+        return score_state(state, player, &field);
+    }
+
+    let enemy = player.opponent();
+    let material_balance = material_points(state, player) - material_points(state, enemy);
+    let own_unstable = unstable_pieces(player, state, &field)
+        .into_iter()
+        .filter(|piece| piece.piece_type != PieceType::King)
+        .count() as f64;
+    let enemy_unstable = unstable_pieces(enemy, state, &field)
+        .into_iter()
+        .filter(|piece| piece.piece_type != PieceType::King)
+        .count() as f64;
+
+    score_state(state, player, &field) + material_balance * 85.0 - own_unstable * 260.0
+        + enemy_unstable * 120.0
+}
+
 fn win_status(player: Player) -> GameStatus {
     match player {
         Player::Red => GameStatus::RedWon,
@@ -548,15 +578,14 @@ fn hard_action_choices(
                     let after = unstable_pieces(player, &result.state, &field).len();
                     current_unstable_count.saturating_sub(after) as f64 * 2_000.0
                 };
-                let score =
-                    score_state(&result.state, player, &field) + tactical_bonus + rescue_bonus
-                        - loop_penalty(
-                            &result.state,
-                            &piece,
-                            destination,
-                            repetition_counts,
-                            recent_moves,
-                        );
+                let score = hard_score_state(&result.state, player) + tactical_bonus + rescue_bonus
+                    - loop_penalty(
+                        &result.state,
+                        &piece,
+                        destination,
+                        repetition_counts,
+                        recent_moves,
+                    );
                 choices.push(Choice {
                     tuned: tuned.clone(),
                     piece_id: piece.id.clone(),
@@ -618,13 +647,11 @@ fn hard_search_score(
 ) -> f64 {
     context.nodes += 1;
     if context.nodes > 1 && deadline_reached(&context.started_at, context.deadline) {
-        let field = evaluate_field(state);
-        return score_state(state, context.root_player, &field);
+        return hard_score_state(state, context.root_player);
     }
 
     if state.status != GameStatus::Playing {
-        let field = evaluate_field(state);
-        return score_state(state, context.root_player, &field);
+        return hard_score_state(state, context.root_player);
     }
 
     let extending = depth == 0 && quiescence_depth > 0 && hard_position_is_volatile(state);
@@ -636,8 +663,7 @@ fn hard_search_score(
     };
 
     if effective_depth == 0 {
-        let field = evaluate_field(state);
-        return score_state(state, context.root_player, &field);
+        return hard_score_state(state, context.root_player);
     }
 
     let cache_key = hard_cache_key(state, effective_depth, next_quiescence_depth);
