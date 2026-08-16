@@ -209,6 +209,23 @@ class RustEngine:
             timeBudgetMs=time_budget_ms,
         )
 
+    def play_hard_turn(
+        self,
+        state: Dict[str, Any],
+        player: Optional[str] = None,
+        seed: int = 0,
+        variety: float = 0.0,
+        time_budget_ms: int = 1500,
+    ) -> Dict[str, Any]:
+        return self.request(
+            "playHardTurn",
+            state,
+            player=player or state["currentPlayer"],
+            seed=seed,
+            variety=variety,
+            timeBudgetMs=time_budget_ms,
+        )
+
     def play_easy_turn(
         self,
         state: Dict[str, Any],

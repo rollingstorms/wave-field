@@ -22,6 +22,7 @@ const HARD_BRANCH_ACTION_LIMIT: usize = 10;
 const HARD_QUIESCENCE_ACTION_LIMIT: usize = 6;
 const HARD_PROFILE_LIMIT: usize = 14;
 const HARD_QUIESCENCE_DEPTH: u8 = 1;
+const HARD_ROOT_TRAP_ANALYSIS_LIMIT: usize = 8;
 
 #[cfg(not(target_arch = "wasm32"))]
 type SearchStartedAt = Instant;
@@ -506,6 +507,7 @@ fn hard_action_choices(
     player: Player,
     profile_limit: usize,
     action_limit: usize,
+    trap_analysis_limit: usize,
     repetition_counts: &HashMap<String, usize>,
     recent_moves: &HashMap<String, (Position, Position)>,
 ) -> Vec<Choice> {
@@ -537,8 +539,6 @@ fn hard_action_choices(
                 let field = evaluate_field(&result.state);
                 let tactical_bonus = if result.state.status == win_status(player) {
                     500_000.0
-                } else if is_king_unprotected(player.opponent(), &result.state, &field) {
-                    120_000.0
                 } else {
                     0.0
                 };
@@ -568,6 +568,26 @@ fn hard_action_choices(
         }
     }
 
+    sort_choices(&mut choices);
+    for choice in choices.iter_mut().take(trap_analysis_limit) {
+        let field = evaluate_field(&choice.preview);
+        if !is_king_unprotected(player.opponent(), &choice.preview, &field) {
+            continue;
+        }
+        let analyzed = apply_move(
+            &choice.piece_id,
+            choice.destination,
+            choice.tuned.clone(),
+            true,
+        );
+        if !analyzed.ok {
+            continue;
+        }
+        if analyzed.state.status == win_status(player) {
+            choice.score += 900_000.0;
+            choice.preview = analyzed.state;
+        }
+    }
     sort_choices(&mut choices);
     choices.truncate(action_limit);
     choices
@@ -637,6 +657,7 @@ fn hard_search_score(
         state.current_player,
         HARD_PROFILE_LIMIT,
         action_limit,
+        0,
         &context.repetition_counts,
         &context.recent_moves,
     );
@@ -1071,11 +1092,17 @@ pub fn play_hard_turn(state: GameState, player: Player, options: AiTurnOptions) 
         nodes: 0,
     };
 
+    let root_trap_analysis_limit = if deadline >= Duration::from_millis(500) {
+        HARD_ROOT_TRAP_ANALYSIS_LIMIT
+    } else {
+        0
+    };
     let mut root_choices = hard_action_choices(
         &state,
         player,
         HARD_PROFILE_LIMIT,
         HARD_ROOT_ACTION_LIMIT,
+        root_trap_analysis_limit,
         &context.repetition_counts,
         &context.recent_moves,
     );

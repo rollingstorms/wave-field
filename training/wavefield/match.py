@@ -16,7 +16,7 @@ from .selfplay import (
 from .train import resolve_device
 
 
-Policy = Literal["model", "heuristic", "easy", "random"]
+Policy = Literal["model", "heuristic", "hard", "easy", "random"]
 
 
 def parse_args() -> argparse.Namespace:
@@ -24,8 +24,8 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--games", type=int, default=10)
     parser.add_argument("--max-plies", type=int, default=150)
     parser.add_argument("--seed", type=int, default=90210)
-    parser.add_argument("--red", choices=("model", "heuristic", "easy", "random"), default="model")
-    parser.add_argument("--blue", choices=("model", "heuristic", "easy", "random"), default="heuristic")
+    parser.add_argument("--red", choices=("model", "heuristic", "hard", "easy", "random"), default="model")
+    parser.add_argument("--blue", choices=("model", "heuristic", "hard", "easy", "random"), default="heuristic")
     parser.add_argument("--checkpoint", type=Path, default=Path("training/checkpoints/rust_batch_2000x150_policy_value.pt"))
     parser.add_argument("--hidden-size", type=int, default=128)
     parser.add_argument(
@@ -39,6 +39,8 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--device", default="auto")
     parser.add_argument("--full-policy", action="store_true", help="Let model turns choose tuning actions before moving.")
     parser.add_argument("--max-tuning-actions", type=int, default=3)
+    parser.add_argument("--heuristic-time-budget-ms", type=int, default=180)
+    parser.add_argument("--hard-time-budget-ms", type=int, default=1500)
     parser.add_argument("--no-pressure", action="store_true", help="Skip exact pressure and rescue metrics for faster runs.")
     parser.add_argument("--json", action="store_true")
     return parser.parse_args()
@@ -118,6 +120,8 @@ def play_match_game(
     input_view: str,
     full_policy: bool = False,
     max_tuning_actions: int = 3,
+    heuristic_time_budget_ms: int = 180,
+    hard_time_budget_ms: int = 1500,
     collect_metrics: bool = True,
 ) -> GameRecord:
     state = load_initial_state()
@@ -193,7 +197,21 @@ def play_match_game(
                 player=player,
                 seed=seed + ply,
                 variety=0.55,
-                time_budget_ms=10,
+                time_budget_ms=heuristic_time_budget_ms,
+            )
+            tune_changes = _component_change_count(before_state, state, player)
+            stats.ai_turns_by_player[player] += 1
+            stats.tune_actions_by_player[player] += tune_changes
+            stats.effective_tune_changes_by_player[player] += tune_changes
+            if tune_changes > 0:
+                stats.tune_turns_by_player[player] += 1
+        elif policy == "hard":
+            state = engine.play_hard_turn(
+                state,
+                player=player,
+                seed=seed + ply,
+                variety=0.0,
+                time_budget_ms=hard_time_budget_ms,
             )
             tune_changes = _component_change_count(before_state, state, player)
             stats.ai_turns_by_player[player] += 1
@@ -275,6 +293,8 @@ def main() -> None:
             input_view=input_view,
             full_policy=args.full_policy,
             max_tuning_actions=args.max_tuning_actions,
+            heuristic_time_budget_ms=args.heuristic_time_budget_ms,
+            hard_time_budget_ms=args.hard_time_budget_ms,
             collect_metrics=not args.no_pressure,
         )
         for game in range(args.games)
@@ -285,6 +305,8 @@ def main() -> None:
         "checkpoint": str(args.checkpoint) if "model" in (args.red, args.blue) else None,
         "max_plies": args.max_plies,
         "temperature": args.temperature,
+        "heuristic_time_budget_ms": args.heuristic_time_budget_ms,
+        "hard_time_budget_ms": args.hard_time_budget_ms,
         **aggregate(records),
     }
     if args.json:
