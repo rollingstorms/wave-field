@@ -7,7 +7,7 @@ import { HistoryRoll } from "../components/HistoryRoll";
 import { RulesPage } from "../components/RulesPage";
 import { GameActions, TurnStatus } from "../components/TurnStatus";
 import { WaveEditor } from "../components/WaveEditor";
-import { definitionForSlot, TRAINING_COMPONENTS } from "../field/componentDefinitions";
+import { definitionForSlot } from "../field/componentDefinitions";
 import { ALL_ENERGY_CHANNELS } from "../field/cmykEnergy";
 import type { EnergyChannelState } from "../field/cmykEnergy";
 import { evaluateField, evaluateTypeFields } from "../field/evaluateField";
@@ -28,14 +28,17 @@ const hardRouteEnabled = routePath.endsWith("/hard");
 const arenaEnabled = routePath.endsWith("/arena") || hardRouteEnabled || localNeuralArenaEnabled;
 const optimTestEnabled = routePath.endsWith("/optim-test");
 const easyTestEnabled = routePath.endsWith("/easy-test");
+const lowRescueTestEnabled = routePath.endsWith("/low-rescue-test");
 type SidePolicy = AiPolicy | "human";
 type AiStats = Record<Player, { turns: number; tuneActions: number; lastTurnTunes: number }>;
 const pieceTypes: PieceType[] = ["pawn", "rook", "spy", "king"];
 const createArenaInitialState = () => localNeuralArenaEnabled
-  ? createInitialState(TRAINING_COMPONENTS)
-  : optimTestEnabled || easyTestEnabled
+  ? createInitialState()
+  : optimTestEnabled || easyTestEnabled || lowRescueTestEnabled
     ? (() => {
-      const config = createGameVariantConfig(easyTestEnabled ? "easy-mobility" : "balanced-pressure");
+      const config = createGameVariantConfig(
+        lowRescueTestEnabled ? "low-rescue" : easyTestEnabled ? "easy-mobility" : "balanced-pressure",
+      );
       return createInitialState(config.components, config.definitions, config.waveScales, config.homeEnergy);
     })()
   : createInitialState();

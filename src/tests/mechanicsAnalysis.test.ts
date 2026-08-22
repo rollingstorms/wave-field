@@ -24,14 +24,14 @@ describe("mechanics analysis", () => {
   it("enumerates legal full-strength profiles", () => {
     expect(enumerateProfiles("pawn")).toHaveLength(2);
     expect(enumerateProfiles("rook")).toHaveLength(4);
-    expect(enumerateProfiles("spy")).toHaveLength(4);
+    expect(enumerateProfiles("spy")).toHaveLength(6);
     expect(enumerateProfiles("king")).toHaveLength(4);
   });
 
   it("measures polarity imbalance created by scales and clipped board geometry", () => {
     const metrics = profilePowerMetrics();
 
-    expect(metrics).toHaveLength(14);
+    expect(metrics).toHaveLength(16);
     expect(metrics.some((metric) => Math.abs(metric.polarityL1Ratio - 1) > 0.01)).toBe(true);
     expect(metrics.some((metric) => Math.abs(metric.polarityNetDelta) > 0.01)).toBe(true);
   });
@@ -44,9 +44,11 @@ describe("mechanics analysis", () => {
 
     expect(patterns).toHaveLength(9);
     expect(patterns.some((metric) => metric.adjacentPositive + metric.adjacentNegative + metric.adjacentZero > 0)).toBe(true);
-    expect(mobility).toHaveLength(14);
-    expect(deadRook?.averageMoves).toBe(0);
-    expect(deadRook?.deadOrigins).toBe(49);
+    expect(mobility).toHaveLength(16);
+    expect(deadRook?.averageMoves).toBeGreaterThan(10);
+    expect(deadRook?.deadOrigins).toBe(0);
+    expect(mobility.find((row) =>
+      row.pieceType === "rook" && row.profile.join(",") === "1,-1")?.deadOrigins).toBe(49);
   });
 
   it("finds pairwise field outliers", () => {
@@ -87,16 +89,16 @@ describe("mechanics analysis", () => {
     const current = evaluateDefaultComponentSet({
       pawn: [1],
       rook: [1, 1],
-      spy: [1, 0],
+      spy: [1, 0, 0],
       king: [1, 1],
     });
     const candidates = searchDefaultComponentSets(3, undefined, [
       current.components,
-      { pawn: [1], rook: [1, -1], spy: [0, -1], king: [-1, 1] },
-      { pawn: [-1], rook: [-1, -1], spy: [-1, 0], king: [-1, -1] },
+      { pawn: [1], rook: [1, -1], spy: [0, -1, 0], king: [-1, 1] },
+      { pawn: [-1], rook: [-1, -1], spy: [-1, 0, 0], king: [-1, -1] },
     ]);
 
-    expect(allDefaults).toHaveLength(128);
+    expect(allDefaults).toHaveLength(192);
     expect(current.openingMoves.blue).toBe(current.openingMoves.red);
     expect(candidates).toHaveLength(3);
     expect(candidates[0].score).toBeLessThanOrEqual(candidates[1].score);
@@ -127,11 +129,10 @@ describe("mechanics analysis", () => {
     expect(variants.some((variant) => variant.adjacentCounts.negative > 0 || variant.adjacentCounts.zero > 0)).toBe(true);
   });
 
-  it("scores coupled pattern definition variants", () => {
-    const rookC1 = candidateDefinitionVariants("rook", 0).find((definition) =>
-      definition.kind === "ring" && definition.ringValues.join(",") === "0,0,1,-1");
+  it("scores coupled pattern definition variants and reports dead profiles", () => {
+    const rookC1 = candidateDefinitionVariants("rook", 0)[0];
     const rookC2 = candidateDefinitionVariants("rook", 1).find((definition) =>
-      definition.kind === "ring" && definition.ringValues.join(",") === "0,0,1,-1");
+      definition.kind === "ring" && definition.ringValues.join(",") === "0,1,0,-1");
     expect(rookC1).toBeDefined();
     expect(rookC2).toBeDefined();
 
@@ -141,16 +142,15 @@ describe("mechanics analysis", () => {
     ]);
 
     expect(variant.replacements).toHaveLength(2);
-    expect(variant.deadProfiles).toHaveLength(0);
-    expect(variant.minAverageMoves).toBeGreaterThan(4);
+    expect(variant.deadProfiles).toHaveLength(1);
+    expect(variant.minAverageMoves).toBe(0);
   });
 
   it("scores combined parameter candidates", () => {
     const current = evaluateCombinedParameterCandidate({ name: "current" });
-    const rookC1 = candidateDefinitionVariants("rook", 0).find((definition) =>
-      definition.kind === "ring" && definition.ringValues.join(",") === "0,0,1,-1");
+    const rookC1 = candidateDefinitionVariants("rook", 0)[0];
     const rookC2 = candidateDefinitionVariants("rook", 1).find((definition) =>
-      definition.kind === "ring" && definition.ringValues.join(",") === "0,0,1,-1");
+      definition.kind === "ring" && definition.ringValues.join(",") === "0,1,0,-1");
     expect(rookC1).toBeDefined();
     expect(rookC2).toBeDefined();
 

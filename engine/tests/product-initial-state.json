@@ -133,6 +133,7 @@
       ],
       "spy": [
         1,
+        0,
         0
       ],
       "king": [
@@ -150,6 +151,7 @@
       ],
       "spy": [
         1,
+        0,
         0
       ],
       "king": [
@@ -202,6 +204,7 @@
     ],
     "spy": [
       1,
+      0,
       0
     ],
     "king": [
@@ -221,16 +224,73 @@
     ],
     "rook": [
       {
-        "kind": "ring",
-        "name": "Push pairs",
-        "geometry": "chebyshev",
-        "ringValues": [
-          0,
-          0,
-          1,
-          -1
+        "kind": "grid",
+        "name": "Tower grid",
+        "gridValues": [
+          [
+            1,
+            1,
+            1,
+            -1,
+            1,
+            1,
+            1
+          ],
+          [
+            1,
+            1,
+            -1,
+            0,
+            -1,
+            1,
+            1
+          ],
+          [
+            1,
+            -1,
+            0,
+            -1,
+            0,
+            -1,
+            1
+          ],
+          [
+            -1,
+            0,
+            -1,
+            0,
+            -1,
+            0,
+            -1
+          ],
+          [
+            1,
+            -1,
+            0,
+            -1,
+            0,
+            -1,
+            0
+          ],
+          [
+            1,
+            1,
+            -1,
+            0,
+            -1,
+            1,
+            1
+          ],
+          [
+            1,
+            1,
+            1,
+            -1,
+            1,
+            1,
+            1
+          ]
         ],
-        "repeat": true,
         "decayBase": 2,
         "originScale": 1
       },
@@ -261,6 +321,13 @@
         "kind": "preset",
         "name": "Diamond core",
         "preset": "diamond-core",
+        "decayBase": 2,
+        "originScale": 1
+      },
+      {
+        "kind": "preset",
+        "name": "Axis favor",
+        "preset": "axis-favor",
         "decayBase": 2,
         "originScale": 1
       }

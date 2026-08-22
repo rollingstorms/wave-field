@@ -5,13 +5,24 @@ fn fixture() -> GameState {
 }
 
 #[test]
-fn initial_field_is_rotationally_antisymmetric() {
-    let field = evaluate_field(&fixture());
-    for y in 0..7 {
-        for x in 0..7 {
-            assert!((field[y][x] + field[6 - y][6 - x]).abs() < 1e-9);
-        }
-    }
+fn initial_state_uses_inverted_hat_tower_grid() {
+    let state = fixture();
+    let BasisDefinition::Grid {
+        name, grid_values, ..
+    } = &state.definitions.rook[0]
+    else {
+        panic!("expected tower C1 to use a grid basis");
+    };
+
+    assert_eq!(name, "Tower grid");
+    assert_eq!(grid_values[4][6], 0);
+    assert_eq!(
+        evaluate_basis(&state.definitions.rook[0], Position { x: 3, y: 1 }),
+        0.0
+    );
+    assert!(evaluate_basis(&state.definitions.rook[0], Position { x: -3, y: -1 }) > 0.0);
+
+    assert_ne!(grid_values[4][6], grid_values[2][0]);
 }
 
 #[test]

@@ -82,7 +82,7 @@ describe("stability and victory", () => {
     state.components.blue.spy = [-1, 0, 0];
     state.components.red.pawn = [0];
 
-    const result = applyMove("blue-spy", { x: 5, y: 5 }, state);
+    const result = applyMove("blue-rook", { x: 1, y: 2 }, state);
     const pawn = result.state.pieces.find((piece) => piece.id === "red-pawn");
 
     expect(result.ok).toBe(true);

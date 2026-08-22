@@ -9,6 +9,8 @@ both positive and negative energy on different squares.
 
 This repository is a live, playable application of the current rules. See
 [RULES.md](./RULES.md) for the full rules reference.
+See [docs/STRATEGY.md](./docs/STRATEGY.md) for strategy, teaching, and
+emergent-pattern research notes.
 
 **[Play Wave Field](https://rollingstorms.github.io/wave-field/)**
 

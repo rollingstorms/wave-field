@@ -13,7 +13,7 @@ export interface OptimizedGameConfig {
   homeEnergy: HomeEnergy;
 }
 
-export type GameVariantId = "balanced-pressure" | "easy-mobility";
+export type GameVariantId = "balanced-pressure" | "easy-mobility" | "low-rescue";
 
 export function openingTerritoryRowsMatchOriginal(config: OptimizedGameConfig): boolean {
   const state = createInitialState(config.components, config.definitions, config.waveScales, config.homeEnergy);
@@ -35,7 +35,7 @@ function createBalancedPressureConfig(): OptimizedGameConfig {
     name: "Optim Tower push pairs",
     kind: "ring",
     geometry: "chebyshev",
-    ringValues: [0, 0, 1, -1],
+    ringValues: [0, 1, 1, -1],
     repeat: true,
   };
   definitions.rook[1] = {
@@ -104,8 +104,67 @@ function createEasyMobilityConfig(): OptimizedGameConfig {
   };
 }
 
+function createLowRescueConfig(): OptimizedGameConfig {
+  const definitions = cloneDefinitions();
+  definitions.rook[0] = {
+    ...definitions.rook[0],
+    name: "Low Rescue Tower push pairs",
+    kind: "ring",
+    geometry: "chebyshev",
+    ringValues: [0, 1, 1, -1],
+    repeat: true,
+  };
+  definitions.rook[1] = {
+    ...definitions.rook[1],
+    name: "Low Rescue Tower pressure cadence",
+    kind: "ring",
+    geometry: "chebyshev",
+    ringValues: [0, 1, -1, 1],
+    repeat: true,
+  };
+  definitions.spy[1] = {
+    ...definitions.spy[1],
+    name: "Low Rescue Triangle diagonal favor",
+    kind: "preset",
+    preset: "diagonal-favor",
+  };
+  definitions.king[0] = {
+    ...definitions.king[0],
+    name: "Low Rescue Big Hat pressure rings",
+    kind: "ring",
+    geometry: "chebyshev",
+    ringValues: [0, 1, -1, -1, 0],
+    repeat: true,
+  };
+  definitions.king[2] = {
+    ...definitions.king[2],
+    name: "Low Rescue Big Hat diagonal favor",
+    kind: "preset",
+    preset: "diagonal-favor",
+  };
+
+  return {
+    name: "low-rescue",
+    components: {
+      pawn: [1],
+      rook: [1, 1],
+      spy: [0, 1, 0],
+      king: [-1, 1, 0],
+    },
+    definitions,
+    waveScales: {
+      ...structuredClone(DEFAULT_WAVE_SCALES),
+      pawn: { friendly: 3, hostile: 1.5 },
+      spy: { friendly: 2.5, hostile: 0.5 },
+    },
+    homeEnergy: structuredClone(DEFAULT_HOME_ENERGY),
+  };
+}
+
 export function createGameVariantConfig(variant: GameVariantId): OptimizedGameConfig {
   switch (variant) {
+    case "low-rescue":
+      return createLowRescueConfig();
     case "easy-mobility":
       return createEasyMobilityConfig();
     case "balanced-pressure":

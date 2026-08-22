@@ -5,12 +5,12 @@ import { coefficientLabel } from "../components/ComponentControls";
 import { randomizeTuning, resetTuning } from "../game/rules";
 
 describe("component strength budget", () => {
-  it("starts both players with the trimmed default component set", () => {
+  it("starts both players with the current default component set", () => {
     const state = createInitialState();
 
     expect(state.components.blue.pawn).toEqual([1]);
     expect(state.components.blue.rook).toEqual([1, 1]);
-    expect(state.components.blue.spy).toEqual([1, 0]);
+    expect(state.components.blue.spy).toEqual([1, 0, 0]);
     expect(state.components.blue.king).toEqual([1, 1]);
     expect(state.components.red).toEqual(state.components.blue);
   });
@@ -41,7 +41,7 @@ describe("component strength budget", () => {
     expect(canSetComponentValue(components, "king", 1, 0)).toBe(true);
   });
 
-  it("starts the king at positive-positive full strength", () => {
+  it("starts the king at the current two-active-slot tuning", () => {
     const state = createInitialState();
 
     expect(state.components.blue.king).toEqual([1, 1]);

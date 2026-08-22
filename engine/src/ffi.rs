@@ -334,7 +334,7 @@ mod tests {
         let state: crate::GameState = serde_json::from_str(value).expect("game state JSON");
         assert_eq!(state.components.blue.pawn.len(), 1);
         assert_eq!(state.components.blue.rook.len(), 2);
-        assert_eq!(state.components.blue.spy.len(), 2);
+        assert_eq!(state.components.blue.spy.len(), 3);
         assert_eq!(state.components.blue.king.len(), 2);
         wf_string_free(result);
     }

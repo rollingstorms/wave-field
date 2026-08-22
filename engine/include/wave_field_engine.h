@@ -61,6 +61,13 @@ char *wf_play_heuristic_turn_json(
     double variety,
     uint32_t time_budget_ms
 );
+char *wf_play_hard_turn_json(
+    const char *player,
+    const char *state_json,
+    uint32_t seed,
+    double variety,
+    uint32_t time_budget_ms
+);
 char *wf_play_easy_turn_json(
     const char *player,
     const char *state_json,
