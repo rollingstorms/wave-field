@@ -16,10 +16,20 @@ export const TRAINING_COMPONENTS: PlayerComponents = {
   king: [0, 1, 1],
 };
 
+const towerComponentOneGrid = [
+  [1, 1, 1, -1, 1, 1, 1],
+  [1, 1, -1, 0, -1, 1, 1],
+  [1, -1, 0, -1, 0, -1, 1],
+  [-1, 0, -1, 0, -1, 0, -1],
+  [1, -1, 0, -1, 0, -1, 0],
+  [1, 1, -1, 0, -1, 1, 1],
+  [1, 1, 1, -1, 1, 1, 1],
+];
+
 export const DEBUG_DEFINITIONS: ComponentDefinitions = {
   pawn: [{ kind: "preset", name: "Checkerboard", preset: "checkerboard", decayBase: 2, originScale: 1 }],
   rook: [
-    { kind: "ring", name: "Push pairs", geometry: "chebyshev", ringValues: [0, 0, 1, -1], repeat: true, decayBase: 2, originScale: 1 },
+    { kind: "grid", name: "Tower grid", gridValues: towerComponentOneGrid, decayBase: 2, originScale: 1 },
     { kind: "ring", name: "Pull gap push", geometry: "chebyshev", ringValues: [0, 1, 0, -1], repeat: true, decayBase: 2, originScale: 1 },
   ],
   spy: [
@@ -28,7 +38,7 @@ export const DEBUG_DEFINITIONS: ComponentDefinitions = {
     { kind: "preset", name: "Axis favor", preset: "axis-favor", decayBase: 2, originScale: 1 },
   ],
   king: [
-    { kind: "ring", name: "Big Hat c1 rings", geometry: "chebyshev", ringValues: [1, 1, -1, -1, 1], repeat: true, decayBase: 2, originScale: 1 },
+    { kind: "ring", name: "Big Hat c1 rings", geometry: "chebyshev", ringValues: [-1, -1, 1, 1, -1], repeat: true, decayBase: 2, originScale: 1 },
     { kind: "preset", name: "Horizontal mode", preset: "horizontal-versus-vertical", decayBase: 2, originScale: 1 },
     { kind: "preset", name: "Block checker", preset: "block-checker", decayBase: 2, originScale: 1 },
   ],
