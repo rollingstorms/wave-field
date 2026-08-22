@@ -20,7 +20,7 @@ function setPiecePosition(state: GameState, pieceId: string, x: number, y: numbe
 }
 
 describe("heuristic opponent", () => {
-  it("easy minimax completes a legal blue turn without tuning", () => {
+  it("easy opponent completes a legal blue turn without tuning", () => {
     const opening = createInitialState();
 
     const result = playEasyTurn(opening, "blue", { seed: 7 });
@@ -29,6 +29,25 @@ describe("heuristic opponent", () => {
     expect(result.currentPlayer).toBe("red");
     expect(result.components.blue).toEqual(opening.components.blue);
     expect(result.history).toHaveLength(opening.history.length + 1);
+  });
+
+  it("easy opponent declines an available checking move", () => {
+    const state = createInitialState();
+    state.currentPlayer = "red";
+    state.pieces = [
+      { id: "red-king", owner: "red", type: "king", position: { x: 0, y: 0 }, unstable: false },
+      { id: "red-spy", owner: "red", type: "spy", position: { x: 2, y: 2 }, unstable: false },
+      { id: "blue-king", owner: "blue", type: "king", position: { x: 6, y: 6 }, unstable: false },
+    ];
+    state.components.red.king = [0, 0, 0];
+    state.components.red.spy = [-1, 0, 0];
+    state.components.blue.king = [0, 0, 0];
+
+    const result = playEasyTurn(state, "red");
+
+    expect(result.status).toBe("playing");
+    expect(result.currentPlayer).toBe("blue");
+    expect(result.message).not.toContain("Blue Big Hat is in check");
   });
 
   it("completes a legal red turn", () => {

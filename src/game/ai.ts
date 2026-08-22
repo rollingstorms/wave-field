@@ -19,6 +19,10 @@ const repetitionLookback = 18;
 const repeatedStatePenalty = 900;
 const immediateReversalPenalty = 500;
 const easySearchDepth = 2;
+const easyWinPenalty = 900_000;
+const easyCheckPenalty = 250_000;
+const easyEnemyCapturePenalty = 700;
+const easyOwnLossBonus = 650;
 
 export interface AiTurnOptions {
   seed?: number;
@@ -271,6 +275,34 @@ function minimaxScore(
   return value;
 }
 
+function lostMaterial(before: GameState, after: GameState, owner: Player): number {
+  const remainingIds = new Set(after.pieces.map((piece) => piece.id));
+  return before.pieces
+    .filter((piece) => piece.owner === owner && !remainingIds.has(piece.id))
+    .reduce((total, piece) => total + materialValue[piece.type], 0);
+}
+
+function easyGenerosityScore(
+  choice: { pieceId: string; destination: Position; preview: GameState },
+  state: GameState,
+  player: Player,
+): number {
+  const enemy = opponent(player);
+  const selfScore = minimaxScore(
+    choice.preview,
+    player,
+    easySearchDepth - 1,
+    Number.NEGATIVE_INFINITY,
+    Number.POSITIVE_INFINITY,
+  );
+  const previewField = evaluateField(choice.preview);
+  return -selfScore
+    - (choice.preview.status === winStatus(player) ? easyWinPenalty : 0)
+    - (isKingUnprotected(enemy, choice.preview, previewField) ? easyCheckPenalty : 0)
+    - lostMaterial(state, choice.preview, enemy) * easyEnemyCapturePenalty
+    + lostMaterial(state, choice.preview, player) * easyOwnLossBonus;
+}
+
 export function playEasyTurn(state: GameState, player: Player = "red", options: AiTurnOptions = {}): GameState {
   if (state.status !== "playing" || state.currentPlayer !== player) return state;
   const rustState = rustPlayEasyTurn(
@@ -287,13 +319,8 @@ export function playEasyTurn(state: GameState, player: Player = "red", options: 
   const choices = legalMoveChoices(state).flatMap((choice) => {
     const piece = state.pieces.find((candidate) => candidate.id === choice.pieceId);
     if (!piece) return [];
-    const score = minimaxScore(
-      choice.preview,
-      player,
-      easySearchDepth - 1,
-      Number.NEGATIVE_INFINITY,
-      Number.POSITIVE_INFINITY,
-    ) - loopPenalty(choice.preview, piece, choice.destination, repetitionCounts, recentMoves);
+    const score = easyGenerosityScore(choice, state, player)
+      - loopPenalty(choice.preview, piece, choice.destination, repetitionCounts, recentMoves);
     return [{ ...choice, score }];
   });
 

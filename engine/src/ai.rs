@@ -15,6 +15,10 @@ const REPETITION_LOOKBACK: usize = 18;
 const REPEATED_STATE_PENALTY: f64 = 900.0;
 const IMMEDIATE_REVERSAL_PENALTY: f64 = 500.0;
 const EASY_SEARCH_DEPTH: u8 = 2;
+const EASY_WIN_PENALTY: f64 = 900_000.0;
+const EASY_CHECK_PENALTY: f64 = 250_000.0;
+const EASY_ENEMY_CAPTURE_PENALTY: f64 = 700.0;
+const EASY_OWN_LOSS_BONUS: f64 = 650.0;
 const HARD_DEFAULT_TIME_BUDGET_MS: u64 = 1_500;
 const HARD_MAX_DEPTH: u8 = 4;
 const HARD_ROOT_ACTION_LIMIT: usize = 18;
@@ -837,6 +841,47 @@ fn minimax_score(
     }
 }
 
+fn lost_material(before: &GameState, after: &GameState, owner: Player) -> f64 {
+    before
+        .pieces
+        .iter()
+        .filter(|piece| {
+            piece.owner == owner
+                && !after
+                    .pieces
+                    .iter()
+                    .any(|remaining| remaining.id == piece.id)
+        })
+        .map(|piece| material_value(piece.piece_type))
+        .sum()
+}
+
+fn easy_generosity_score(choice: &MoveChoice, state: &GameState, player: Player) -> f64 {
+    let enemy = player.opponent();
+    let self_score = minimax_score(
+        &choice.preview,
+        player,
+        EASY_SEARCH_DEPTH.saturating_sub(1),
+        f64::NEG_INFINITY,
+        f64::INFINITY,
+    );
+    let preview_field = evaluate_field(&choice.preview);
+
+    -self_score
+        - if choice.preview.status == win_status(player) {
+            EASY_WIN_PENALTY
+        } else {
+            0.0
+        }
+        - if is_king_unprotected(enemy, &choice.preview, &preview_field) {
+            EASY_CHECK_PENALTY
+        } else {
+            0.0
+        }
+        - lost_material(state, &choice.preview, enemy) * EASY_ENEMY_CAPTURE_PENALTY
+        + lost_material(state, &choice.preview, player) * EASY_OWN_LOSS_BONUS
+}
+
 fn sort_move_choices(choices: &mut [MoveChoice]) {
     choices.sort_by(|left, right| {
         right
@@ -861,19 +906,14 @@ pub fn play_easy_turn(state: GameState, player: Player, options: AiTurnOptions) 
                 .iter()
                 .find(|piece| piece.id == choice.piece_id)?
                 .clone();
-            choice.score = minimax_score(
-                &choice.preview,
-                player,
-                EASY_SEARCH_DEPTH.saturating_sub(1),
-                f64::NEG_INFINITY,
-                f64::INFINITY,
-            ) - loop_penalty(
-                &choice.preview,
-                &piece,
-                choice.destination,
-                &repetition_counts,
-                &recent_moves,
-            );
+            choice.score = easy_generosity_score(&choice, &state, player)
+                - loop_penalty(
+                    &choice.preview,
+                    &piece,
+                    choice.destination,
+                    &repetition_counts,
+                    &recent_moves,
+                );
             Some(choice)
         })
         .collect::<Vec<_>>();
