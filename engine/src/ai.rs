@@ -18,7 +18,10 @@ const EASY_SEARCH_DEPTH: u8 = 2;
 const EASY_WIN_PENALTY: f64 = 900_000.0;
 const EASY_CHECK_PENALTY: f64 = 250_000.0;
 const EASY_ENEMY_CAPTURE_PENALTY: f64 = 700.0;
-const EASY_OWN_LOSS_BONUS: f64 = 650.0;
+const EASY_OWN_LOSS_PENALTY: f64 = 5_000.0;
+const EASY_OWN_UNSTABLE_PENALTY: f64 = 500.0;
+const EASY_OWN_KING_DANGER_PENALTY: f64 = 600_000.0;
+const EASY_OWN_KING_MARGIN_BONUS: f64 = 35.0;
 const HARD_DEFAULT_TIME_BUDGET_MS: u64 = 1_500;
 const HARD_MAX_DEPTH: u8 = 4;
 const HARD_ROOT_ACTION_LIMIT: usize = 18;
@@ -856,6 +859,30 @@ fn lost_material(before: &GameState, after: &GameState, owner: Player) -> f64 {
         .sum()
 }
 
+fn own_safety_score(state: &GameState, player: Player, field: &Field) -> f64 {
+    let own_king_value = state
+        .pieces
+        .iter()
+        .find(|piece| piece.owner == player && piece.piece_type == PieceType::King)
+        .map(|piece| field[piece.position.y as usize][piece.position.x as usize])
+        .unwrap_or(0.0);
+    let own_unstable = unstable_pieces(player, state, field)
+        .into_iter()
+        .filter(|piece| piece.piece_type != PieceType::King)
+        .count() as f64;
+
+    -if is_king_unprotected(player, state, field) {
+        EASY_OWN_KING_DANGER_PENALTY
+    } else {
+        0.0
+    } - own_unstable * EASY_OWN_UNSTABLE_PENALTY
+        + if compatible(player, own_king_value) {
+            own_king_value.abs().min(4.0) * EASY_OWN_KING_MARGIN_BONUS
+        } else {
+            0.0
+        }
+}
+
 fn easy_generosity_score(choice: &MoveChoice, state: &GameState, player: Player) -> f64 {
     let enemy = player.opponent();
     let self_score = minimax_score(
@@ -879,7 +906,8 @@ fn easy_generosity_score(choice: &MoveChoice, state: &GameState, player: Player)
             0.0
         }
         - lost_material(state, &choice.preview, enemy) * EASY_ENEMY_CAPTURE_PENALTY
-        + lost_material(state, &choice.preview, player) * EASY_OWN_LOSS_BONUS
+        - lost_material(state, &choice.preview, player) * EASY_OWN_LOSS_PENALTY
+        + own_safety_score(&choice.preview, player, &preview_field)
 }
 
 fn sort_move_choices(choices: &mut [MoveChoice]) {

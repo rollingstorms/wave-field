@@ -22,7 +22,10 @@ const easySearchDepth = 2;
 const easyWinPenalty = 900_000;
 const easyCheckPenalty = 250_000;
 const easyEnemyCapturePenalty = 700;
-const easyOwnLossBonus = 650;
+const easyOwnLossPenalty = 5_000;
+const easyOwnUnstablePenalty = 500;
+const easyOwnKingDangerPenalty = 600_000;
+const easyOwnKingMarginBonus = 35;
 
 export interface AiTurnOptions {
   seed?: number;
@@ -282,6 +285,15 @@ function lostMaterial(before: GameState, after: GameState, owner: Player): numbe
     .reduce((total, piece) => total + materialValue[piece.type], 0);
 }
 
+function ownSafetyScore(state: GameState, player: Player, field: number[][]): number {
+  const ownKing = state.pieces.find((piece) => piece.owner === player && piece.type === "king");
+  const ownKingValue = ownKing ? field[ownKing.position.y][ownKing.position.x] : 0;
+  const ownUnstable = getUnstablePieces(player, state, field).filter((piece) => piece.type !== "king").length;
+  return -(isKingUnprotected(player, state, field) ? easyOwnKingDangerPenalty : 0)
+    - ownUnstable * easyOwnUnstablePenalty
+    + (isSquareCompatible(player, ownKingValue) ? Math.min(Math.abs(ownKingValue), 4) * easyOwnKingMarginBonus : 0);
+}
+
 function easyGenerosityScore(
   choice: { pieceId: string; destination: Position; preview: GameState },
   state: GameState,
@@ -300,7 +312,8 @@ function easyGenerosityScore(
     - (choice.preview.status === winStatus(player) ? easyWinPenalty : 0)
     - (isKingUnprotected(enemy, choice.preview, previewField) ? easyCheckPenalty : 0)
     - lostMaterial(state, choice.preview, enemy) * easyEnemyCapturePenalty
-    + lostMaterial(state, choice.preview, player) * easyOwnLossBonus;
+    - lostMaterial(state, choice.preview, player) * easyOwnLossPenalty
+    + ownSafetyScore(choice.preview, player, previewField);
 }
 
 export function playEasyTurn(state: GameState, player: Player = "red", options: AiTurnOptions = {}): GameState {

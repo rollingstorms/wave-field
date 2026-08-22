@@ -216,6 +216,88 @@ fn easy_ai_turn_moves_from_initial_state() {
 }
 
 #[test]
+fn easy_ai_prefers_safe_generosity_over_self_instability() {
+    let mut state = fixture();
+    state.current_player = Player::Red;
+    state.pieces = vec![
+        Piece {
+            id: "red-king".to_string(),
+            owner: Player::Red,
+            piece_type: PieceType::King,
+            position: Position { x: 3, y: 3 },
+            unstable: false,
+        },
+        Piece {
+            id: "red-rook".to_string(),
+            owner: Player::Red,
+            piece_type: PieceType::Rook,
+            position: Position { x: 2, y: 3 },
+            unstable: false,
+        },
+        Piece {
+            id: "red-spy".to_string(),
+            owner: Player::Red,
+            piece_type: PieceType::Spy,
+            position: Position { x: 1, y: 3 },
+            unstable: false,
+        },
+        Piece {
+            id: "blue-king".to_string(),
+            owner: Player::Blue,
+            piece_type: PieceType::King,
+            position: Position { x: 6, y: 6 },
+            unstable: false,
+        },
+        Piece {
+            id: "blue-pawn".to_string(),
+            owner: Player::Blue,
+            piece_type: PieceType::Pawn,
+            position: Position { x: 4, y: 3 },
+            unstable: false,
+        },
+    ];
+    state.components.red = PlayerComponents {
+        pawn: vec![0],
+        rook: vec![1, 0],
+        spy: vec![1, 0, 0],
+        king: vec![1, 0],
+    };
+    state.components.blue = PlayerComponents {
+        pawn: vec![-1],
+        rook: vec![0, 0],
+        spy: vec![0, 0, 0],
+        king: vec![0, 0],
+    };
+    state.activation_orders.red = PlayerActivationOrder {
+        pawn: vec![],
+        rook: vec![],
+        spy: vec![],
+        king: vec![],
+    };
+    state.activation_orders.blue = PlayerActivationOrder {
+        pawn: vec![],
+        rook: vec![],
+        spy: vec![],
+        king: vec![],
+    };
+    let next = play_easy_turn(
+        state,
+        Player::Red,
+        AiTurnOptions {
+            seed: Some(0),
+            variety: Some(0.0),
+            time_budget_ms: Some(10),
+        },
+    );
+    let field = evaluate_field(&next);
+
+    assert_eq!(next.current_player, Player::Blue);
+    assert!(next.pieces.iter().any(|piece| piece.id == "red-spy"));
+    assert!(unstable_pieces(Player::Red, &next, &field).is_empty());
+    assert!(!is_king_unprotected(Player::Red, &next, &field));
+}
+
+#[test]
 fn hint_search_returns_current_safe_move() {
     let state = fixture();
     let result = hint_search(Player::Blue, None, &state, 128, 100);

@@ -3,6 +3,8 @@ import { playEasyTurn, playHardTurn, playHeuristicTurn } from "../game/ai";
 import { createInitialState, snapshot } from "../game/initialState";
 import { applyMove } from "../game/rules";
 import type { GameState, PieceType } from "../game/types";
+import { evaluateField } from "../field/evaluateField";
+import { getUnstablePieces, isKingUnprotected } from "../game/victory";
 
 const pieceTypes: PieceType[] = ["pawn", "rook", "spy", "king"];
 
@@ -48,6 +50,32 @@ describe("heuristic opponent", () => {
     expect(result.status).toBe("playing");
     expect(result.currentPlayer).toBe("blue");
     expect(result.message).not.toContain("Blue Big Hat is in check");
+  });
+
+  it("easy opponent prefers a safe generous move over self-instability", () => {
+    const state = createInitialState();
+    state.currentPlayer = "red";
+    state.pieces = [
+      { id: "red-king", owner: "red", type: "king", position: { x: 3, y: 3 }, unstable: false },
+      { id: "red-rook", owner: "red", type: "rook", position: { x: 2, y: 3 }, unstable: false },
+      { id: "red-spy", owner: "red", type: "spy", position: { x: 1, y: 3 }, unstable: false },
+      { id: "blue-king", owner: "blue", type: "king", position: { x: 6, y: 6 }, unstable: false },
+      { id: "blue-pawn", owner: "blue", type: "pawn", position: { x: 4, y: 3 }, unstable: false },
+    ];
+    zeroComponents(state);
+    state.components.red.king = [1, 0];
+    state.components.red.rook = [1, 0];
+    state.components.red.spy = [1, 0, 0];
+    state.components.blue.king = [0, 0];
+    state.components.blue.pawn = [-1];
+
+    const result = playEasyTurn(state, "red");
+    const resultField = evaluateField(result);
+
+    expect(result.currentPlayer).toBe("blue");
+    expect(result.pieces.some((piece) => piece.id === "red-spy")).toBe(true);
+    expect(getUnstablePieces("red", result, resultField)).toHaveLength(0);
+    expect(isKingUnprotected("red", result, resultField)).toBe(false);
   });
 
   it("completes a legal red turn", () => {
