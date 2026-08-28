@@ -2,6 +2,7 @@ use crate::board::*;
 use crate::field::evaluate_field;
 use crate::model::*;
 use crate::rules::{apply_known_legal_move, apply_move};
+use serde::Serialize;
 use std::cmp::Ordering;
 use std::collections::HashMap;
 use std::time::Duration;
@@ -240,11 +241,6 @@ fn material_points(state: &GameState, player: Player) -> f64 {
         .filter(|piece| piece.owner == player)
         .map(|piece| material_value(piece.piece_type))
         .sum()
-}
-
-fn hard_score_state(state: &GameState, player: Player) -> f64 {
-    let field = evaluate_field(state);
-    hard_score_state_with_field(state, player, &field)
 }
 
 fn hard_score_state_with_field(state: &GameState, player: Player, field: &Field) -> f64 {
@@ -512,7 +508,26 @@ struct HardSearchContext {
     repetition_counts: HashMap<String, usize>,
     recent_moves: HashMap<String, (Position, Position)>,
     transpositions: HashMap<String, CacheEntry>,
+    field_cache: HashMap<String, Field>,
+    profile: HardSearchProfile,
     nodes: usize,
+}
+
+#[derive(Clone, Copy, Debug, Default, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct HardSearchProfile {
+    pub nodes: u64,
+    pub transposition_hits: u64,
+    pub transposition_stores: u64,
+    pub field_cache_hits: u64,
+    pub field_cache_misses: u64,
+    pub generated_candidates: u64,
+    pub applied_candidates: u64,
+    pub rejected_candidates: u64,
+    pub tuning_profiles: u64,
+    pub alpha_beta_cutoffs: u64,
+    pub deadline_cutoffs: u64,
+    pub completed_depth: u8,
 }
 
 #[derive(Clone)]
@@ -548,27 +563,39 @@ fn sort_choices(choices: &mut [Choice]) {
     });
 }
 
+fn cached_field(state: &GameState, context: &mut HardSearchContext) -> Field {
+    let key = state_key(state);
+    if let Some(field) = context.field_cache.get(&key) {
+        context.profile.field_cache_hits += 1;
+        return field.clone();
+    }
+    context.profile.field_cache_misses += 1;
+    let field = evaluate_field(state);
+    context.field_cache.insert(key, field.clone());
+    field
+}
+
 fn hard_action_choices(
     state: &GameState,
     player: Player,
     profile_limit: usize,
     action_limit: usize,
     trap_analysis_limit: usize,
-    repetition_counts: &HashMap<String, usize>,
-    recent_moves: &HashMap<String, (Position, Position)>,
+    context: &mut HardSearchContext,
 ) -> Vec<Choice> {
     let mut choices = Vec::new();
-    let current_field = evaluate_field(state);
+    let current_field = cached_field(state, context);
     let current_unstable_count = unstable_pieces(player, state, &current_field).len();
 
     for profile in tuning_candidates(state, player, profile_limit) {
+        context.profile.tuning_profiles += 1;
         let mut tuned_base = state.clone();
         tuned_base.history.clear();
         *tuned_base.components.get_mut(player) = profile;
         *tuned_base.activation_orders.get_mut(player) =
             activation_order_for_profile(tuned_base.components.get(player));
         tuned_base.selected_piece_id = None;
-        let tuned_base_field = evaluate_field(&tuned_base);
+        let tuned_base_field = cached_field(&tuned_base, context);
         let tuned = mark_instability(tuned_base, &tuned_base_field);
 
         for piece in tuned
@@ -579,6 +606,7 @@ fn hard_action_choices(
             .collect::<Vec<_>>()
         {
             for destination in get_legal_moves(&piece.id, &tuned, &tuned_base_field) {
+                context.profile.generated_candidates += 1;
                 let result = apply_known_legal_move(
                     &piece.id,
                     destination,
@@ -587,11 +615,13 @@ fn hard_action_choices(
                     false,
                 );
                 if !result.ok {
+                    context.profile.rejected_candidates += 1;
                     continue;
                 }
+                context.profile.applied_candidates += 1;
                 let mut preview = result.state;
                 preview.history.clear();
-                let field = evaluate_field(&preview);
+                let field = cached_field(&preview, context);
                 let tactical_bonus = if preview.status == win_status(player) {
                     500_000.0
                 } else {
@@ -610,8 +640,8 @@ fn hard_action_choices(
                         &preview,
                         &piece,
                         destination,
-                        repetition_counts,
-                        recent_moves,
+                        &context.repetition_counts,
+                        &context.recent_moves,
                     );
                 choices.push(Choice {
                     tuned: tuned.clone(),
@@ -626,7 +656,7 @@ fn hard_action_choices(
 
     sort_choices(&mut choices);
     for choice in choices.iter_mut().take(trap_analysis_limit) {
-        let field = evaluate_field(&choice.preview);
+        let field = cached_field(&choice.preview, context);
         if !is_king_unprotected(player.opponent(), &choice.preview, &field) {
             continue;
         }
@@ -649,11 +679,11 @@ fn hard_action_choices(
     choices
 }
 
-fn hard_position_is_volatile(state: &GameState) -> bool {
+fn hard_position_is_volatile(state: &GameState, context: &mut HardSearchContext) -> bool {
     if state.status != GameStatus::Playing {
         return false;
     }
-    let field = evaluate_field(state);
+    let field = cached_field(state, context);
     is_king_unprotected(state.current_player, state, &field)
         || is_king_unprotected(state.current_player.opponent(), state, &field)
         || !unstable_pieces(state.current_player, state, &field).is_empty()
@@ -673,15 +703,19 @@ fn hard_search_score(
     context: &mut HardSearchContext,
 ) -> f64 {
     context.nodes += 1;
+    context.profile.nodes += 1;
     if context.nodes > 1 && deadline_reached(&context.started_at, context.deadline) {
-        return hard_score_state(state, context.root_player);
+        context.profile.deadline_cutoffs += 1;
+        let field = cached_field(state, context);
+        return hard_score_state_with_field(state, context.root_player, &field);
     }
 
     if state.status != GameStatus::Playing {
-        return hard_score_state(state, context.root_player);
+        let field = cached_field(state, context);
+        return hard_score_state_with_field(state, context.root_player, &field);
     }
 
-    let extending = depth == 0 && quiescence_depth > 0 && hard_position_is_volatile(state);
+    let extending = depth == 0 && quiescence_depth > 0 && hard_position_is_volatile(state, context);
     let effective_depth = if extending { 1 } else { depth };
     let next_quiescence_depth = if extending {
         quiescence_depth.saturating_sub(1)
@@ -690,12 +724,14 @@ fn hard_search_score(
     };
 
     if effective_depth == 0 {
-        return hard_score_state(state, context.root_player);
+        let field = cached_field(state, context);
+        return hard_score_state_with_field(state, context.root_player, &field);
     }
 
     let cache_key = hard_cache_key(state, effective_depth, next_quiescence_depth);
     if let Some(entry) = context.transpositions.get(&cache_key) {
         if entry.depth >= effective_depth {
+            context.profile.transposition_hits += 1;
             return entry.value;
         }
     }
@@ -711,8 +747,7 @@ fn hard_search_score(
         HARD_PROFILE_LIMIT,
         action_limit,
         0,
-        &context.repetition_counts,
-        &context.recent_moves,
+        context,
     );
     if choices.is_empty() {
         return if state.current_player == context.root_player {
@@ -735,6 +770,7 @@ fn hard_search_score(
             ));
             alpha = alpha.max(value);
             if alpha >= beta {
+                context.profile.alpha_beta_cutoffs += 1;
                 break;
             }
         }
@@ -752,6 +788,7 @@ fn hard_search_score(
             ));
             beta = beta.min(value);
             if alpha >= beta {
+                context.profile.alpha_beta_cutoffs += 1;
                 break;
             }
         }
@@ -765,6 +802,7 @@ fn hard_search_score(
             value,
         },
     );
+    context.profile.transposition_stores += 1;
     value
 }
 
@@ -1186,8 +1224,24 @@ pub fn play_heuristic_turn(state: GameState, player: Player, options: AiTurnOpti
 }
 
 pub fn play_hard_turn(state: GameState, player: Player, options: AiTurnOptions) -> GameState {
+    play_hard_turn_profiled(state, player, options).state
+}
+
+pub struct HardTurnResult {
+    pub state: GameState,
+    pub profile: HardSearchProfile,
+}
+
+pub fn play_hard_turn_profiled(
+    state: GameState,
+    player: Player,
+    options: AiTurnOptions,
+) -> HardTurnResult {
     if state.status != GameStatus::Playing || state.current_player != player {
-        return state;
+        return HardTurnResult {
+            state,
+            profile: HardSearchProfile::default(),
+        };
     }
 
     let deadline = Duration::from_millis(
@@ -1203,6 +1257,8 @@ pub fn play_hard_turn(state: GameState, player: Player, options: AiTurnOptions) 
         repetition_counts: recent_state_counts(&state),
         recent_moves: last_move_by_piece(&state, player),
         transpositions: HashMap::new(),
+        field_cache: HashMap::new(),
+        profile: HardSearchProfile::default(),
         nodes: 0,
     };
 
@@ -1217,11 +1273,13 @@ pub fn play_hard_turn(state: GameState, player: Player, options: AiTurnOptions) 
         HARD_PROFILE_LIMIT,
         HARD_ROOT_ACTION_LIMIT,
         root_trap_analysis_limit,
-        &context.repetition_counts,
-        &context.recent_moves,
+        &mut context,
     );
     if root_choices.is_empty() {
-        return no_legal_move_state(state, player);
+        return HardTurnResult {
+            state: no_legal_move_state(state, player),
+            profile: context.profile,
+        };
     }
 
     let seed = options.seed.unwrap_or(0);
@@ -1281,6 +1339,7 @@ pub fn play_hard_turn(state: GameState, player: Player, options: AiTurnOptions) 
             if let Some(choice) = depth_best_choice {
                 best_choice = choice;
                 best_score = depth_best_score;
+                context.profile.completed_depth = depth;
             }
         }
 
@@ -1299,7 +1358,7 @@ pub fn play_hard_turn(state: GameState, player: Player, options: AiTurnOptions) 
         }
     }
 
-    let tuned_field = evaluate_field(&best_choice.tuned);
+    let tuned_field = cached_field(&best_choice.tuned, &mut context);
     let result = apply_known_legal_move(
         &best_choice.piece_id,
         best_choice.destination,
@@ -1314,7 +1373,10 @@ pub fn play_hard_turn(state: GameState, player: Player, options: AiTurnOptions) 
             history.push(state.snapshot());
             history
         };
-        return next;
+        return HardTurnResult {
+            state: next,
+            profile: context.profile,
+        };
     }
 
     let mut fallback = best_choice.preview;
@@ -1323,5 +1385,8 @@ pub fn play_hard_turn(state: GameState, player: Player, options: AiTurnOptions) 
         history.push(state.snapshot());
         history
     };
-    fallback
+    HardTurnResult {
+        state: fallback,
+        profile: context.profile,
+    }
 }

@@ -721,6 +721,24 @@ def heuristic_bootstrap_records(
         if profile is not None and rust_profile:
             _profile_add(profile, "rust_teacher_search_seconds", rust_profile.get("searchMs", 0.0) / 1000.0)
             _profile_add(profile, "rust_teacher_total_seconds", rust_profile.get("totalMs", 0.0) / 1000.0)
+            for source_key, target_key in (
+                ("nodes", "rust_teacher_nodes"),
+                ("transpositionHits", "rust_teacher_transposition_hits"),
+                ("transpositionStores", "rust_teacher_transposition_stores"),
+                ("fieldCacheHits", "rust_teacher_field_cache_hits"),
+                ("fieldCacheMisses", "rust_teacher_field_cache_misses"),
+                ("generatedCandidates", "rust_teacher_generated_candidates"),
+                ("appliedCandidates", "rust_teacher_applied_candidates"),
+                ("rejectedCandidates", "rust_teacher_rejected_candidates"),
+                ("tuningProfiles", "rust_teacher_tuning_profiles"),
+                ("alphaBetaCutoffs", "rust_teacher_alpha_beta_cutoffs"),
+                ("deadlineCutoffs", "rust_teacher_deadline_cutoffs"),
+            ):
+                _profile_increment(profile, target_key, int(rust_profile.get(source_key, 0)))
+            profile["rust_teacher_max_completed_depth"] = max(
+                profile.get("rust_teacher_max_completed_depth", 0.0),
+                float(rust_profile.get("maxCompletedDepth", 0)),
+            )
 
         source = f"{bootstrap_policy}_bootstrap"
         for game_index, output in zip(active_indices, batch["turns"]):

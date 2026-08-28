@@ -7,9 +7,9 @@ use wave_field_engine::{
     all_influence_contributors, apply_closest_playable_hint, apply_move, apply_tuning, begin_turn,
     evaluate_field, generate_random_training_batch, get_legal_moves, get_playable_moves,
     influence_contributors_at, instability_influence_links, is_king_unprotected, play_easy_turn,
-    play_hard_turn, play_heuristic_turn, profile_random_games, profile_random_training_batch,
-    randomize_tuning, reset_tuning, resign_in_check, simulate_ai_games, simulate_random_games,
-    simulate_random_lean_games, unstable_pieces,
+    play_hard_turn, play_hard_turn_profiled, play_heuristic_turn, profile_random_games,
+    profile_random_training_batch, randomize_tuning, reset_tuning, resign_in_check,
+    simulate_ai_games, simulate_random_games, simulate_random_lean_games, unstable_pieces,
 };
 
 fn main() {
@@ -237,6 +237,18 @@ struct TeacherTurnsProfile {
     turns: u64,
     total_ms: f64,
     search_ms: f64,
+    nodes: u64,
+    transposition_hits: u64,
+    transposition_stores: u64,
+    field_cache_hits: u64,
+    field_cache_misses: u64,
+    generated_candidates: u64,
+    applied_candidates: u64,
+    rejected_candidates: u64,
+    tuning_profiles: u64,
+    alpha_beta_cutoffs: u64,
+    deadline_cutoffs: u64,
+    max_completed_depth: u8,
 }
 
 #[derive(Serialize)]
@@ -271,7 +283,36 @@ fn handle_teacher_turns(request: &serde_json::Value) -> TeacherTurnsResult {
         .into_iter()
         .map(|turn| {
             let search_started_at = std::time::Instant::now();
-            let state = play_teacher_turn(policy, turn);
+            let state = if policy == "hard" {
+                let result = play_hard_turn_profiled(
+                    turn.state,
+                    turn.player,
+                    AiTurnOptions {
+                        seed: turn.seed,
+                        variety: turn.variety,
+                        time_budget_ms: turn.time_budget_ms,
+                    },
+                );
+                if let Some(profile) = &mut profile {
+                    profile.nodes += result.profile.nodes;
+                    profile.transposition_hits += result.profile.transposition_hits;
+                    profile.transposition_stores += result.profile.transposition_stores;
+                    profile.field_cache_hits += result.profile.field_cache_hits;
+                    profile.field_cache_misses += result.profile.field_cache_misses;
+                    profile.generated_candidates += result.profile.generated_candidates;
+                    profile.applied_candidates += result.profile.applied_candidates;
+                    profile.rejected_candidates += result.profile.rejected_candidates;
+                    profile.tuning_profiles += result.profile.tuning_profiles;
+                    profile.alpha_beta_cutoffs += result.profile.alpha_beta_cutoffs;
+                    profile.deadline_cutoffs += result.profile.deadline_cutoffs;
+                    profile.max_completed_depth = profile
+                        .max_completed_depth
+                        .max(result.profile.completed_depth);
+                }
+                result.state
+            } else {
+                play_teacher_turn(policy, turn)
+            };
             if let Some(profile) = &mut profile {
                 profile.turns += 1;
                 profile.search_ms += search_started_at.elapsed().as_secs_f64() * 1000.0;
