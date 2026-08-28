@@ -1,8 +1,9 @@
 use serde::{Deserialize, Serialize};
 
-pub const BOARD_SIZE: i32 = 7;
+pub const BOARD_LEN: usize = 7;
+pub const BOARD_SIZE: i32 = BOARD_LEN as i32;
 pub const FIELD_EPSILON: f64 = 1e-9;
-pub type Field = Vec<Vec<f64>>;
+pub type Field = [[f64; BOARD_LEN]; BOARD_LEN];
 
 #[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize)]
 #[serde(rename_all = "lowercase")]

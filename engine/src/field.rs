@@ -417,17 +417,15 @@ pub fn instability_influence_links(
 }
 
 pub fn evaluate_field(state: &GameState) -> Field {
-    (0..BOARD_SIZE)
-        .map(|y| {
-            (0..BOARD_SIZE)
-                .map(|x| {
-                    state
-                        .pieces
-                        .iter()
-                        .map(|piece| signed_piece_contribution(piece, Position { x, y }, state))
-                        .sum()
-                })
-                .collect()
-        })
-        .collect()
+    let mut field = [[0.0; BOARD_LEN]; BOARD_LEN];
+    for y in 0..BOARD_SIZE {
+        for x in 0..BOARD_SIZE {
+            field[y as usize][x as usize] = state
+                .pieces
+                .iter()
+                .map(|piece| signed_piece_contribution(piece, Position { x, y }, state))
+                .sum();
+        }
+    }
+    field
 }
