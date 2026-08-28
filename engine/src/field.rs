@@ -418,13 +418,47 @@ pub fn instability_influence_links(
 
 pub fn evaluate_field(state: &GameState) -> Field {
     let mut field = [[0.0; BOARD_LEN]; BOARD_LEN];
-    for y in 0..BOARD_SIZE {
-        for x in 0..BOARD_SIZE {
-            field[y as usize][x as usize] = state
-                .pieces
-                .iter()
-                .map(|piece| signed_piece_contribution(piece, Position { x, y }, state))
-                .sum();
+    for piece in &state.pieces {
+        let sign = if piece.owner == Player::Red {
+            1.0
+        } else {
+            -1.0
+        };
+        let strength = piece_strength(piece.piece_type);
+        let scale = state.wave_scales.get(piece.piece_type);
+        let coefficients = state.components.get(piece.owner).get(piece.piece_type);
+        let definitions = state.definitions.get(piece.piece_type);
+        let active_components = coefficients
+            .iter()
+            .enumerate()
+            .filter_map(|(index, coefficient)| {
+                (*coefficient != 0).then_some((*coefficient, &definitions[index]))
+            })
+            .collect::<Vec<_>>();
+
+        for y in 0..BOARD_SIZE {
+            for x in 0..BOARD_SIZE {
+                let delta = Position {
+                    x: x - piece.position.x,
+                    y: y - piece.position.y,
+                };
+                let contribution = if delta.x == 0 && delta.y == 0 {
+                    *state.home_energy.get(piece.piece_type)
+                } else {
+                    let mut positive_raw = 0.0;
+                    let mut negative_raw = 0.0;
+                    for (coefficient, definition) in &active_components {
+                        let value = f64::from(*coefficient) * evaluate_basis(definition, delta);
+                        if value > 0.0 {
+                            positive_raw += value;
+                        } else if value < 0.0 {
+                            negative_raw += value;
+                        }
+                    }
+                    strength * (positive_raw * scale.friendly + negative_raw * scale.hostile)
+                };
+                field[y as usize][x as usize] += sign * contribution;
+            }
         }
     }
     field
