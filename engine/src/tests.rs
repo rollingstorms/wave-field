@@ -23,6 +23,14 @@ fn initial_state_uses_inverted_hat_tower_grid() {
     assert!(evaluate_basis(&state.definitions.rook[0], Position { x: -3, y: -1 }) > 0.0);
 
     assert_ne!(grid_values[4][6], grid_values[2][0]);
+
+    let BasisDefinition::Ring { ring_values, .. } = &state.definitions.king[0] else {
+        panic!("expected big hat C1 to use a ring basis");
+    };
+    assert_eq!(ring_values, &vec![-1, -1, 1, 1, -1]);
+    assert_eq!(state.default_components.king, vec![1, 1]);
+    assert_eq!(state.components.blue.king, vec![1, 1]);
+    assert_eq!(state.components.red.king, vec![1, 1]);
 }
 
 #[test]
@@ -259,13 +267,13 @@ fn easy_ai_prefers_safe_generosity_over_self_instability() {
     state.components.red = PlayerComponents {
         pawn: vec![0],
         rook: vec![1, 0],
-        spy: vec![1, 0, 0],
+        spy: vec![1, 0],
         king: vec![1, 0],
     };
     state.components.blue = PlayerComponents {
         pawn: vec![-1],
         rook: vec![0, 0],
-        spy: vec![0, 0, 0],
+        spy: vec![0, 0],
         king: vec![0, 0],
     };
     state.activation_orders.red = PlayerActivationOrder {

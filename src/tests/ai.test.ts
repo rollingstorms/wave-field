@@ -41,9 +41,9 @@ describe("heuristic opponent", () => {
       { id: "red-spy", owner: "red", type: "spy", position: { x: 2, y: 2 }, unstable: false },
       { id: "blue-king", owner: "blue", type: "king", position: { x: 6, y: 6 }, unstable: false },
     ];
-    state.components.red.king = [0, 0, 0];
-    state.components.red.spy = [-1, 0, 0];
-    state.components.blue.king = [0, 0, 0];
+    state.components.red.king = [0, 0];
+    state.components.red.spy = [-1, 0];
+    state.components.blue.king = [0, 0];
 
     const result = playEasyTurn(state, "red");
 
@@ -65,7 +65,7 @@ describe("heuristic opponent", () => {
     zeroComponents(state);
     state.components.red.king = [1, 0];
     state.components.red.rook = [1, 0];
-    state.components.red.spy = [1, 0, 0];
+    state.components.red.spy = [1, 0];
     state.components.blue.king = [0, 0];
     state.components.blue.pawn = [-1];
 
@@ -113,7 +113,7 @@ describe("heuristic opponent", () => {
     state.pieces = [
       { id: "red-king", owner: "red", type: "king", position: { x: 6, y: 6 }, unstable: false },
     ];
-    state.components.red.king = [0, 0, 0];
+    state.components.red.king = [0, 0];
 
     const result = playHeuristicTurn(state, "blue");
 
@@ -179,9 +179,9 @@ describe("heuristic opponent", () => {
       { id: "red-spy", owner: "red", type: "spy", position: { x: 2, y: 2 }, unstable: false },
       { id: "blue-king", owner: "blue", type: "king", position: { x: 6, y: 6 }, unstable: false },
     ];
-    state.components.red.king = [0, 0, 0];
-    state.components.red.spy = [-1, 0, 0];
-    state.components.blue.king = [0, 0, 0];
+    state.components.red.king = [0, 0];
+    state.components.red.spy = [-1, 0];
+    state.components.blue.king = [0, 0];
 
     const result = playHeuristicTurn(state);
 

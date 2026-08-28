@@ -38,6 +38,7 @@ from .model import PolicyValueNet, masked_policy_logits
 Player = Literal["red", "blue"]
 PolicyMode = Literal["random", "model", "heuristic", "easy"]
 CapValueMode = Literal["zero", "material"]
+BootstrapPolicy = Literal["heuristic", "hard", "easy"]
 
 
 @dataclass
@@ -424,6 +425,7 @@ def _heuristic_tuning_samples(
     input_view: InputView = "base",
     history: EncodedHistory | None = None,
     history_plies: int = 1,
+    source: str = "heuristic_bootstrap",
 ) -> Tuple[Dict[str, Any], List[Sample]]:
     player = state["currentPlayer"]
     probe = state
@@ -455,7 +457,7 @@ def _heuristic_tuning_samples(
                     history=history,
                     history_plies=history_plies,
                 )
-                sample.metadata["source"] = "heuristic_bootstrap"
+                sample.metadata["source"] = source
                 samples.append(sample)
             probe = engine.apply_tuning(probe, action)
     return probe, samples
@@ -472,6 +474,40 @@ def _heuristic_move_action(before: Dict[str, Any], after: Dict[str, Any], player
     return None
 
 
+def _teacher_turn(
+    engine: RustEngine,
+    state: Dict[str, Any],
+    player: str,
+    policy: BootstrapPolicy,
+    seed: int,
+    variety: float,
+    time_budget_ms: int,
+) -> Dict[str, Any]:
+    if policy == "hard":
+        return engine.play_hard_turn(
+            state,
+            player=player,
+            seed=seed,
+            variety=variety,
+            time_budget_ms=time_budget_ms,
+        )
+    if policy == "easy":
+        return engine.play_easy_turn(
+            state,
+            player=player,
+            seed=seed,
+            variety=variety,
+            time_budget_ms=time_budget_ms,
+        )
+    return engine.play_heuristic_turn(
+        state,
+        player=player,
+        seed=seed,
+        variety=variety,
+        time_budget_ms=time_budget_ms,
+    )
+
+
 def heuristic_bootstrap_game(
     engine: RustEngine,
     max_plies: int = 160,
@@ -479,6 +515,7 @@ def heuristic_bootstrap_game(
     initial_state: Dict[str, Any] | None = None,
     cap_value: CapValueMode = "material",
     input_view: InputView = "base",
+    bootstrap_policy: BootstrapPolicy = "heuristic",
     heuristic_variety: float = 0.55,
     heuristic_time_budget_ms: int = 10,
     collect_metrics: bool = True,
@@ -511,9 +548,12 @@ def heuristic_bootstrap_game(
             if before_unstable:
                 stats.rescue_opportunities += 1
 
-        heuristic_state = engine.play_heuristic_turn(
+        source = f"{bootstrap_policy}_bootstrap"
+        heuristic_state = _teacher_turn(
+            engine,
             state,
-            player=current_player,
+            current_player,
+            bootstrap_policy,
             seed=(seed or 0) + ply,
             variety=heuristic_variety,
             time_budget_ms=heuristic_time_budget_ms,
@@ -525,6 +565,7 @@ def heuristic_bootstrap_game(
             input_view=input_view,
             history=encoded_history,
             history_plies=history_plies,
+            source=source,
         )
         samples.extend(tune_samples)
         _annotate_turn_samples(tune_samples, state, ply, scenario=scenario)
@@ -542,7 +583,7 @@ def heuristic_bootstrap_game(
                     history=encoded_history,
                     history_plies=history_plies,
                 )
-                sample.metadata["source"] = "heuristic_bootstrap"
+                sample.metadata["source"] = source
                 _annotate_turn_samples([sample], state, ply, scenario=scenario)
                 samples.append(sample)
 
@@ -596,6 +637,9 @@ def heuristic_bootstrap_records(
     seed: int = 0,
     cap_value: CapValueMode = "material",
     input_view: InputView = "base",
+    bootstrap_policy: BootstrapPolicy = "heuristic",
+    heuristic_variety: float = 0.55,
+    heuristic_time_budget_ms: int = 10,
     initial_states: List[Dict[str, Any]] | None = None,
     collect_metrics: bool = True,
     history_plies: int = 1,
@@ -610,6 +654,9 @@ def heuristic_bootstrap_records(
             initial_state=initial_states[game] if initial_states is not None else None,
             cap_value=cap_value,
             input_view=input_view,
+            bootstrap_policy=bootstrap_policy,
+            heuristic_variety=heuristic_variety,
+            heuristic_time_budget_ms=heuristic_time_budget_ms,
             collect_metrics=collect_metrics,
             history_plies=history_plies,
         )

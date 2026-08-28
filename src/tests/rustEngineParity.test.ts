@@ -117,7 +117,7 @@ describe("Rust engine parity", () => {
       { id: "red-spy", owner: "red", type: "spy", position: { x: 2, y: 3 }, unstable: false },
       { id: "blue-pawn", owner: "blue", type: "pawn", position: { x: 3, y: 2 }, unstable: false },
     ];
-    state.components.red.king = [0, 0, 0];
+    state.components.red.king = [0, 0];
     state.components.blue.pawn = [-1];
     const field = evaluateField(state);
     for (const player of ["red", "blue"] as Player[]) {
@@ -137,8 +137,8 @@ describe("Rust engine parity", () => {
       { id: "red-king", owner: "red", type: "king", position: { x: 6, y: 6 }, unstable: false },
       { id: "blue-spy", owner: "blue", type: "spy", position: { x: 0, y: 1 }, unstable: false },
     ];
-    state.components.red.king = [0, 0, 0];
-    state.components.blue.spy = [-1, 0, 0];
+    state.components.red.king = [0, 0];
+    state.components.blue.spy = [-1, 0];
 
     expect(rust("applyClosestPlayableHint", state)).toEqual(applyClosestPlayableHint(state));
     expect(rust("resignInCheck", state)).toEqual(resignInCheck(state));

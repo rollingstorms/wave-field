@@ -10,7 +10,7 @@ describe("component strength budget", () => {
 
     expect(state.components.blue.pawn).toEqual([1]);
     expect(state.components.blue.rook).toEqual([1, 1]);
-    expect(state.components.blue.spy).toEqual([1, 0, 0]);
+    expect(state.components.blue.spy).toEqual([1, 0]);
     expect(state.components.blue.king).toEqual([1, 1]);
     expect(state.components.red).toEqual(state.components.blue);
   });
@@ -20,24 +20,23 @@ describe("component strength budget", () => {
   });
 
   it("limits the combined number of positive and negative components", () => {
-    expect(isTuningWithinStrength("king", [0, 1, -1])).toBe(true);
-    expect(isTuningWithinStrength("king", [1, 1, -1])).toBe(false);
-    expect(isTuningWithinStrength("spy", [1, 0, 0])).toBe(true);
-    expect(isTuningWithinStrength("spy", [1, 1, 0])).toBe(false);
+    expect(isTuningWithinStrength("king", [1, -1])).toBe(true);
+    expect(isTuningWithinStrength("king", [1, 1])).toBe(true);
+    expect(isTuningWithinStrength("spy", [1, 0])).toBe(true);
+    expect(isTuningWithinStrength("spy", [1, 1])).toBe(false);
   });
 
   it("recognizes exact full-strength tuning", () => {
-    expect(isTuningAtStrength("king", [0, 1, -1])).toBe(true);
-    expect(isTuningAtStrength("king", [0, 1, 0])).toBe(false);
-    expect(isTuningAtStrength("spy", [1, 0, 0])).toBe(true);
+    expect(isTuningAtStrength("king", [1, -1])).toBe(true);
+    expect(isTuningAtStrength("king", [1, 0])).toBe(false);
+    expect(isTuningAtStrength("spy", [1, 0])).toBe(true);
   });
 
   it("allows flipping an active component while at full strength", () => {
     const components = createInitialState().components.blue;
-    components.king = [0, 1, -1];
+    components.king = [1, -1];
 
-    expect(canSetComponentValue(components, "king", 0, -1)).toBe(false);
-    expect(canSetComponentValue(components, "king", 2, 1)).toBe(true);
+    expect(canSetComponentValue(components, "king", 0, -1)).toBe(true);
     expect(canSetComponentValue(components, "king", 1, 0)).toBe(true);
   });
 

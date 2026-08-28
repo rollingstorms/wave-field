@@ -60,13 +60,6 @@ function createBalancedPressureConfig(): OptimizedGameConfig {
     ringValues: [1, 1, -1, 1],
     repeat: true,
   };
-  definitions.king[2] = {
-    ...definitions.king[2],
-    name: "Optim Big Hat block checker",
-    kind: "preset",
-    preset: "block-checker",
-  };
-
   return {
     name: "optim-test-balanced-pressure",
     components: structuredClone(DEFAULT_COMPONENTS),
@@ -88,8 +81,8 @@ function createEasyMobilityConfig(): OptimizedGameConfig {
     kind: "preset",
     preset: "diagonal-favor",
   };
-  definitions.king[2] = {
-    ...definitions.king[2],
+  definitions.king[1] = {
+    ...definitions.king[1],
     name: "Easy Big Hat astigmatism",
     kind: "preset",
     preset: "astigmatism",
@@ -136,8 +129,8 @@ function createLowRescueConfig(): OptimizedGameConfig {
     ringValues: [0, 1, -1, -1, 0],
     repeat: true,
   };
-  definitions.king[2] = {
-    ...definitions.king[2],
+  definitions.king[1] = {
+    ...definitions.king[1],
     name: "Low Rescue Big Hat diagonal favor",
     kind: "preset",
     preset: "diagonal-favor",
@@ -148,8 +141,8 @@ function createLowRescueConfig(): OptimizedGameConfig {
     components: {
       pawn: [1],
       rook: [1, 1],
-      spy: [0, 1, 0],
-      king: [-1, 1, 0],
+      spy: [0, 1],
+      king: [-1, 1],
     },
     definitions,
     waveScales: {

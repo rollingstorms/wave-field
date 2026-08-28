@@ -41,6 +41,9 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--device", default="auto")
     parser.add_argument("--max-plies", type=int, default=120)
     parser.add_argument("--pretrain-random-games", type=int, default=0)
+    parser.add_argument("--bootstrap-policy", choices=("heuristic", "hard", "easy"), default="heuristic")
+    parser.add_argument("--bootstrap-variety", type=float, default=None)
+    parser.add_argument("--bootstrap-time-budget-ms", type=int, default=None)
     parser.add_argument("--heuristic-bootstrap-games", type=int, default=0)
     parser.add_argument("--heuristic-bootstrap-per-iteration", type=int, default=0)
     parser.add_argument("--random-games-per-iteration", type=int, default=0)
@@ -73,7 +76,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--eval-pressure", action="store_true")
     parser.add_argument("--baseline-eval-games", type=int, default=0, help="Run side-swapped model-vs-baseline matches during eval.")
     parser.add_argument("--baseline-eval-max-plies", type=int, default=None, help="Override ply cap for baseline eval matches.")
-    parser.add_argument("--baseline-opponents", default="heuristic", help="Comma-separated policies: heuristic,easy,random.")
+    parser.add_argument("--baseline-opponents", default="heuristic", help="Comma-separated policies: heuristic,hard,easy,random.")
     parser.add_argument("--save-every", type=int, default=1)
     parser.add_argument("--cap-value", choices=("zero", "material"), default="material")
     parser.add_argument("--progress", action="store_true", help="Show compact ANSI progress lines during long runs.")
@@ -283,6 +286,18 @@ def parse_weights(raw: str) -> Dict[str, int]:
     return weights
 
 
+def bootstrap_variety(args: argparse.Namespace) -> float:
+    if args.bootstrap_variety is not None:
+        return args.bootstrap_variety
+    return 0.0 if args.bootstrap_policy == "hard" else 0.55
+
+
+def bootstrap_time_budget_ms(args: argparse.Namespace) -> int:
+    if args.bootstrap_time_budget_ms is not None:
+        return args.bootstrap_time_budget_ms
+    return 1_500 if args.bootstrap_policy == "hard" else 10
+
+
 def replay_weight_samples(
     samples: List[Sample],
     source_weights: Dict[str, int],
@@ -442,9 +457,9 @@ def run_session_eval(
 
 def parse_baseline_opponents(raw: str) -> List[str]:
     opponents = [item.strip() for item in raw.split(",") if item.strip()]
-    invalid = [opponent for opponent in opponents if opponent not in {"heuristic", "easy", "random"}]
+    invalid = [opponent for opponent in opponents if opponent not in {"heuristic", "hard", "easy", "random"}]
     if invalid:
-        raise ValueError(f"Invalid baseline opponent(s): {invalid}. Expected heuristic, easy, or random.")
+        raise ValueError(f"Invalid baseline opponent(s): {invalid}. Expected heuristic, hard, easy, or random.")
     return opponents
 
 
@@ -579,6 +594,8 @@ def main() -> None:
     source_weights = parse_weights(args.source_weights)
     phase_weights = parse_weights(args.phase_weights)
     scenarios = scenario_names(args.scenarios)
+    teacher_variety = bootstrap_variety(args)
+    teacher_time_budget_ms = bootstrap_time_budget_ms(args)
     baseline_opponents = parse_baseline_opponents(args.baseline_opponents)
     if args.input_view != "base" and (args.pretrain_random_games > 0 or args.random_games_per_iteration > 0):
         raise ValueError("Rust random training batches currently support only --input-view base")
@@ -637,6 +654,8 @@ def main() -> None:
                 "device": str(device),
                 "source_weights": source_weights,
                 "phase_weights": phase_weights,
+                "bootstrap_effective_variety": teacher_variety,
+                "bootstrap_effective_time_budget_ms": teacher_time_budget_ms,
                 "scenarios": scenarios,
                 "board_channels": board_channels_for_view(args.input_view),
                 "side_size": SIDE_SIZE,
@@ -709,6 +728,9 @@ def main() -> None:
             seed=args.seed + 25_000,
             cap_value=args.cap_value,
             input_view=args.input_view,
+            bootstrap_policy=args.bootstrap_policy,
+            heuristic_variety=teacher_variety,
+            heuristic_time_budget_ms=teacher_time_budget_ms,
             collect_metrics=False,
             history_plies=args.history_plies,
         )
@@ -760,6 +782,9 @@ def main() -> None:
                 seed=args.seed + 35_000 + iteration,
                 cap_value=args.cap_value,
                 input_view=args.input_view,
+                bootstrap_policy=args.bootstrap_policy,
+                heuristic_variety=teacher_variety,
+                heuristic_time_budget_ms=teacher_time_budget_ms,
                 collect_metrics=False,
                 history_plies=args.history_plies,
             )
@@ -868,6 +893,9 @@ def main() -> None:
                 seed=args.seed + 66_000 + iteration,
                 cap_value=args.cap_value,
                 input_view=args.input_view,
+                bootstrap_policy=args.bootstrap_policy,
+                heuristic_variety=teacher_variety,
+                heuristic_time_budget_ms=teacher_time_budget_ms,
                 initial_states=scenario_states,
                 collect_metrics=False,
                 history_plies=args.history_plies,

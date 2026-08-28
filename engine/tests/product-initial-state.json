@@ -133,7 +133,6 @@
       ],
       "spy": [
         1,
-        0,
         0
       ],
       "king": [
@@ -151,7 +150,6 @@
       ],
       "spy": [
         1,
-        0,
         0
       ],
       "king": [
@@ -204,7 +202,6 @@
     ],
     "spy": [
       1,
-      0,
       0
     ],
     "king": [
@@ -323,13 +320,6 @@
         "preset": "diamond-core",
         "decayBase": 2,
         "originScale": 1
-      },
-      {
-        "kind": "preset",
-        "name": "Axis favor",
-        "preset": "axis-favor",
-        "decayBase": 2,
-        "originScale": 1
       }
     ],
     "king": [
@@ -338,11 +328,11 @@
         "name": "Big Hat c1 rings",
         "geometry": "chebyshev",
         "ringValues": [
-          1,
-          1,
           -1,
           -1,
-          1
+          1,
+          1,
+          -1
         ],
         "repeat": true,
         "decayBase": 2,

@@ -53,12 +53,12 @@ function createMovementDemoState() {
     { id: "rules-red-rook", owner: "red", type: "rook", position: { x: 3, y: 4 }, unstable: false },
     { id: "rules-red-king", owner: "red", type: "king", position: { x: 6, y: 6 }, unstable: false },
   ];
-  state.components.blue.king = [0, 0, 0];
-  state.components.blue.spy = [1, 0, 0];
+  state.components.blue.king = [0, 0];
+  state.components.blue.spy = [1, 0];
   state.components.blue.pawn = [0];
   state.components.red.pawn = [0];
   state.components.red.rook = [0, 0];
-  state.components.red.king = [0, 1, 1];
+  state.components.red.king = [1, 1];
   return state;
 }
 

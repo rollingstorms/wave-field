@@ -9,17 +9,17 @@ import type { GameState } from "../game/types";
 function expandedState(pieceType: "spy" | "king"): GameState {
   const state = createInitialState();
   if (pieceType === "spy") {
-    state.components.blue.spy = [1, 0, 0];
-    state.components.red.spy = [1, 0, 0];
-    state.defaultComponents.spy = [1, 0, 0];
+    state.components.blue.spy = [1, 0];
+    state.components.red.spy = [1, 0];
+    state.defaultComponents.spy = [1, 0];
     state.activationOrders.blue.spy = [0];
     state.activationOrders.red.spy = [0];
   } else {
-    state.components.blue.king = [0, 1, 1];
-    state.components.red.king = [0, 1, 1];
-    state.defaultComponents.king = [0, 1, 1];
-    state.activationOrders.blue.king = [1, 2];
-    state.activationOrders.red.king = [1, 2];
+    state.components.blue.king = [1, 1];
+    state.components.red.king = [1, 1];
+    state.defaultComponents.king = [1, 1];
+    state.activationOrders.blue.king = [0, 1];
+    state.activationOrders.red.king = [0, 1];
   }
   return state;
 }
@@ -32,7 +32,7 @@ describe("reducer", () => {
 
     expect(tunedAgain.currentPlayer).toBe("blue");
     expect(tunedAgain.components.blue.pawn[0]).toBe(-1);
-    expect(tunedAgain.components.blue.spy).toEqual([-1, 0, 0]);
+    expect(tunedAgain.components.blue.spy).toEqual([-1, 0]);
     expect(tunedAgain.history).toHaveLength(2);
   });
 
@@ -50,7 +50,7 @@ describe("reducer", () => {
     const state = expandedState("spy");
     const first = gameReducer(state, { type: "tune", pieceType: "spy", componentIndex: 1, value: 1 });
 
-    expect(first.components.blue.spy).toEqual([0, 1, 0]);
+    expect(first.components.blue.spy).toEqual([0, 1]);
     expect(first.activationOrders.blue.spy).toEqual([1]);
   });
 
@@ -60,7 +60,7 @@ describe("reducer", () => {
     const kingFlipped = gameReducer(pawnFlipped, { type: "tune", pieceType: "king", componentIndex: 1, value: -1 });
 
     expect(pawnFlipped.components.blue.pawn).toEqual([-1]);
-    expect(kingFlipped.components.blue.king).toEqual([0, -1, 1]);
+    expect(kingFlipped.components.blue.king).toEqual([1, -1]);
     expect(kingFlipped.currentPlayer).toBe("blue");
   });
 
@@ -68,16 +68,16 @@ describe("reducer", () => {
     const state = expandedState("king");
     const tuned = gameReducer(state, { type: "tune", pieceType: "king", componentIndex: 1, value: -1 });
 
-    expect(tuned.components.blue.king).toEqual([0, -1, 1]);
+    expect(tuned.components.blue.king).toEqual([1, -1]);
     expect(tuned.message).toContain("move a piece to end the turn");
   });
 
-  it("evicts the oldest active king component at full strength", () => {
+  it("flips an active king component at full strength", () => {
     const state = expandedState("king");
     const tuned = gameReducer(state, { type: "tune", pieceType: "king", componentIndex: 0, value: -1 });
 
-    expect(tuned.components.blue.king).toEqual([-1, 0, 1]);
-    expect(tuned.activationOrders.blue.king).toEqual([2, 0]);
+    expect(tuned.components.blue.king).toEqual([-1, 1]);
+    expect(tuned.activationOrders.blue.king).toEqual([1, 0]);
   });
 
   it("rejects clearing an active component", () => {
@@ -94,8 +94,8 @@ describe("reducer", () => {
     const flipped = gameReducer(state, { type: "tune", pieceType: "king", componentIndex: 1, value: -1 });
     const activated = gameReducer(flipped, { type: "tune", pieceType: "king", componentIndex: 0, value: -1 });
 
-    expect(flipped.activationOrders.blue.king).toEqual([2, 1]);
-    expect(activated.components.blue.king).toEqual([-1, -1, 0]);
+    expect(flipped.activationOrders.blue.king).toEqual([0, 1]);
+    expect(activated.components.blue.king).toEqual([-1, -1]);
     expect(activated.activationOrders.blue.king).toEqual([1, 0]);
   });
 
@@ -130,12 +130,12 @@ describe("reducer", () => {
     const state = expandedState("king");
     const edited = gameReducer(state, { type: "update-default-component", pieceType: "king", componentIndex: 0, value: -1 });
 
-    expect(edited.components.blue.king).toEqual([0, 1, 1]);
-    expect(edited.defaultComponents.king).toEqual([-1, 0, 1]);
+    expect(edited.components.blue.king).toEqual([1, 1]);
+    expect(edited.defaultComponents.king).toEqual([-1, 1]);
 
     const restarted = gameReducer(edited, { type: "restart", keepDefinitions: true });
-    expect(restarted.components.blue.king).toEqual([-1, 0, 1]);
-    expect(restarted.components.red.king).toEqual([-1, 0, 1]);
+    expect(restarted.components.blue.king).toEqual([-1, 1]);
+    expect(restarted.components.red.king).toEqual([-1, 1]);
   });
 
   it("keeps edited defaults when undoing a game action", () => {
@@ -145,7 +145,7 @@ describe("reducer", () => {
     const undone = gameReducer(edited, { type: "undo" });
 
     expect(undone.components.blue.pawn).toEqual([1]);
-    expect(undone.defaultComponents.king).toEqual([-1, 0, 1]);
+    expect(undone.defaultComponents.king).toEqual([-1, 1]);
   });
 
   it("updates wave scales with undo history and preserves them on restart", () => {
@@ -184,7 +184,7 @@ describe("reducer", () => {
     const state = expandedState("spy");
     const first = gameReducer(state, { type: "update-default-component", pieceType: "spy", componentIndex: 1, value: -1 });
 
-    expect(first.defaultComponents.spy).toEqual([0, -1, 0]);
+    expect(first.defaultComponents.spy).toEqual([0, -1]);
     expect(first.message).toContain("updated");
   });
 

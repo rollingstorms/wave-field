@@ -5,14 +5,14 @@ import type { BasisDefinition, FormulaPreset } from "../game/types";
 export const DEFAULT_COMPONENTS: PlayerComponents = {
   pawn: [1],
   rook: [1, 1],
-  spy: [1, 0, 0],
+  spy: [1, 0],
   king: [1, 1],
 };
 
 export const TRAINING_COMPONENTS: PlayerComponents = {
   pawn: [1],
   rook: [1, 1],
-  spy: [1, 0, 0],
+  spy: [1, 0],
   king: [1, 1],
 };
 
@@ -35,12 +35,10 @@ export const DEBUG_DEFINITIONS: ComponentDefinitions = {
   spy: [
     { kind: "preset", name: "Round Hat mask", preset: "checkerboard", decayBase: 2, originScale: 1 },
     { kind: "preset", name: "Diamond core", preset: "diamond-core", decayBase: 2, originScale: 1 },
-    { kind: "preset", name: "Axis favor", preset: "axis-favor", decayBase: 2, originScale: 1 },
   ],
   king: [
     { kind: "ring", name: "Big Hat c1 rings", geometry: "chebyshev", ringValues: [-1, -1, 1, 1, -1], repeat: true, decayBase: 2, originScale: 1 },
     { kind: "preset", name: "Horizontal mode", preset: "horizontal-versus-vertical", decayBase: 2, originScale: 1 },
-    { kind: "preset", name: "Block checker", preset: "block-checker", decayBase: 2, originScale: 1 },
   ],
 };
 

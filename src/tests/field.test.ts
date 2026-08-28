@@ -117,8 +117,8 @@ describe("field engine", () => {
     expect(evaluatePieceContribution(piece, square, state)).toBeCloseTo(expected);
   });
 
-  it("spy +00 uses the spy friendly scale on the near remote scout basis", () => {
-    const spy = tuned("spy", [1, 0, 0]);
+  it("spy +0 uses the spy friendly scale on the near remote scout basis", () => {
+    const spy = tuned("spy", [1, 0]);
     expect(evaluatePieceContribution(spy.pieces[0], { x: 2, y: 2 }, spy)).toBeCloseTo(3);
   });
 
@@ -134,14 +134,14 @@ describe("field engine", () => {
   });
 
   it("home square contribution ignores tuned component values", () => {
-    const spy = tuned("spy", [0, 0, 0]);
+    const spy = tuned("spy", [0, 0]);
     const rook = tuned("rook", [-1, -1]);
     expect(evaluatePieceContribution(spy.pieces[0], spy.pieces[0].position, spy)).toBe(0.5);
     expect(evaluatePieceContribution(rook.pieces[0], rook.pieces[0].position, rook)).toBe(0);
   });
 
   it("own-square contribution is zero while adjacent contribution still works", () => {
-    const king = tuned("king", [0, 1, 1]);
+    const king = tuned("king", [1, 1]);
     king.pieces[0].type = "king";
     const pawn = tuned("pawn", [1]);
     const typeFields = evaluateTypeFields(king);
@@ -154,12 +154,12 @@ describe("field engine", () => {
   });
 
   it("component basis omits ring zero for every piece type", () => {
-    const blockChecker = DEFAULT_DEFINITIONS.king[2];
-    expect(evaluateBasis(blockChecker, { x: 0, y: 0 })).not.toBe(0);
+    const diamondCore = DEFAULT_DEFINITIONS.spy[1];
+    expect(evaluateBasis(diamondCore, { x: 0, y: 0 })).not.toBe(0);
     (["pawn", "rook", "spy", "king"] as PieceType[]).forEach((pieceType) => {
-      expect(evaluateComponentBasis(pieceType, blockChecker, { x: 0, y: 0 })).toBe(0);
+      expect(evaluateComponentBasis(pieceType, diamondCore, { x: 0, y: 0 })).toBe(0);
     });
-    expect(evaluateComponentBasis("rook", blockChecker, { x: 1, y: 0 })).not.toBe(0);
+    expect(evaluateComponentBasis("rook", diamondCore, { x: 1, y: 0 })).not.toBe(0);
   });
 
   it("diamond core is distinct from the checkerboard preset", () => {
