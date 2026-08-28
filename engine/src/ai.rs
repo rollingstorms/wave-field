@@ -1,7 +1,7 @@
 use crate::board::*;
 use crate::field::evaluate_field;
 use crate::model::*;
-use crate::rules::apply_move;
+use crate::rules::{apply_known_legal_move, apply_move};
 use std::cmp::Ordering;
 use std::collections::HashMap;
 use std::time::Duration;
@@ -244,22 +244,26 @@ fn material_points(state: &GameState, player: Player) -> f64 {
 
 fn hard_score_state(state: &GameState, player: Player) -> f64 {
     let field = evaluate_field(state);
+    hard_score_state_with_field(state, player, &field)
+}
+
+fn hard_score_state_with_field(state: &GameState, player: Player, field: &Field) -> f64 {
     if state.status != GameStatus::Playing {
-        return score_state(state, player, &field);
+        return score_state(state, player, field);
     }
 
     let enemy = player.opponent();
     let material_balance = material_points(state, player) - material_points(state, enemy);
-    let own_unstable = unstable_pieces(player, state, &field)
+    let own_unstable = unstable_pieces(player, state, field)
         .into_iter()
         .filter(|piece| piece.piece_type != PieceType::King)
         .count() as f64;
-    let enemy_unstable = unstable_pieces(enemy, state, &field)
+    let enemy_unstable = unstable_pieces(enemy, state, field)
         .into_iter()
         .filter(|piece| piece.piece_type != PieceType::King)
         .count() as f64;
 
-    score_state(state, player, &field) + material_balance * 85.0 - own_unstable * 260.0
+    score_state(state, player, field) + material_balance * 85.0 - own_unstable * 260.0
         + enemy_unstable * 120.0
 }
 
@@ -441,18 +445,23 @@ fn moved_piece(
 }
 
 fn last_move_by_piece(state: &GameState, player: Player) -> HashMap<String, (Position, Position)> {
-    let mut timeline = state.history.clone();
-    timeline.push(state.snapshot());
     let mut moves = HashMap::new();
-    if timeline.len() < 2 {
+    let timeline_len = state.history.len() + 1;
+    if timeline_len < 2 {
         return moves;
     }
-    for index in (0..timeline.len() - 1).rev() {
-        let before = &timeline[index];
+    let current = state.snapshot();
+    for index in (0..timeline_len - 1).rev() {
+        let before = &state.history[index];
         if before.current_player != player {
             continue;
         }
-        if let Some((piece_id, from, to)) = moved_piece(before, &timeline[index + 1]) {
+        let after = if index + 1 == state.history.len() {
+            &current
+        } else {
+            &state.history[index + 1]
+        };
+        if let Some((piece_id, from, to)) = moved_piece(before, after) {
             moves.entry(piece_id).or_insert((from, to));
         }
     }
@@ -554,6 +563,7 @@ fn hard_action_choices(
 
     for profile in tuning_candidates(state, player, profile_limit) {
         let mut tuned_base = state.clone();
+        tuned_base.history.clear();
         *tuned_base.components.get_mut(player) = profile;
         *tuned_base.activation_orders.get_mut(player) =
             activation_order_for_profile(tuned_base.components.get(player));
@@ -569,12 +579,20 @@ fn hard_action_choices(
             .collect::<Vec<_>>()
         {
             for destination in get_legal_moves(&piece.id, &tuned, &tuned_base_field) {
-                let result = apply_move(&piece.id, destination, tuned.clone(), false);
+                let result = apply_known_legal_move(
+                    &piece.id,
+                    destination,
+                    tuned.clone(),
+                    &tuned_base_field,
+                    false,
+                );
                 if !result.ok {
                     continue;
                 }
-                let field = evaluate_field(&result.state);
-                let tactical_bonus = if result.state.status == win_status(player) {
+                let mut preview = result.state;
+                preview.history.clear();
+                let field = evaluate_field(&preview);
+                let tactical_bonus = if preview.status == win_status(player) {
                     500_000.0
                 } else {
                     0.0
@@ -582,12 +600,14 @@ fn hard_action_choices(
                 let rescue_bonus = if current_unstable_count == 0 {
                     0.0
                 } else {
-                    let after = unstable_pieces(player, &result.state, &field).len();
+                    let after = unstable_pieces(player, &preview, &field).len();
                     current_unstable_count.saturating_sub(after) as f64 * 2_000.0
                 };
-                let score = hard_score_state(&result.state, player) + tactical_bonus + rescue_bonus
+                let score = hard_score_state_with_field(&preview, player, &field)
+                    + tactical_bonus
+                    + rescue_bonus
                     - loop_penalty(
-                        &result.state,
+                        &preview,
                         &piece,
                         destination,
                         repetition_counts,
@@ -597,7 +617,7 @@ fn hard_action_choices(
                     tuned: tuned.clone(),
                     piece_id: piece.id.clone(),
                     destination,
-                    preview: result.state,
+                    preview,
                     score,
                 });
             }
@@ -1279,10 +1299,12 @@ pub fn play_hard_turn(state: GameState, player: Player, options: AiTurnOptions) 
         }
     }
 
-    let result = apply_move(
+    let tuned_field = evaluate_field(&best_choice.tuned);
+    let result = apply_known_legal_move(
         &best_choice.piece_id,
         best_choice.destination,
         best_choice.tuned,
+        &tuned_field,
         true,
     );
     if result.ok {

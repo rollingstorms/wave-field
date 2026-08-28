@@ -376,23 +376,63 @@ pub fn apply_move(
     state: GameState,
     analyze_checkmate: bool,
 ) -> MoveResult {
+    let field = evaluate_field(&state);
+    apply_move_with_field(
+        piece_id,
+        destination,
+        state,
+        &field,
+        analyze_checkmate,
+        true,
+    )
+}
+
+pub(crate) fn apply_known_legal_move(
+    piece_id: &str,
+    destination: Position,
+    state: GameState,
+    field: &Field,
+    analyze_checkmate: bool,
+) -> MoveResult {
+    apply_move_with_field(
+        piece_id,
+        destination,
+        state,
+        field,
+        analyze_checkmate,
+        false,
+    )
+}
+
+fn apply_move_with_field(
+    piece_id: &str,
+    destination: Position,
+    state: GameState,
+    field: &Field,
+    analyze_checkmate: bool,
+    validate_destination: bool,
+) -> MoveResult {
     if state.status != GameStatus::Playing {
         return rejected(state, "The game is over.");
     }
-    let field = evaluate_field(&state);
     let Some(piece) = state.pieces.iter().find(|piece| piece.id == piece_id) else {
         return rejected(state, "Choose one of your pieces.");
     };
     if piece.owner != state.current_player {
         return rejected(state, "Choose one of your pieces.");
     }
-    if !get_legal_moves(piece_id, &state, &field).contains(&destination) {
+    if validate_destination && !get_legal_moves(piece_id, &state, field).contains(&destination) {
         return rejected(state, "That square is not a legal move.");
     }
 
     let previous = state;
     let candidate = move_piece(previous.clone(), piece_id, destination);
-    let mut resolved = resolve_own_turn_consequences(previous.current_player, &previous, candidate);
+    let mut resolved = resolve_own_turn_consequences_with_field(
+        previous.current_player,
+        &previous,
+        field,
+        candidate,
+    );
     let resolved_field = evaluate_field(&resolved);
     if is_king_unprotected(previous.current_player, &resolved, &resolved_field) {
         return rejected(previous, "That move would leave your Big Hat unprotected.");
