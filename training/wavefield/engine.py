@@ -243,6 +243,14 @@ class RustEngine:
             timeBudgetMs=time_budget_ms,
         )
 
+    def play_teacher_turns(
+        self,
+        policy: str,
+        turns: List[Dict[str, Any]],
+        profile: bool = False,
+    ) -> Dict[str, Any]:
+        return self.request("playTeacherTurns", policy=policy, turns=turns, profile=profile)
+
     def simulate_random_lean_games(
         self,
         state: Dict[str, Any],

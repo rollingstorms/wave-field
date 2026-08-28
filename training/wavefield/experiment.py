@@ -720,6 +720,7 @@ def main() -> None:
 
     if args.heuristic_bootstrap_games > 0:
         started_at = time.perf_counter()
+        bootstrap_profile: Dict[str, float] = {}
         progress.phase(0, "heuristic_bootstrap", f"{args.heuristic_bootstrap_games} games")
         records = heuristic_bootstrap_records(
             engine,
@@ -733,6 +734,7 @@ def main() -> None:
             heuristic_time_budget_ms=teacher_time_budget_ms,
             collect_metrics=False,
             history_plies=args.history_plies,
+            profile=bootstrap_profile,
         )
         samples = [sample for record in records for sample in record.samples]
         logger.write(
@@ -742,6 +744,7 @@ def main() -> None:
                 "iteration": 0,
                 "seconds": round(time.perf_counter() - started_at, 3),
                 "summary": generation_summary(records, samples),
+                "profile": {key: round(value, 6) for key, value in sorted(bootstrap_profile.items())},
             }
         )
         weighted_samples = replay_weight_samples(samples, source_weights, phase_weights)
@@ -774,6 +777,7 @@ def main() -> None:
         iteration_samples: List[Sample] = []
         if args.heuristic_bootstrap_per_iteration > 0:
             started_at = time.perf_counter()
+            bootstrap_profile = {}
             progress.phase(iteration, "heuristic_bootstrap_iteration", f"{args.heuristic_bootstrap_per_iteration} games")
             records = heuristic_bootstrap_records(
                 engine,
@@ -787,6 +791,7 @@ def main() -> None:
                 heuristic_time_budget_ms=teacher_time_budget_ms,
                 collect_metrics=False,
                 history_plies=args.history_plies,
+                profile=bootstrap_profile,
             )
             bootstrap_samples = [sample for record in records for sample in record.samples]
             iteration_samples.extend(bootstrap_samples)
@@ -797,6 +802,7 @@ def main() -> None:
                     "iteration": iteration,
                     "seconds": round(time.perf_counter() - started_at, 3),
                     "summary": generation_summary(records, bootstrap_samples),
+                    "profile": {key: round(value, 6) for key, value in sorted(bootstrap_profile.items())},
                 }
             )
 
@@ -885,6 +891,7 @@ def main() -> None:
                 seed=args.seed + 65_000 + iteration,
             )
             started_at = time.perf_counter()
+            scenario_bootstrap_profile: Dict[str, float] = {}
             progress.phase(iteration, "scenario_heuristic_bootstrap", f"{args.scenario_bootstrap_per_iteration} games")
             records = heuristic_bootstrap_records(
                 engine,
@@ -899,6 +906,7 @@ def main() -> None:
                 initial_states=scenario_states,
                 collect_metrics=False,
                 history_plies=args.history_plies,
+                profile=scenario_bootstrap_profile,
             )
             bootstrap_samples = [sample for record in records for sample in record.samples]
             iteration_samples.extend(bootstrap_samples)
@@ -909,6 +917,7 @@ def main() -> None:
                     "iteration": iteration,
                     "seconds": round(time.perf_counter() - started_at, 3),
                     "summary": generation_summary(records, bootstrap_samples),
+                    "profile": {key: round(value, 6) for key, value in sorted(scenario_bootstrap_profile.items())},
                 }
             )
 

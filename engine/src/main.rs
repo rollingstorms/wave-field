@@ -1,5 +1,6 @@
 use std::io::{self, BufRead};
 
+use serde::{Deserialize, Serialize};
 use serde_json::json;
 use wave_field_engine::{
     AiTurnOptions, GameState, PieceType, Player, Position, RolloutAction, RolloutSessionStore,
@@ -18,6 +19,11 @@ fn main() {
         let request: serde_json::Value = serde_json::from_str(&line).expect("valid request JSON");
         let method = request["method"].as_str().expect("method");
         if let Some(result) = handle_rollout_request(method, &request, &mut rollout_sessions) {
+            println!("{}", serde_json::to_string(&result).unwrap());
+            continue;
+        }
+        if method == "playTeacherTurns" {
+            let result = handle_teacher_turns(&request);
             println!("{}", serde_json::to_string(&result).unwrap());
             continue;
         }
@@ -206,6 +212,79 @@ fn main() {
             method => panic!("unknown method: {method}"),
         };
         println!("{}", serde_json::to_string(&result).unwrap());
+    }
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct TeacherTurnInput {
+    state: GameState,
+    player: Player,
+    seed: Option<u32>,
+    variety: Option<f64>,
+    time_budget_ms: Option<u64>,
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+struct TeacherTurnOutput {
+    state: GameState,
+}
+
+#[derive(Default, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct TeacherTurnsProfile {
+    turns: u64,
+    total_ms: f64,
+    search_ms: f64,
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+struct TeacherTurnsResult {
+    turns: Vec<TeacherTurnOutput>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    profile: Option<TeacherTurnsProfile>,
+}
+
+fn play_teacher_turn(policy: &str, turn: TeacherTurnInput) -> GameState {
+    let options = AiTurnOptions {
+        seed: turn.seed,
+        variety: turn.variety,
+        time_budget_ms: turn.time_budget_ms,
+    };
+    match policy {
+        "hard" => play_hard_turn(turn.state, turn.player, options),
+        "easy" => play_easy_turn(turn.state, turn.player, options),
+        _ => play_heuristic_turn(turn.state, turn.player, options),
+    }
+}
+
+fn handle_teacher_turns(request: &serde_json::Value) -> TeacherTurnsResult {
+    let policy = request["policy"].as_str().unwrap_or("heuristic");
+    let profile_enabled = request["profile"].as_bool().unwrap_or(false);
+    let turns: Vec<TeacherTurnInput> =
+        serde_json::from_value(request["turns"].clone()).expect("valid teacher turns");
+    let total_started_at = std::time::Instant::now();
+    let mut profile = profile_enabled.then(TeacherTurnsProfile::default);
+    let outputs = turns
+        .into_iter()
+        .map(|turn| {
+            let search_started_at = std::time::Instant::now();
+            let state = play_teacher_turn(policy, turn);
+            if let Some(profile) = &mut profile {
+                profile.turns += 1;
+                profile.search_ms += search_started_at.elapsed().as_secs_f64() * 1000.0;
+            }
+            TeacherTurnOutput { state }
+        })
+        .collect::<Vec<_>>();
+    if let Some(profile) = &mut profile {
+        profile.total_ms = total_started_at.elapsed().as_secs_f64() * 1000.0;
+    }
+    TeacherTurnsResult {
+        turns: outputs,
+        profile,
     }
 }
 

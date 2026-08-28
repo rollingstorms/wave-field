@@ -643,25 +643,176 @@ def heuristic_bootstrap_records(
     initial_states: List[Dict[str, Any]] | None = None,
     collect_metrics: bool = True,
     history_plies: int = 1,
+    profile: Profile | None = None,
 ) -> List[GameRecord]:
+    if games <= 0:
+        return []
     if initial_states is not None and len(initial_states) != games:
         raise ValueError("initial_states length must match games")
-    return [
-        heuristic_bootstrap_game(
-            engine,
-            max_plies=max_plies,
-            seed=seed + game,
-            initial_state=initial_states[game] if initial_states is not None else None,
-            cap_value=cap_value,
-            input_view=input_view,
-            bootstrap_policy=bootstrap_policy,
-            heuristic_variety=heuristic_variety,
-            heuristic_time_budget_ms=heuristic_time_budget_ms,
-            collect_metrics=collect_metrics,
-            history_plies=history_plies,
-        )
-        for game in range(games)
+
+    started_at = time.perf_counter()
+    _profile_increment(profile, "games", games)
+    states = initial_states or [load_initial_state() for _ in range(games)]
+    sample_lists: List[List[Sample]] = [[] for _ in range(games)]
+    stats = [GameStats() for _ in range(games)]
+    histories: List[List[Tuple[np.ndarray, np.ndarray]]] = [[] for _ in range(games)]
+    scenarios = [
+        str(state.get("metadata", {}).get("scenario", "initial"))
+        for state in states
     ]
+
+    for ply in range(max_plies):
+        active_indices = [
+            game_index
+            for game_index, state in enumerate(states)
+            if state["status"] == "playing"
+        ]
+        if not active_indices:
+            break
+
+        turn_context: Dict[int, Tuple[str, Dict[str, Dict[str, Any]], set[str], Dict[str, int], np.ndarray, np.ndarray]] = {}
+        for game_index in active_indices:
+            state = states[game_index]
+            current_player = state["currentPlayer"]
+            history_actions = engine.legal_actions(state)
+            history_board, history_side, _history_mask = encode_state(
+                state,
+                engine,
+                history_actions,
+                input_view=input_view,
+            )
+            before_pieces = _piece_map(state)
+            before_unstable = _unstable_ids_for_player(state, current_player)
+            before_counts = _piece_counts(state)
+            if collect_metrics:
+                for player in ("red", "blue"):
+                    stats[game_index].pressure_sum[player] += len(engine.player_actions(state, player))
+                stats[game_index].pressure_samples += 1
+                if before_unstable:
+                    stats[game_index].rescue_opportunities += 1
+            turn_context[game_index] = (
+                current_player,
+                before_pieces,
+                before_unstable,
+                before_counts,
+                history_board,
+                history_side,
+            )
+
+        request_started_at = time.perf_counter()
+        batch = engine.play_teacher_turns(
+            bootstrap_policy,
+            [
+                {
+                    "state": states[game_index],
+                    "player": turn_context[game_index][0],
+                    "seed": seed + game_index + ply,
+                    "variety": heuristic_variety,
+                    "timeBudgetMs": heuristic_time_budget_ms,
+                }
+                for game_index in active_indices
+            ],
+            profile=profile is not None,
+        )
+        _profile_add(profile, "teacher_batch_request_seconds", time.perf_counter() - request_started_at)
+        _profile_increment(profile, "teacher_batches")
+        _profile_increment(profile, "teacher_turns", len(active_indices))
+        rust_profile = batch.get("profile")
+        if profile is not None and rust_profile:
+            _profile_add(profile, "rust_teacher_search_seconds", rust_profile.get("searchMs", 0.0) / 1000.0)
+            _profile_add(profile, "rust_teacher_total_seconds", rust_profile.get("totalMs", 0.0) / 1000.0)
+
+        source = f"{bootstrap_policy}_bootstrap"
+        for game_index, output in zip(active_indices, batch["turns"]):
+            state = states[game_index]
+            heuristic_state = output["state"]
+            current_player, before_pieces, before_unstable, before_counts, history_board, history_side = turn_context[game_index]
+            tuned_state, tune_samples = _heuristic_tuning_samples(
+                state,
+                heuristic_state,
+                engine,
+                input_view=input_view,
+                history=histories[game_index],
+                history_plies=history_plies,
+                source=source,
+            )
+            sample_lists[game_index].extend(tune_samples)
+            _annotate_turn_samples(tune_samples, state, ply, scenario=scenarios[game_index])
+            move_action = _heuristic_move_action(tuned_state, heuristic_state, current_player)
+            if move_action is not None:
+                move_actions = engine.legal_actions(tuned_state)
+                legal_indexes = {action_index(action) for action in move_actions}
+                if action_index(move_action) in legal_indexes:
+                    sample = _sample_from_model_move_action(
+                        tuned_state,
+                        engine,
+                        move_actions,
+                        move_action,
+                        input_view=input_view,
+                        history=histories[game_index],
+                        history_plies=history_plies,
+                    )
+                    sample.metadata["source"] = source
+                    _annotate_turn_samples([sample], state, ply, scenario=scenarios[game_index])
+                    sample_lists[game_index].append(sample)
+
+            _update_tuning_stats(
+                stats[game_index],
+                current_player,
+                len(tune_samples),
+                _component_change_count(state, heuristic_state, current_player),
+            )
+
+            after_pieces = _piece_map(heuristic_state)
+            lost_ids = [piece_id for piece_id in before_pieces if piece_id not in after_pieces]
+            for piece_id in lost_ids:
+                lost_piece = before_pieces[piece_id]
+                owner = lost_piece["owner"]
+                piece_type = lost_piece["type"]
+                stats[game_index].losses_by_player[owner] += 1
+                stats[game_index].losses_by_piece_type[piece_type] = (
+                    stats[game_index].losses_by_piece_type.get(piece_type, 0) + 1
+                )
+                if stats[game_index].first_loss_player is None:
+                    stats[game_index].first_loss_player = owner
+                    stats[game_index].first_loss_piece_type = piece_type
+
+            if collect_metrics and before_unstable:
+                after_unstable = _unstable_ids_for_player(heuristic_state, current_player)
+                if before_unstable.isdisjoint(set(lost_ids)) and before_unstable.isdisjoint(after_unstable):
+                    stats[game_index].rescues += 1
+
+            winner = _winner(heuristic_state["status"])
+            if winner is not None:
+                loser = "blue" if winner == "red" else "red"
+                stats[game_index].min_winner_pieces = min(
+                    before_counts[winner],
+                    _piece_counts(heuristic_state)[winner],
+                )
+                stats[game_index].max_loser_pieces = max(
+                    before_counts[loser],
+                    _piece_counts(heuristic_state)[loser],
+                )
+
+            stats[game_index].plies = ply + 1
+            histories[game_index].append((history_board, history_side))
+            if len(histories[game_index]) >= history_plies:
+                histories[game_index] = (
+                    histories[game_index][-(history_plies - 1):]
+                    if history_plies > 1
+                    else []
+                )
+            states[game_index] = heuristic_state
+
+    records: List[GameRecord] = []
+    for game_index, state in enumerate(states):
+        stats[game_index].status = state["status"]
+        stats[game_index].winner = _winner(state["status"])
+        stats[game_index].final_piece_counts = _piece_counts(state)
+        _assign_values(sample_lists[game_index], state, cap_value)
+        records.append(GameRecord(samples=sample_lists[game_index], stats=stats[game_index], final_state=state))
+    _profile_add(profile, "total_seconds", time.perf_counter() - started_at)
+    return records
 
 
 def _select_index(masked: torch.Tensor, temperature: float) -> int:
@@ -1218,53 +1369,71 @@ def batched_model_selfplay_records(
 
 
 def _sample_from_rollout_position(position: Dict[str, Any], input_view: InputView = "base") -> Sample:
-    legal_mask = np.zeros((ACTION_SIZE,), dtype=np.float32)
-    legal_mask[np.asarray(position["legalActionIndexes"], dtype=np.int64)] = 1.0
-    board = np.zeros((board_channels_for_view(input_view), BOARD_SIZE, BOARD_SIZE), dtype=np.float32)
-    owner_counts = _owner_counts_from_slots(position["pieces"])
-    piece_type_counts = _piece_type_counts_from_slots(position["pieces"])
-    for piece in position["pieces"]:
-        piece_id = PIECE_IDS[int(piece["slot"])]
-        owner, piece_type, *_rest = piece_id.split("-")
-        x = int(piece["x"])
-        y = int(piece["y"])
-        board[PLAYERS.index(owner) * len(PIECE_TYPES) + PIECE_TYPES.index(piece_type), y, x] = 1.0
-        if input_view == "piece_identity":
-            board[BOARD_CHANNELS + int(piece["slot"]), y, x] = 1.0
-        if bool(piece["unstable"]):
-            unstable_channel = RED_UNSTABLE_CHANNEL if owner == "red" else BLUE_UNSTABLE_CHANNEL
-            board[unstable_channel, y, x] = 1.0
-
-    field = np.asarray(position["field"], dtype=np.float32).reshape(BOARD_SIZE, BOARD_SIZE)
-    board[FIELD_SIGNED_CHANNEL] = np.clip(field / 8.0, -1.0, 1.0)
-    board[FIELD_MAGNITUDE_CHANNEL] = np.clip(np.abs(field) / 8.0, 0.0, 1.0)
-    player = position["player"]
-    opponent = "blue" if player == "red" else "red"
-    total_pieces = owner_counts["red"] + owner_counts["blue"]
-    board[CURRENT_PLAYER_CHANNEL].fill(1.0 if player == "red" else -1.0)
-
+    boards, sides, legal_masks, metadata = _arrays_from_rollout_positions([position], input_view=input_view)
     return Sample(
-        board=board,
-        side=np.asarray(position["side"], dtype=np.float32),
-        legal_mask=legal_mask,
+        board=boards[0],
+        side=sides[0],
+        legal_mask=legal_masks[0],
         action_index=-1,
-        player=player,
-        metadata={
-            "source": "rust_session_model",
-            "game_index": int(position["gameIndex"]),
-            "ply": int(position["ply"]),
-            "phase": _phase_for_ply(int(position["ply"])),
-            "legal_count": len(position["legalActionIndexes"]),
-            "red_pieces": owner_counts["red"],
-            "blue_pieces": owner_counts["blue"],
-            "current_player_pieces": owner_counts[player],
-            "opponent_pieces": owner_counts[opponent],
-            "material_balance_current": owner_counts[player] - owner_counts[opponent],
-            "total_pieces": total_pieces,
-            "low_material": total_pieces <= 8,
-            "piece_type_counts": piece_type_counts,
-        },
+        player=str(position["player"]),
+        metadata=metadata[0],
     )
+
+
+def _arrays_from_rollout_positions(
+    positions: Sequence[Dict[str, Any]],
+    input_view: InputView = "base",
+) -> Tuple[np.ndarray, np.ndarray, np.ndarray, List[Dict[str, Any]]]:
+    boards = np.zeros(
+        (len(positions), board_channels_for_view(input_view), BOARD_SIZE, BOARD_SIZE),
+        dtype=np.float32,
+    )
+    sides = np.zeros((len(positions), len(positions[0]["side"]) if positions else 0), dtype=np.float32)
+    legal_masks = np.zeros((len(positions), ACTION_SIZE), dtype=np.float32)
+    metadata: List[Dict[str, Any]] = []
+    for row, position in enumerate(positions):
+        legal_masks[row, np.asarray(position["legalActionIndexes"], dtype=np.int64)] = 1.0
+        sides[row] = np.asarray(position["side"], dtype=np.float32)
+        board = boards[row]
+        owner_counts = _owner_counts_from_slots(position["pieces"])
+        piece_type_counts = _piece_type_counts_from_slots(position["pieces"])
+        for piece in position["pieces"]:
+            piece_id = PIECE_IDS[int(piece["slot"])]
+            owner, piece_type, *_rest = piece_id.split("-")
+            x = int(piece["x"])
+            y = int(piece["y"])
+            board[PLAYERS.index(owner) * len(PIECE_TYPES) + PIECE_TYPES.index(piece_type), y, x] = 1.0
+            if input_view == "piece_identity":
+                board[BOARD_CHANNELS + int(piece["slot"]), y, x] = 1.0
+            if bool(piece["unstable"]):
+                unstable_channel = RED_UNSTABLE_CHANNEL if owner == "red" else BLUE_UNSTABLE_CHANNEL
+                board[unstable_channel, y, x] = 1.0
+
+        field = np.asarray(position["field"], dtype=np.float32).reshape(BOARD_SIZE, BOARD_SIZE)
+        board[FIELD_SIGNED_CHANNEL] = np.clip(field / 8.0, -1.0, 1.0)
+        board[FIELD_MAGNITUDE_CHANNEL] = np.clip(np.abs(field) / 8.0, 0.0, 1.0)
+        player = position["player"]
+        opponent = "blue" if player == "red" else "red"
+        total_pieces = owner_counts["red"] + owner_counts["blue"]
+        board[CURRENT_PLAYER_CHANNEL].fill(1.0 if player == "red" else -1.0)
+        metadata.append(
+            {
+                "source": "rust_session_model",
+                "game_index": int(position["gameIndex"]),
+                "ply": int(position["ply"]),
+                "phase": _phase_for_ply(int(position["ply"])),
+                "legal_count": len(position["legalActionIndexes"]),
+                "red_pieces": owner_counts["red"],
+                "blue_pieces": owner_counts["blue"],
+                "current_player_pieces": owner_counts[player],
+                "opponent_pieces": owner_counts[opponent],
+                "material_balance_current": owner_counts[player] - owner_counts[opponent],
+                "total_pieces": total_pieces,
+                "low_material": total_pieces <= 8,
+                "piece_type_counts": piece_type_counts,
+            }
+        )
+    return boards, sides, legal_masks, metadata
 
 
 def _phase_for_ply(ply: int) -> str:
@@ -1344,19 +1513,19 @@ def session_model_selfplay_records(
             for start in range(0, len(positions), batch_size):
                 chunk = positions[start:start + batch_size]
                 tensor_started_at = time.perf_counter()
-                samples = [_sample_from_rollout_position(position, input_view=input_view) for position in chunk]
+                boards_np, sides_np, masks_np, metadata = _arrays_from_rollout_positions(chunk, input_view=input_view)
                 boards = torch.tensor(
-                    np.stack([sample.board for sample in samples]),
+                    boards_np,
                     dtype=torch.float32,
                     device=device,
                 )
                 sides = torch.tensor(
-                    np.stack([sample.side for sample in samples]),
+                    sides_np,
                     dtype=torch.float32,
                     device=device,
                 )
                 masks = torch.tensor(
-                    np.stack([sample.legal_mask for sample in samples]),
+                    masks_np,
                     dtype=torch.float32,
                     device=device,
                 )
@@ -1376,14 +1545,22 @@ def session_model_selfplay_records(
                 _profile_increment(profile, "positions", len(chunk))
 
                 selection_started_at = time.perf_counter()
-                for position, sample, selected_index in zip(chunk, samples, selected_indexes):
+                for row, (position, selected_index) in enumerate(zip(chunk, selected_indexes)):
                     legal_indexes = {int(index) for index in position["legalActionIndexes"]}
                     if int(selected_index) not in legal_indexes:
                         selected_index = int(position["legalActionIndexes"][0])
-                    sample.action_index = int(selected_index)
                     game_index = int(position["gameIndex"])
-                    sample.metadata["scenario"] = scenario_by_game[game_index]
                     if record_samples:
+                        sample_metadata = dict(metadata[row])
+                        sample_metadata["scenario"] = scenario_by_game[game_index]
+                        sample = Sample(
+                            board=boards_np[row],
+                            side=sides_np[row],
+                            legal_mask=masks_np[row],
+                            action_index=int(selected_index),
+                            player=str(position["player"]),
+                            metadata=sample_metadata,
+                        )
                         sample_lists[game_index].append(sample)
                         _profile_increment(profile, "samples")
                     pending_actions.append(

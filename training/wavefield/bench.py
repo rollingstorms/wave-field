@@ -8,7 +8,12 @@ import torch
 
 from .engine import RustEngine, load_initial_state
 from .model import PolicyValueNet
-from .selfplay import batched_model_selfplay_records, selfplay_records, session_model_selfplay_records
+from .selfplay import (
+    batched_model_selfplay_records,
+    heuristic_bootstrap_records,
+    selfplay_records,
+    session_model_selfplay_records,
+)
 
 
 def parse_args() -> argparse.Namespace:
@@ -18,6 +23,9 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--seed", type=int, default=90210)
     parser.add_argument("--build-engine", action="store_true")
     parser.add_argument("--include-model", action="store_true")
+    parser.add_argument("--include-teacher", action="store_true")
+    parser.add_argument("--teacher-policy", choices=("heuristic", "hard", "easy"), default="hard")
+    parser.add_argument("--teacher-time-budget-ms", type=int, default=50)
     parser.add_argument("--profile-model", action="store_true")
     parser.add_argument("--hidden-size", type=int, default=32)
     parser.add_argument("--rollout-batch-size", type=int, default=32)
@@ -57,6 +65,25 @@ def main() -> None:
     )
 
     items = [rust, rust_training, rust_training_profile, python]
+
+    if args.include_teacher:
+        teacher_profile: Dict[str, float] = {}
+        teacher = timed(
+            f"batched_{args.teacher_policy}_teacher_bootstrap",
+            lambda: heuristic_bootstrap_records(
+                engine,
+                games=args.games,
+                max_plies=args.max_plies,
+                seed=args.seed,
+                bootstrap_policy=args.teacher_policy,
+                heuristic_variety=0.0 if args.teacher_policy == "hard" else 0.55,
+                heuristic_time_budget_ms=args.teacher_time_budget_ms,
+                collect_metrics=False,
+                profile=teacher_profile,
+            ),
+        )
+        teacher["profile"] = teacher_profile
+        items.append(teacher)
 
     if args.include_model:
         torch.manual_seed(args.seed)
