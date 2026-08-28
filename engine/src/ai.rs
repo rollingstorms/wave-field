@@ -1,7 +1,7 @@
 use crate::board::*;
 use crate::field::evaluate_field;
 use crate::model::*;
-use crate::rules::{apply_known_legal_move, apply_move};
+use crate::rules::{apply_known_legal_move, apply_move, apply_search_move};
 use serde::Serialize;
 use std::cmp::Ordering;
 use std::collections::HashMap;
@@ -607,13 +607,8 @@ fn hard_action_choices(
         {
             for destination in get_legal_moves(&piece.id, &tuned, &tuned_base_field) {
                 context.profile.generated_candidates += 1;
-                let result = apply_known_legal_move(
-                    &piece.id,
-                    destination,
-                    tuned.clone(),
-                    &tuned_base_field,
-                    false,
-                );
+                let result =
+                    apply_search_move(&piece.id, destination, tuned.clone(), &tuned_base_field);
                 if !result.ok {
                     context.profile.rejected_candidates += 1;
                     continue;

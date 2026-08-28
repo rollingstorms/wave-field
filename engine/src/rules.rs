@@ -290,6 +290,14 @@ fn win_status(player: Player) -> GameStatus {
 }
 
 pub fn begin_turn(state: GameState, analyze_checkmate: bool) -> GameState {
+    begin_turn_with_options(state, analyze_checkmate, false)
+}
+
+fn begin_turn_quiet(state: GameState) -> GameState {
+    begin_turn_with_options(state, false, true)
+}
+
+fn begin_turn_with_options(state: GameState, analyze_checkmate: bool, quiet: bool) -> GameState {
     if state.status != GameStatus::Playing {
         return state;
     }
@@ -298,7 +306,10 @@ pub fn begin_turn(state: GameState, analyze_checkmate: bool) -> GameState {
     let resolved_field = evaluate_field(&resolved);
     if is_king_unprotected(resolved.current_player, &resolved, &resolved_field) {
         if !analyze_checkmate {
-            resolved.message = format!("{} Big Hat is in check", resolved.current_player.name());
+            if !quiet {
+                resolved.message =
+                    format!("{} Big Hat is in check", resolved.current_player.name());
+            }
             return resolved;
         }
         if let Some(rescue) =
@@ -346,18 +357,22 @@ pub fn begin_turn(state: GameState, analyze_checkmate: bool) -> GameState {
         if playable.is_none() {
             resolved.status = win_status(resolved.current_player.opponent());
             resolved.selected_piece_id = None;
-            resolved.message = format!("{} has no legal move", resolved.current_player.name());
+            if !quiet {
+                resolved.message = format!("{} has no legal move", resolved.current_player.name());
+            }
             return resolved;
         }
     }
-    resolved.message = match unstable {
-        Some(piece) => format!(
-            "{} must rescue an unstable {}",
-            resolved.current_player.name(),
-            piece_type_name(piece.piece_type)
-        ),
-        None => format!("{} to move", resolved.current_player.name()),
-    };
+    if !quiet {
+        resolved.message = match unstable {
+            Some(piece) => format!(
+                "{} must rescue an unstable {}",
+                resolved.current_player.name(),
+                piece_type_name(piece.piece_type)
+            ),
+            None => format!("{} to move", resolved.current_player.name()),
+        };
+    }
     resolved
 }
 
@@ -384,6 +399,7 @@ pub fn apply_move(
         &field,
         analyze_checkmate,
         true,
+        false,
     )
 }
 
@@ -401,7 +417,17 @@ pub(crate) fn apply_known_legal_move(
         field,
         analyze_checkmate,
         false,
+        false,
     )
+}
+
+pub(crate) fn apply_search_move(
+    piece_id: &str,
+    destination: Position,
+    state: GameState,
+    field: &Field,
+) -> MoveResult {
+    apply_move_with_field(piece_id, destination, state, field, false, false, true)
 }
 
 fn apply_move_with_field(
@@ -411,6 +437,7 @@ fn apply_move_with_field(
     field: &Field,
     analyze_checkmate: bool,
     validate_destination: bool,
+    quiet: bool,
 ) -> MoveResult {
     if state.status != GameStatus::Playing {
         return rejected(state, "The game is over.");
@@ -437,28 +464,38 @@ fn apply_move_with_field(
     if is_king_unprotected(previous.current_player, &resolved, &resolved_field) {
         return rejected(previous, "That move would leave your Big Hat unprotected.");
     }
-    let remaining = resolved
-        .pieces
-        .iter()
-        .map(|piece| piece.id.as_str())
-        .collect::<HashSet<_>>();
-    let losses = previous
-        .pieces
-        .iter()
-        .filter(|piece| {
-            piece.owner == previous.current_player
-                && piece.piece_type != PieceType::King
-                && !remaining.contains(piece.id.as_str())
-        })
-        .map(|piece| piece_type_name(piece.piece_type))
-        .collect::<Vec<_>>();
+    let losses = if quiet {
+        Vec::new()
+    } else {
+        let remaining = resolved
+            .pieces
+            .iter()
+            .map(|piece| piece.id.as_str())
+            .collect::<HashSet<_>>();
+        previous
+            .pieces
+            .iter()
+            .filter(|piece| {
+                piece.owner == previous.current_player
+                    && piece.piece_type != PieceType::King
+                    && !remaining.contains(piece.id.as_str())
+            })
+            .map(|piece| piece_type_name(piece.piece_type))
+            .collect::<Vec<_>>()
+    };
     resolved.current_player = previous.current_player.opponent();
     if previous.current_player == Player::Red {
         resolved.turn_number += 1;
     }
     resolved.selected_piece_id = None;
-    resolved.history.push(previous.snapshot());
-    let mut next = begin_turn(resolved, analyze_checkmate);
+    if !quiet {
+        resolved.history.push(previous.snapshot());
+    }
+    let mut next = if quiet {
+        begin_turn_quiet(resolved)
+    } else {
+        begin_turn(resolved, analyze_checkmate)
+    };
     if !losses.is_empty() && next.status == GameStatus::Playing {
         next.message = format!(
             "{} lost {} · {}",

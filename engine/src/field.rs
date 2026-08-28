@@ -231,10 +231,22 @@ pub fn evaluate_basis(definition: &BasisDefinition, delta: Position) -> f64 {
             )
         }
     };
-    let multiplier = if ring == 0 {
-        decay_base.powi(-ring) * origin_scale
-    } else {
-        decay_base.powi(-ring)
+    let inverse_decay = 1.0 / decay_base;
+    let multiplier = match ring {
+        0 => origin_scale,
+        1 => inverse_decay,
+        2 => inverse_decay * inverse_decay,
+        3 => inverse_decay * inverse_decay * inverse_decay,
+        4 => inverse_decay * inverse_decay * inverse_decay * inverse_decay,
+        5 => inverse_decay * inverse_decay * inverse_decay * inverse_decay * inverse_decay,
+        _ => {
+            inverse_decay
+                * inverse_decay
+                * inverse_decay
+                * inverse_decay
+                * inverse_decay
+                * inverse_decay
+        }
     };
     sign * multiplier
 }
