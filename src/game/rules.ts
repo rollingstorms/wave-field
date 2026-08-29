@@ -37,6 +37,10 @@ function boardCoordinate(position: Position): string {
 
 const pieceTypes: PieceType[] = PIECE_TYPES;
 const coefficientValues: Coefficient[] = [1, 0, -1];
+const HINT_SEARCH_FAST_STATE_LIMIT = 160;
+const HINT_SEARCH_FAST_TIME_MS = 160;
+const HINT_SEARCH_DEEP_STATE_LIMIT = 0;
+const HINT_SEARCH_DEEP_TIME_MS = 0;
 
 export interface PlayableConfigurationHint {
   components: PlayerComponents;
@@ -397,6 +401,26 @@ function hintSearch(player: Player, focusedPieceId: string | null, state: GameSt
   return global;
 }
 
+function boundedHintSearch(player: Player, focusedPieceId: string | null, state: GameState): HintSearchResult {
+  const fast = rustHintSearch<HintSearchResult>(
+    player,
+    focusedPieceId,
+    state,
+    HINT_SEARCH_FAST_STATE_LIMIT,
+    HINT_SEARCH_FAST_TIME_MS,
+  ) ?? hintSearch(player, focusedPieceId, state, HINT_SEARCH_FAST_STATE_LIMIT, HINT_SEARCH_FAST_TIME_MS);
+
+  if (!fast.ok || fast.safe || !fast.exhausted) return fast;
+
+  return rustHintSearch<HintSearchResult>(
+    player,
+    focusedPieceId,
+    state,
+    HINT_SEARCH_DEEP_STATE_LIMIT,
+    HINT_SEARCH_DEEP_TIME_MS,
+  ) ?? hintSearch(player, focusedPieceId, state, HINT_SEARCH_DEEP_STATE_LIMIT, HINT_SEARCH_DEEP_TIME_MS);
+}
+
 function hasPlayableMoveInCurrentConfiguration(player: Player, state: GameState, field: number[][]): boolean {
   const pieces = state.pieces.filter((piece) => piece.owner === player);
   for (const piece of pieces) {
@@ -434,7 +458,7 @@ export function beginTurn(state: GameState, options: RuleOptions = {}): GameStat
     };
   }
   const unstable = getUnstablePieces(state.currentPlayer, resolved, field).filter((piece) => piece.type !== "king");
-  if (analyzeCheckmate && unstable.length === 0 && !hasPlayableMoveInCurrentConfiguration(state.currentPlayer, resolved, field)) {
+  if (analyzeCheckmate && !hasPlayableMoveInCurrentConfiguration(state.currentPlayer, resolved, field)) {
     const playable = findClosestPlayableConfiguration(state.currentPlayer, resolved);
     if (!playable) {
       return {
@@ -549,8 +573,7 @@ export function applyClosestPlayableHint(state: GameState): MoveResult {
 }
 
 export function applyHintSearch(state: GameState, focusedPieceId: string | null = state.selectedPieceId): MoveResult {
-  const result = rustHintSearch<HintSearchResult>(state.currentPlayer, focusedPieceId, state, 160, 160)
-    ?? hintSearch(state.currentPlayer, focusedPieceId, state, 160, 160);
+  const result = boundedHintSearch(state.currentPlayer, focusedPieceId, state);
   if (!result.ok) {
     const resolved = beginTurn(state);
     if (resolved.status !== state.status) return { ok: true, state: resolved };

@@ -342,11 +342,7 @@ fn begin_turn_with_options(state: GameState, analyze_checkmate: bool, quiet: boo
         );
         return resolved;
     }
-    let unstable = unstable_pieces(resolved.current_player, &resolved, &resolved_field)
-        .into_iter()
-        .find(|piece| piece.piece_type != PieceType::King);
     if analyze_checkmate
-        && unstable.is_none()
         && !has_playable_move_in_current_configuration(
             resolved.current_player,
             &resolved,
@@ -363,6 +359,9 @@ fn begin_turn_with_options(state: GameState, analyze_checkmate: bool, quiet: boo
             return resolved;
         }
     }
+    let unstable = unstable_pieces(resolved.current_player, &resolved, &resolved_field)
+        .into_iter()
+        .find(|piece| piece.piece_type != PieceType::King);
     if !quiet {
         resolved.message = match unstable {
             Some(piece) => format!(

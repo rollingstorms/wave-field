@@ -279,6 +279,31 @@ describe("stability and victory", () => {
     expect(started.message).toContain("Blue has no legal move");
   });
 
+  it("a player with an unstable piece and no playable rescue loses at turn start", () => {
+    const state = createInitialState();
+    state.currentPlayer = "blue";
+    state.pieces = Array.from({ length: 49 }, (_, index) => ({
+      id: index === 24 ? "blue-king" : index === 0 ? "blue-pawn-target" : `block-${index}`,
+      owner: index % 5 === 0 ? "red" as const : "blue" as const,
+      type: index === 24 ? "king" as const : "pawn" as const,
+      position: { x: index % 7, y: Math.floor(index / 7) },
+      unstable: index === 0,
+    }));
+    state.pieces[0].owner = "blue";
+    state.pieces[24].owner = "blue";
+    state.definitions.pawn[0] = { kind: "preset", name: "Flat", preset: "constant-basin", decayBase: 2, originScale: 1 };
+    state.components.red.pawn = [1];
+    state.components.blue.pawn = [0];
+    state.components.blue.king = [0, 0];
+    state.homeEnergy.king = 20;
+
+    const started = beginTurn(state);
+
+    expect(getUnstablePieces("blue", state, evaluateField(state)).map((piece) => piece.id)).toContain("blue-pawn-target");
+    expect(started.status).toBe("red-won");
+    expect(started.message).toContain("Blue has no legal move");
+  });
+
   it("hint search ends the game when no playable move exists", () => {
     const state = createInitialState();
     state.currentPlayer = "blue";

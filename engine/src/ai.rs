@@ -486,6 +486,204 @@ fn loop_penalty(
         }
 }
 
+fn material_delta(before: &GameState, after: &GameState, player: Player) -> f64 {
+    let enemy = player.opponent();
+    lost_material(before, after, enemy) - lost_material(before, after, player)
+}
+
+fn raw_king_moves(state: &GameState, player: Player, context: &mut HardSearchContext) -> usize {
+    let field = cached_field(state, context);
+    state
+        .pieces
+        .iter()
+        .find(|piece| piece.owner == player && piece.piece_type == PieceType::King)
+        .map(|king| get_legal_moves(&king.id, state, &field).len())
+        .unwrap_or(0)
+}
+
+fn legal_action_count(state: &GameState, player: Player, context: &mut HardSearchContext) -> usize {
+    let mut probe = state.clone();
+    probe.current_player = player;
+    let field = cached_field(&probe, context);
+    probe
+        .pieces
+        .iter()
+        .filter(|piece| piece.owner == player)
+        .map(|piece| {
+            get_legal_moves(&piece.id, &probe, &field)
+                .into_iter()
+                .filter(|destination| {
+                    apply_search_move(&piece.id, *destination, probe.clone(), &field).ok
+                })
+                .count()
+        })
+        .sum()
+}
+
+fn support_score(state: &GameState, player: Player) -> i32 {
+    let pieces = state
+        .pieces
+        .iter()
+        .filter(|piece| piece.owner == player)
+        .collect::<Vec<_>>();
+    let mut support = 0;
+    for left in 0..pieces.len() {
+        for right in left + 1..pieces.len() {
+            let distance = (pieces[left].position.x - pieces[right].position.x).abs()
+                + (pieces[left].position.y - pieces[right].position.y).abs();
+            if distance <= 2 {
+                support += 1;
+            }
+        }
+    }
+    support
+}
+
+fn field_control_score(state: &GameState, player: Player, context: &mut HardSearchContext) -> i32 {
+    let field = cached_field(state, context);
+    let mut score = 0;
+    for row in field {
+        for value in row {
+            if value > 0.0 {
+                score += if player == Player::Red { 1 } else { -1 };
+            } else if value < 0.0 {
+                score += if player == Player::Blue { 1 } else { -1 };
+            }
+        }
+    }
+    score
+}
+
+fn abstract_state_key(state: &GameState, context: &mut HardSearchContext) -> String {
+    let blue_king = state
+        .pieces
+        .iter()
+        .find(|piece| piece.owner == Player::Blue && piece.piece_type == PieceType::King)
+        .map(|piece| format!("{},{}", piece.position.x, piece.position.y))
+        .unwrap_or_else(|| "x".to_owned());
+    let red_king = state
+        .pieces
+        .iter()
+        .find(|piece| piece.owner == Player::Red && piece.piece_type == PieceType::King)
+        .map(|piece| format!("{},{}", piece.position.x, piece.position.y))
+        .unwrap_or_else(|| "x".to_owned());
+    format!(
+        "{}|{}|{}|{:.0}|{:.0}|{}|{}|{}|{}|{}",
+        player_key(state.current_player),
+        blue_king,
+        red_king,
+        material_points(state, Player::Blue),
+        material_points(state, Player::Red),
+        raw_king_moves(state, Player::Blue, context),
+        raw_king_moves(state, Player::Red, context),
+        legal_action_count(state, Player::Blue, context) / 4,
+        legal_action_count(state, Player::Red, context) / 4,
+        field_control_score(state, Player::Red, context) / 6,
+    )
+}
+
+fn snapshot_as_state(base: &GameState, snapshot: &GameSnapshot) -> GameState {
+    GameState {
+        pieces: snapshot.pieces.clone(),
+        current_player: snapshot.current_player,
+        components: snapshot.components.clone(),
+        activation_orders: snapshot.activation_orders.clone(),
+        default_components: base.default_components.clone(),
+        status: snapshot.status,
+        selected_piece_id: snapshot.selected_piece_id.clone(),
+        turn_number: snapshot.turn_number,
+        definitions: snapshot.definitions.clone(),
+        wave_scales: snapshot.wave_scales.clone(),
+        home_energy: snapshot.home_energy.clone(),
+        history: Vec::new(),
+        message: String::new(),
+    }
+}
+
+fn recent_abstract_counts(
+    state: &GameState,
+    context: &mut HardSearchContext,
+) -> HashMap<String, usize> {
+    let mut counts = HashMap::new();
+    let start = state.history.len().saturating_sub(24);
+    for snapshot in &state.history[start..] {
+        let probe = snapshot_as_state(state, snapshot);
+        let key = abstract_state_key(&probe, context);
+        *counts.entry(key).or_insert(0) += 1;
+    }
+    let current = abstract_state_key(state, context);
+    *counts.entry(current).or_insert(0) += 1;
+    counts
+}
+
+fn hard_conversion_score(
+    choice: &Choice,
+    state: &GameState,
+    player: Player,
+    context: &mut HardSearchContext,
+) -> f64 {
+    let enemy = player.opponent();
+    let before_enemy_escapes = raw_king_moves(state, enemy, context) as f64;
+    let after_enemy_escapes = raw_king_moves(&choice.preview, enemy, context) as f64;
+    let before_own_escapes = raw_king_moves(state, player, context) as f64;
+    let after_own_escapes = raw_king_moves(&choice.preview, player, context) as f64;
+    let enemy_safe = legal_action_count(&choice.preview, enemy, context) as f64;
+    let own_safe = legal_action_count(&choice.preview, player, context) as f64;
+    let enemy_field = cached_field(&choice.preview, context);
+    let enemy_forced = is_king_unprotected(enemy, &choice.preview, &enemy_field)
+        || unstable_pieces(enemy, &choice.preview, &enemy_field)
+            .into_iter()
+            .any(|piece| piece.piece_type != PieceType::King);
+    let recent_counts = recent_abstract_counts(state, context);
+    let repeat_penalty = recent_counts
+        .get(&abstract_state_key(&choice.preview, context))
+        .copied()
+        .unwrap_or(0) as f64
+        * 900.0;
+    let reopens_trap_penalty =
+        if before_enemy_escapes <= 2.0 && after_enemy_escapes > before_enemy_escapes {
+            (after_enemy_escapes - before_enemy_escapes) * 220.0
+        } else {
+            0.0
+        };
+    let trap_phase = before_enemy_escapes <= 3.0 || enemy_safe <= 14.0;
+    let close_exit_bonus = (before_enemy_escapes - after_enemy_escapes).max(0.0)
+        * if trap_phase { 180.0 } else { 65.0 };
+    let support_delta =
+        f64::from(support_score(&choice.preview, player) - support_score(state, player));
+    let field_delta = f64::from(
+        field_control_score(&choice.preview, player, context)
+            - field_control_score(state, player, context),
+    );
+    let material = material_delta(state, &choice.preview, player);
+    let tactical = if choice.preview.status == win_status(player) {
+        1_000_000.0
+    } else if choice.preview.status == win_status(enemy) {
+        -1_000_000.0
+    } else {
+        0.0
+    };
+
+    if trap_phase {
+        tactical + if enemy_forced { 450.0 } else { 0.0 } + close_exit_bonus
+            - after_enemy_escapes * 130.0
+            - enemy_safe * 6.0
+            + after_own_escapes.max(0.0) * 18.0
+            + (own_safe - enemy_safe).max(0.0) * 3.0
+            + material * 18.0
+            - reopens_trap_penalty
+            - repeat_penalty
+    } else {
+        tactical + close_exit_bonus + (after_own_escapes - before_own_escapes) * 28.0
+            - (after_enemy_escapes - before_enemy_escapes) * 42.0
+            + field_delta * 7.0
+            + support_delta * 8.0
+            + material * 14.0
+            - repeat_penalty * 0.35
+            - reopens_trap_penalty
+    }
+}
+
 #[derive(Clone)]
 struct Choice {
     tuned: GameState,
@@ -1277,6 +1475,12 @@ pub fn play_hard_turn_profiled(
         };
     }
 
+    for index in 0..root_choices.len() {
+        let bonus = hard_conversion_score(&root_choices[index], &state, player, &mut context);
+        root_choices[index].score += bonus;
+    }
+    sort_choices(&mut root_choices);
+
     let seed = options.seed.unwrap_or(0);
     let variety = options.variety.unwrap_or(0.0).clamp(0.0, 1.0);
     if variety > 0.0 {
@@ -1319,7 +1523,7 @@ pub fn play_hard_turn_profiled(
                 f64::NEG_INFINITY,
                 f64::INFINITY,
                 &mut context,
-            );
+            ) + hard_conversion_score(choice, &state, player, &mut context);
             if score > depth_best_score {
                 depth_best_score = score;
                 depth_best_choice = Some(choice.clone());
@@ -1339,15 +1543,17 @@ pub fn play_hard_turn_profiled(
         }
 
         if completed_depth {
-            for choice in &mut root_choices {
-                choice.score = hard_search_score(
-                    &choice.preview,
-                    depth.saturating_sub(1),
-                    HARD_QUIESCENCE_DEPTH,
-                    f64::NEG_INFINITY,
-                    f64::INFINITY,
-                    &mut context,
-                );
+            for index in 0..root_choices.len() {
+                let choice = root_choices[index].clone();
+                root_choices[index].score =
+                    hard_search_score(
+                        &choice.preview,
+                        depth.saturating_sub(1),
+                        HARD_QUIESCENCE_DEPTH,
+                        f64::NEG_INFINITY,
+                        f64::INFINITY,
+                        &mut context,
+                    ) + hard_conversion_score(&choice, &state, player, &mut context);
             }
             sort_choices(&mut root_choices);
         }
