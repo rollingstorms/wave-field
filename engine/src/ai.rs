@@ -31,6 +31,9 @@ const HARD_QUIESCENCE_ACTION_LIMIT: usize = 6;
 const HARD_PROFILE_LIMIT: usize = 14;
 const HARD_QUIESCENCE_DEPTH: u8 = 1;
 const HARD_ROOT_TRAP_ANALYSIS_LIMIT: usize = 8;
+const HARD_REPLY_SAFETY_PROFILE_LIMIT: usize = 1;
+const HARD_REPLY_SAFETY_MOVE_LIMIT: usize = 12;
+const HARD_CONVERSION_TIEBREAKER_SCALE: f64 = 0.2;
 
 #[cfg(not(target_arch = "wasm32"))]
 type SearchStartedAt = Instant;
@@ -547,7 +550,7 @@ fn legal_action_count(state: &GameState, player: Player, context: &mut HardSearc
         .sum()
 }
 
-fn player_has_terminal_reply(
+fn player_has_forcing_reply(
     state: &GameState,
     player: Player,
     profile_limit: usize,
@@ -560,6 +563,9 @@ fn player_has_terminal_reply(
     let mut probe = state.clone();
     probe.current_player = player;
     for profile in tuning_candidates(&probe, player, profile_limit) {
+        if deadline_reached(&context.started_at, context.deadline) {
+            return false;
+        }
         let mut tuned_base = probe.clone();
         tuned_base.history.clear();
         *tuned_base.components.get_mut(player) = profile;
@@ -569,6 +575,7 @@ fn player_has_terminal_reply(
         let tuned_base_field = cached_field(&tuned_base, context);
         let tuned = mark_instability(tuned_base, &tuned_base_field);
 
+        let mut checked_moves = 0;
         for piece in tuned
             .pieces
             .iter()
@@ -577,8 +584,22 @@ fn player_has_terminal_reply(
             .collect::<Vec<_>>()
         {
             for destination in get_legal_moves(&piece.id, &tuned, &tuned_base_field) {
-                let result = apply_move(&piece.id, destination, tuned.clone(), true);
-                if result.ok && result.state.status == win_status(player) {
+                if checked_moves >= HARD_REPLY_SAFETY_MOVE_LIMIT
+                    || deadline_reached(&context.started_at, context.deadline)
+                {
+                    return false;
+                }
+                checked_moves += 1;
+                let result =
+                    apply_search_move(&piece.id, destination, tuned.clone(), &tuned_base_field);
+                if !result.ok {
+                    continue;
+                }
+                if result.state.status == win_status(player) {
+                    return true;
+                }
+                let reply_field = cached_field(&result.state, context);
+                if is_king_unprotected(player.opponent(), &result.state, &reply_field) {
                     return true;
                 }
             }
@@ -727,28 +748,20 @@ fn hard_conversion_score(
             - field_control_score(state, player, context),
     );
     let material = material_delta(state, &choice.preview, player);
-    let allows_terminal_reply = player_has_terminal_reply(
-        &choice.preview,
-        enemy,
-        HARD_QUIESCENCE_ACTION_LIMIT,
-        context,
-    );
-    let tactical = if choice.preview.status == win_status(player) {
-        1_000_000.0
-    } else if choice.preview.status == win_status(enemy) {
-        -1_000_000.0
-    } else {
-        0.0
-    };
-
+    let own_big_hat_is_tactically_thin = after_own_escapes <= 2.0 || before_own_escapes <= 2.0;
+    let allows_forcing_reply = own_big_hat_is_tactically_thin
+        && player_has_forcing_reply(
+            &choice.preview,
+            enemy,
+            HARD_REPLY_SAFETY_PROFILE_LIMIT,
+            context,
+        );
     let score = if trap_phase {
-        tactical
-            + if enemy_forced {
-                450.0 * tuning.trap_focus
-            } else {
-                0.0
-            }
-            + close_exit_bonus
+        (if enemy_forced {
+            450.0 * tuning.trap_focus
+        } else {
+            0.0
+        }) + close_exit_bonus
             - after_enemy_escapes * 130.0 * tuning.trap_focus
             - enemy_safe * 6.0 * tuning.trap_focus
             + after_own_escapes.max(0.0) * 18.0
@@ -757,7 +770,7 @@ fn hard_conversion_score(
             - reopens_trap_penalty
             - repeat_penalty
     } else {
-        tactical + close_exit_bonus + (after_own_escapes - before_own_escapes) * 28.0
+        close_exit_bonus + (after_own_escapes - before_own_escapes) * 28.0
             - (after_enemy_escapes - before_enemy_escapes) * 42.0
             + field_delta * 7.0
             + support_delta * 8.0
@@ -765,12 +778,12 @@ fn hard_conversion_score(
             - repeat_penalty * 0.35
             - reopens_trap_penalty
     };
-    let terminal_reply_penalty = if allows_terminal_reply {
-        850_000.0 * tuning.trap_focus.max(0.5)
+    let forcing_reply_penalty = if allows_forcing_reply {
+        450_000.0 * tuning.trap_focus.max(0.5)
     } else {
         0.0
     };
-    score * tuning.conversion_weight - terminal_reply_penalty
+    (score * tuning.conversion_weight - forcing_reply_penalty) * HARD_CONVERSION_TIEBREAKER_SCALE
 }
 
 #[derive(Clone)]
@@ -1582,18 +1595,6 @@ pub fn play_hard_turn_profiled_tuned(
             profile: context.profile,
         };
     }
-
-    for index in 0..root_choices.len() {
-        let bonus = hard_conversion_score(
-            &root_choices[index],
-            &state,
-            player,
-            hard_tuning,
-            &mut context,
-        );
-        root_choices[index].score += bonus;
-    }
-    sort_choices(&mut root_choices);
 
     let seed = options.seed.unwrap_or(0);
     let variety = options.variety.unwrap_or(0.0).clamp(0.0, 1.0);
