@@ -150,4 +150,20 @@ describe("Rust engine parity", () => {
       .toEqual(playHeuristicTurn(opening, "blue", { seed: 17, variety: 0, timeBudgetMs: 10_000 }));
 
   }, 15_000);
+
+  it("accepts tuned hard AI parameters", () => {
+    const opening = createInitialState();
+    const result = rust<GameState>("playHardTurn", opening, {
+      player: "blue",
+      seed: 17,
+      variety: 0,
+      timeBudgetMs: 50,
+      hardConversionWeight: 1.4,
+      hardTrapFocus: 1.6,
+      hardCycleWeight: 2,
+    });
+
+    expect(result.currentPlayer === "red" || result.status === "blue-won").toBe(true);
+    expect(result.history).toHaveLength(opening.history.length + 1);
+  });
 });

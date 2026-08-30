@@ -251,15 +251,23 @@ pub fn play_hard_turn_json(
     seed: u32,
     variety: f64,
     time_budget_ms: u32,
+    conversion_weight: f64,
+    trap_focus: f64,
+    cycle_weight: f64,
 ) -> ApiResult {
     let player = parse_token(player, "player")?;
-    json(&play_hard_turn(
+    json(&play_hard_turn_tuned(
         parse_state(state_json)?,
         player,
         AiTurnOptions {
             seed: Some(seed),
             variety: Some(variety),
             time_budget_ms: Some(u64::from(time_budget_ms)),
+        },
+        HardBotTuning {
+            conversion_weight,
+            trap_focus,
+            cycle_weight,
         },
     ))
 }

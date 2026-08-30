@@ -27,7 +27,16 @@ interface RustBindings {
   mark_instability_json: (state: string) => string;
   playable_moves_json: (pieceId: string, state: string) => string;
   play_easy_turn_json: (player: Player, state: string, seed: number, variety: number, timeBudgetMs: number) => string;
-  play_hard_turn_json: (player: Player, state: string, seed: number, variety: number, timeBudgetMs: number) => string;
+  play_hard_turn_json: (
+    player: Player,
+    state: string,
+    seed: number,
+    variety: number,
+    timeBudgetMs: number,
+    conversionWeight: number,
+    trapFocus: number,
+    cycleWeight: number,
+  ) => string;
   play_heuristic_turn_json: (player: Player, state: string, seed: number, variety: number, timeBudgetMs: number) => string;
   randomize_tuning_json: (rolls: string, state: string) => string;
   reset_tuning_json: (state: string) => string;
@@ -195,9 +204,19 @@ export function rustPlayHardTurn(
   seed: number,
   variety: number,
   timeBudgetMs: number,
+  tuning?: { conversionWeight?: number; trapFocus?: number; cycleWeight?: number },
 ): GameState | null {
   return bindings
-    ? JSON.parse(bindings.play_hard_turn_json(player, stateJson(state), seed, variety, timeBudgetMs)) as GameState
+    ? JSON.parse(bindings.play_hard_turn_json(
+      player,
+      stateJson(state),
+      seed,
+      variety,
+      timeBudgetMs,
+      tuning?.conversionWeight ?? 1,
+      tuning?.trapFocus ?? 1,
+      tuning?.cycleWeight ?? 1,
+    )) as GameState
     : null;
 }
 

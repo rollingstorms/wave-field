@@ -66,7 +66,10 @@ char *wf_play_hard_turn_json(
     const char *state_json,
     uint32_t seed,
     double variety,
-    uint32_t time_budget_ms
+    uint32_t time_budget_ms,
+    double conversion_weight,
+    double trap_focus,
+    double cycle_weight
 );
 char *wf_play_easy_turn_json(
     const char *player,

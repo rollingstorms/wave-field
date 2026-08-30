@@ -270,6 +270,9 @@ pub extern "C" fn wf_play_hard_turn_json(
     seed: u32,
     variety: f64,
     time_budget_ms: u32,
+    conversion_weight: f64,
+    trap_focus: f64,
+    cycle_weight: f64,
 ) -> *mut c_char {
     call_json(|| {
         api::play_hard_turn_json(
@@ -278,6 +281,9 @@ pub extern "C" fn wf_play_hard_turn_json(
             seed,
             variety,
             time_budget_ms,
+            conversion_weight,
+            trap_focus,
+            cycle_weight,
         )
     })
 }

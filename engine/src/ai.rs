@@ -63,6 +63,33 @@ pub struct AiTurnOptions {
     pub time_budget_ms: Option<u64>,
 }
 
+#[derive(Clone, Copy, Debug)]
+pub struct HardBotTuning {
+    pub conversion_weight: f64,
+    pub trap_focus: f64,
+    pub cycle_weight: f64,
+}
+
+impl Default for HardBotTuning {
+    fn default() -> Self {
+        Self {
+            conversion_weight: 1.0,
+            trap_focus: 1.0,
+            cycle_weight: 1.0,
+        }
+    }
+}
+
+impl HardBotTuning {
+    pub fn clamped(self) -> Self {
+        Self {
+            conversion_weight: self.conversion_weight.clamp(0.0, 3.0),
+            trap_focus: self.trap_focus.clamp(0.0, 3.0),
+            cycle_weight: self.cycle_weight.clamp(0.0, 4.0),
+        }
+    }
+}
+
 fn material_value(piece_type: PieceType) -> f64 {
     match piece_type {
         PieceType::Pawn => 2.0,
@@ -520,6 +547,47 @@ fn legal_action_count(state: &GameState, player: Player, context: &mut HardSearc
         .sum()
 }
 
+fn player_has_terminal_reply(
+    state: &GameState,
+    player: Player,
+    profile_limit: usize,
+    context: &mut HardSearchContext,
+) -> bool {
+    if state.status != GameStatus::Playing {
+        return state.status == win_status(player);
+    }
+
+    let mut probe = state.clone();
+    probe.current_player = player;
+    for profile in tuning_candidates(&probe, player, profile_limit) {
+        let mut tuned_base = probe.clone();
+        tuned_base.history.clear();
+        *tuned_base.components.get_mut(player) = profile;
+        *tuned_base.activation_orders.get_mut(player) =
+            activation_order_for_profile(tuned_base.components.get(player));
+        tuned_base.selected_piece_id = None;
+        let tuned_base_field = cached_field(&tuned_base, context);
+        let tuned = mark_instability(tuned_base, &tuned_base_field);
+
+        for piece in tuned
+            .pieces
+            .iter()
+            .filter(|piece| piece.owner == player)
+            .cloned()
+            .collect::<Vec<_>>()
+        {
+            for destination in get_legal_moves(&piece.id, &tuned, &tuned_base_field) {
+                let result = apply_move(&piece.id, destination, tuned.clone(), true);
+                if result.ok && result.state.status == win_status(player) {
+                    return true;
+                }
+            }
+        }
+    }
+
+    false
+}
+
 fn support_score(state: &GameState, player: Player) -> i32 {
     let pieces = state
         .pieces
@@ -620,6 +688,7 @@ fn hard_conversion_score(
     choice: &Choice,
     state: &GameState,
     player: Player,
+    tuning: HardBotTuning,
     context: &mut HardSearchContext,
 ) -> f64 {
     let enemy = player.opponent();
@@ -639,16 +708,18 @@ fn hard_conversion_score(
         .get(&abstract_state_key(&choice.preview, context))
         .copied()
         .unwrap_or(0) as f64
-        * 900.0;
+        * 900.0
+        * tuning.cycle_weight;
     let reopens_trap_penalty =
         if before_enemy_escapes <= 2.0 && after_enemy_escapes > before_enemy_escapes {
-            (after_enemy_escapes - before_enemy_escapes) * 220.0
+            (after_enemy_escapes - before_enemy_escapes) * 220.0 * tuning.trap_focus
         } else {
             0.0
         };
     let trap_phase = before_enemy_escapes <= 3.0 || enemy_safe <= 14.0;
     let close_exit_bonus = (before_enemy_escapes - after_enemy_escapes).max(0.0)
-        * if trap_phase { 180.0 } else { 65.0 };
+        * if trap_phase { 180.0 } else { 65.0 }
+        * tuning.trap_focus;
     let support_delta =
         f64::from(support_score(&choice.preview, player) - support_score(state, player));
     let field_delta = f64::from(
@@ -656,6 +727,12 @@ fn hard_conversion_score(
             - field_control_score(state, player, context),
     );
     let material = material_delta(state, &choice.preview, player);
+    let allows_terminal_reply = player_has_terminal_reply(
+        &choice.preview,
+        enemy,
+        HARD_QUIESCENCE_ACTION_LIMIT,
+        context,
+    );
     let tactical = if choice.preview.status == win_status(player) {
         1_000_000.0
     } else if choice.preview.status == win_status(enemy) {
@@ -664,10 +741,16 @@ fn hard_conversion_score(
         0.0
     };
 
-    if trap_phase {
-        tactical + if enemy_forced { 450.0 } else { 0.0 } + close_exit_bonus
-            - after_enemy_escapes * 130.0
-            - enemy_safe * 6.0
+    let score = if trap_phase {
+        tactical
+            + if enemy_forced {
+                450.0 * tuning.trap_focus
+            } else {
+                0.0
+            }
+            + close_exit_bonus
+            - after_enemy_escapes * 130.0 * tuning.trap_focus
+            - enemy_safe * 6.0 * tuning.trap_focus
             + after_own_escapes.max(0.0) * 18.0
             + (own_safe - enemy_safe).max(0.0) * 3.0
             + material * 18.0
@@ -681,7 +764,13 @@ fn hard_conversion_score(
             + material * 14.0
             - repeat_penalty * 0.35
             - reopens_trap_penalty
-    }
+    };
+    let terminal_reply_penalty = if allows_terminal_reply {
+        850_000.0 * tuning.trap_focus.max(0.5)
+    } else {
+        0.0
+    };
+    score * tuning.conversion_weight - terminal_reply_penalty
 }
 
 #[derive(Clone)]
@@ -1420,6 +1509,15 @@ pub fn play_hard_turn(state: GameState, player: Player, options: AiTurnOptions) 
     play_hard_turn_profiled(state, player, options).state
 }
 
+pub fn play_hard_turn_tuned(
+    state: GameState,
+    player: Player,
+    options: AiTurnOptions,
+    tuning: HardBotTuning,
+) -> GameState {
+    play_hard_turn_profiled_tuned(state, player, options, tuning).state
+}
+
 pub struct HardTurnResult {
     pub state: GameState,
     pub profile: HardSearchProfile,
@@ -1429,6 +1527,15 @@ pub fn play_hard_turn_profiled(
     state: GameState,
     player: Player,
     options: AiTurnOptions,
+) -> HardTurnResult {
+    play_hard_turn_profiled_tuned(state, player, options, HardBotTuning::default())
+}
+
+pub fn play_hard_turn_profiled_tuned(
+    state: GameState,
+    player: Player,
+    options: AiTurnOptions,
+    tuning: HardBotTuning,
 ) -> HardTurnResult {
     if state.status != GameStatus::Playing || state.current_player != player {
         return HardTurnResult {
@@ -1454,6 +1561,7 @@ pub fn play_hard_turn_profiled(
         profile: HardSearchProfile::default(),
         nodes: 0,
     };
+    let hard_tuning = tuning.clamped();
 
     let root_trap_analysis_limit = if deadline >= Duration::from_millis(500) {
         HARD_ROOT_TRAP_ANALYSIS_LIMIT
@@ -1476,7 +1584,13 @@ pub fn play_hard_turn_profiled(
     }
 
     for index in 0..root_choices.len() {
-        let bonus = hard_conversion_score(&root_choices[index], &state, player, &mut context);
+        let bonus = hard_conversion_score(
+            &root_choices[index],
+            &state,
+            player,
+            hard_tuning,
+            &mut context,
+        );
         root_choices[index].score += bonus;
     }
     sort_choices(&mut root_choices);
@@ -1516,14 +1630,15 @@ pub fn play_hard_turn_profiled(
         let mut completed_depth = true;
 
         for choice in &root_choices {
-            let score = hard_search_score(
-                &choice.preview,
-                depth.saturating_sub(1),
-                HARD_QUIESCENCE_DEPTH,
-                f64::NEG_INFINITY,
-                f64::INFINITY,
-                &mut context,
-            ) + hard_conversion_score(choice, &state, player, &mut context);
+            let score =
+                hard_search_score(
+                    &choice.preview,
+                    depth.saturating_sub(1),
+                    HARD_QUIESCENCE_DEPTH,
+                    f64::NEG_INFINITY,
+                    f64::INFINITY,
+                    &mut context,
+                ) + hard_conversion_score(choice, &state, player, hard_tuning, &mut context);
             if score > depth_best_score {
                 depth_best_score = score;
                 depth_best_choice = Some(choice.clone());
@@ -1553,7 +1668,7 @@ pub fn play_hard_turn_profiled(
                         f64::NEG_INFINITY,
                         f64::INFINITY,
                         &mut context,
-                    ) + hard_conversion_score(&choice, &state, player, &mut context);
+                    ) + hard_conversion_score(&choice, &state, player, hard_tuning, &mut context);
             }
             sort_choices(&mut root_choices);
         }

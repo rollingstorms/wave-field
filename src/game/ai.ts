@@ -31,6 +31,9 @@ export interface AiTurnOptions {
   seed?: number;
   variety?: number;
   timeBudgetMs?: number;
+  hardConversionWeight?: number;
+  hardTrapFocus?: number;
+  hardCycleWeight?: number;
   debug?: boolean;
 }
 
@@ -487,6 +490,7 @@ export function playHardTurn(state: GameState, player: Player = "red", options: 
     options.seed ?? 0,
     Math.max(0, Math.min(options.variety ?? 0, 1)),
     Math.max(50, options.timeBudgetMs ?? 1_500),
+    hardTuningOptions(options),
   );
   if (rustState) return rustState;
 
@@ -494,4 +498,19 @@ export function playHardTurn(state: GameState, player: Player = "red", options: 
     ...options,
     timeBudgetMs: Math.max(options.timeBudgetMs ?? 300, 300),
   });
+}
+
+function hardTuningOptions(options: AiTurnOptions) {
+  if (
+    options.hardConversionWeight === undefined
+    && options.hardTrapFocus === undefined
+    && options.hardCycleWeight === undefined
+  ) {
+    return undefined;
+  }
+  return {
+    conversionWeight: options.hardConversionWeight,
+    trapFocus: options.hardTrapFocus,
+    cycleWeight: options.hardCycleWeight,
+  };
 }

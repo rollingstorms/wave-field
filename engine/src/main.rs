@@ -3,13 +3,14 @@ use std::io::{self, BufRead};
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 use wave_field_engine::{
-    AiTurnOptions, GameState, PieceType, Player, Position, RolloutAction, RolloutSessionStore,
-    all_influence_contributors, apply_closest_playable_hint, apply_move, apply_tuning, begin_turn,
-    evaluate_field, generate_random_training_batch, get_legal_moves, get_playable_moves,
-    influence_contributors_at, instability_influence_links, is_king_unprotected, play_easy_turn,
-    play_hard_turn, play_hard_turn_profiled, play_heuristic_turn, profile_random_games,
-    profile_random_training_batch, randomize_tuning, reset_tuning, resign_in_check,
-    simulate_ai_games, simulate_random_games, simulate_random_lean_games, unstable_pieces,
+    AiTurnOptions, GameState, HardBotTuning, PieceType, Player, Position, RolloutAction,
+    RolloutSessionStore, all_influence_contributors, apply_closest_playable_hint, apply_move,
+    apply_tuning, begin_turn, evaluate_field, generate_random_training_batch, get_legal_moves,
+    get_playable_moves, influence_contributors_at, instability_influence_links,
+    is_king_unprotected, play_easy_turn, play_hard_turn, play_hard_turn_profiled,
+    play_hard_turn_tuned, play_heuristic_turn, profile_random_games, profile_random_training_batch,
+    randomize_tuning, reset_tuning, resign_in_check, simulate_ai_games, simulate_random_games,
+    simulate_random_lean_games, unstable_pieces,
 };
 
 fn main() {
@@ -139,15 +140,16 @@ fn main() {
             }
             "playHardTurn" => {
                 let player: Player = serde_json::from_value(request["player"].clone()).unwrap();
-                serde_json::to_value(play_hard_turn(
-                    state,
-                    player,
-                    AiTurnOptions {
-                        seed: request["seed"].as_u64().map(|value| value as u32),
-                        variety: request["variety"].as_f64(),
-                        time_budget_ms: request["timeBudgetMs"].as_u64(),
-                    },
-                ))
+                let options = AiTurnOptions {
+                    seed: request["seed"].as_u64().map(|value| value as u32),
+                    variety: request["variety"].as_f64(),
+                    time_budget_ms: request["timeBudgetMs"].as_u64(),
+                };
+                let tuning = hard_bot_tuning_from_request(&request);
+                serde_json::to_value(match tuning {
+                    Some(tuning) => play_hard_turn_tuned(state, player, options, tuning),
+                    None => play_hard_turn(state, player, options),
+                })
                 .unwrap()
             }
             "playEasyTurn" => {
@@ -223,6 +225,9 @@ struct TeacherTurnInput {
     seed: Option<u32>,
     variety: Option<f64>,
     time_budget_ms: Option<u64>,
+    hard_conversion_weight: Option<f64>,
+    hard_trap_focus: Option<f64>,
+    hard_cycle_weight: Option<f64>,
 }
 
 #[derive(Serialize)]
@@ -266,10 +271,45 @@ fn play_teacher_turn(policy: &str, turn: TeacherTurnInput) -> GameState {
         time_budget_ms: turn.time_budget_ms,
     };
     match policy {
-        "hard" => play_hard_turn(turn.state, turn.player, options),
+        "hard" => match hard_bot_tuning_from_turn(&turn) {
+            Some(tuning) => play_hard_turn_tuned(turn.state, turn.player, options, tuning),
+            None => play_hard_turn(turn.state, turn.player, options),
+        },
         "easy" => play_easy_turn(turn.state, turn.player, options),
         _ => play_heuristic_turn(turn.state, turn.player, options),
     }
+}
+
+fn hard_bot_tuning_from_values(
+    conversion_weight: Option<f64>,
+    trap_focus: Option<f64>,
+    cycle_weight: Option<f64>,
+) -> Option<HardBotTuning> {
+    if conversion_weight.is_none() && trap_focus.is_none() && cycle_weight.is_none() {
+        return None;
+    }
+    let defaults = HardBotTuning::default();
+    Some(HardBotTuning {
+        conversion_weight: conversion_weight.unwrap_or(defaults.conversion_weight),
+        trap_focus: trap_focus.unwrap_or(defaults.trap_focus),
+        cycle_weight: cycle_weight.unwrap_or(defaults.cycle_weight),
+    })
+}
+
+fn hard_bot_tuning_from_request(request: &serde_json::Value) -> Option<HardBotTuning> {
+    hard_bot_tuning_from_values(
+        request["hardConversionWeight"].as_f64(),
+        request["hardTrapFocus"].as_f64(),
+        request["hardCycleWeight"].as_f64(),
+    )
+}
+
+fn hard_bot_tuning_from_turn(turn: &TeacherTurnInput) -> Option<HardBotTuning> {
+    hard_bot_tuning_from_values(
+        turn.hard_conversion_weight,
+        turn.hard_trap_focus,
+        turn.hard_cycle_weight,
+    )
 }
 
 fn handle_teacher_turns(request: &serde_json::Value) -> TeacherTurnsResult {
