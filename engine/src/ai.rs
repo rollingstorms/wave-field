@@ -33,6 +33,9 @@ const HARD_QUIESCENCE_DEPTH: u8 = 1;
 const HARD_ROOT_TRAP_ANALYSIS_LIMIT: usize = 8;
 const HARD_REPLY_SAFETY_PROFILE_LIMIT: usize = 1;
 const HARD_REPLY_SAFETY_MOVE_LIMIT: usize = 12;
+const HARD_BLUNDER_FILTER_CANDIDATE_LIMIT: usize = 6;
+const HARD_BLUNDER_FILTER_PROFILE_LIMIT: usize = 4;
+const HARD_BLUNDER_FILTER_MOVE_LIMIT: usize = 48;
 const HARD_CONVERSION_TIEBREAKER_SCALE: f64 = 0.2;
 
 #[cfg(not(target_arch = "wasm32"))]
@@ -607,6 +610,81 @@ fn player_has_forcing_reply(
     }
 
     false
+}
+
+fn player_has_terminal_reply_limited(
+    state: &GameState,
+    player: Player,
+    profile_limit: usize,
+    move_limit: usize,
+    context: &mut HardSearchContext,
+) -> bool {
+    if state.status != GameStatus::Playing {
+        return state.status == win_status(player);
+    }
+
+    let mut probe = state.clone();
+    probe.current_player = player;
+    let mut checked_moves = 0;
+    for profile in tuning_candidates(&probe, player, profile_limit) {
+        let mut tuned_base = probe.clone();
+        tuned_base.history.clear();
+        *tuned_base.components.get_mut(player) = profile;
+        *tuned_base.activation_orders.get_mut(player) =
+            activation_order_for_profile(tuned_base.components.get(player));
+        tuned_base.selected_piece_id = None;
+        let tuned_base_field = cached_field(&tuned_base, context);
+        let tuned = mark_instability(tuned_base, &tuned_base_field);
+
+        for piece in tuned
+            .pieces
+            .iter()
+            .filter(|piece| piece.owner == player)
+            .cloned()
+            .collect::<Vec<_>>()
+        {
+            for destination in get_legal_moves(&piece.id, &tuned, &tuned_base_field) {
+                if checked_moves >= move_limit {
+                    return false;
+                }
+                checked_moves += 1;
+                let result = apply_move(&piece.id, destination, tuned.clone(), true);
+                if result.ok && result.state.status == win_status(player) {
+                    return true;
+                }
+            }
+        }
+    }
+
+    false
+}
+
+fn hard_filter_immediate_blunders(
+    best_choice: Choice,
+    root_choices: &[Choice],
+    player: Player,
+    context: &mut HardSearchContext,
+) -> Choice {
+    let mut candidates = vec![best_choice.clone()];
+    candidates.extend(
+        root_choices
+            .iter()
+            .take(HARD_BLUNDER_FILTER_CANDIDATE_LIMIT)
+            .cloned(),
+    );
+
+    candidates
+        .into_iter()
+        .find(|choice| {
+            !player_has_terminal_reply_limited(
+                &choice.preview,
+                player.opponent(),
+                HARD_BLUNDER_FILTER_PROFILE_LIMIT,
+                HARD_BLUNDER_FILTER_MOVE_LIMIT,
+                context,
+            )
+        })
+        .unwrap_or(best_choice)
 }
 
 fn support_score(state: &GameState, player: Player) -> i32 {
@@ -1675,11 +1753,13 @@ pub fn play_hard_turn_profiled_tuned(
         }
     }
 
-    let tuned_field = cached_field(&best_choice.tuned, &mut context);
+    let selected_choice =
+        hard_filter_immediate_blunders(best_choice, &root_choices, player, &mut context);
+    let tuned_field = cached_field(&selected_choice.tuned, &mut context);
     let result = apply_known_legal_move(
-        &best_choice.piece_id,
-        best_choice.destination,
-        best_choice.tuned,
+        &selected_choice.piece_id,
+        selected_choice.destination,
+        selected_choice.tuned,
         &tuned_field,
         true,
     );
@@ -1696,7 +1776,7 @@ pub fn play_hard_turn_profiled_tuned(
         };
     }
 
-    let mut fallback = best_choice.preview;
+    let mut fallback = selected_choice.preview;
     fallback.history = {
         let mut history = state.history.clone();
         history.push(state.snapshot());

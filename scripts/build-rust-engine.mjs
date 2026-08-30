@@ -4,7 +4,7 @@ import { resolve } from "node:path";
 
 const root = resolve(import.meta.dirname, "..");
 const engine = resolve(root, "engine");
-const output = resolve(engine, "pkg");
+const output = resolve(root, "public/engine/pkg");
 const wasm = resolve(engine, "target/wasm32-unknown-unknown/debug/wave_field_engine.wasm");
 
 function run(command, args, cwd = root) {

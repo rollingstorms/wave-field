@@ -30,6 +30,15 @@ function rust<T>(method: string, state: GameState, params: Record<string, unknow
   return JSON.parse(result.stdout.trim()) as T;
 }
 
+function movedPiece(state: GameState, next: GameState) {
+  const before = state.pieces.find((piece) => {
+    const after = next.pieces.find((candidate) => candidate.id === piece.id);
+    return after && (after.position.x !== piece.position.x || after.position.y !== piece.position.y);
+  });
+  const after = before ? next.pieces.find((piece) => piece.id === before.id) : undefined;
+  return before && after ? { id: before.id, from: before.position, to: after.position } : undefined;
+}
+
 describe("Rust engine parity", () => {
   it("matches the complete initial field", () => {
     const state = createInitialState();
@@ -165,5 +174,31 @@ describe("Rust engine parity", () => {
 
     expect(result.currentPlayer === "red" || result.status === "blue-won").toBe(true);
     expect(result.history).toHaveLength(opening.history.length + 1);
+  });
+
+  it("keeps hard opening selection distinct from the heuristic bot at playable budget", () => {
+    const opening = createInitialState();
+    const heuristic = rust<GameState>("playHeuristicTurn", opening, {
+      player: "blue",
+      seed: 17,
+      variety: 0,
+      timeBudgetMs: 1_000,
+    });
+    const hard = rust<GameState>("playHardTurn", opening, {
+      player: "blue",
+      seed: 17,
+      variety: 0,
+      timeBudgetMs: 1_000,
+      hardConversionWeight: 1,
+      hardTrapFocus: 1,
+      hardCycleWeight: 1,
+    });
+
+    const heuristicMove = movedPiece(opening, heuristic);
+    const hardMove = movedPiece(opening, hard);
+    expect(hardMove?.id).toBe("blue-spy-1");
+    expect(heuristicMove?.to).not.toEqual(hardMove?.to);
+    expect(heuristic.message).toContain("must rescue");
+    expect(hard.message).toBe("Red to move");
   });
 });

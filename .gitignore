@@ -41,5 +41,6 @@ next-env.d.ts
 /outputs/
 /work/
 /engine/pkg/
+/public/engine/pkg/
 /engine/target/
 /analysis/*.jsonl

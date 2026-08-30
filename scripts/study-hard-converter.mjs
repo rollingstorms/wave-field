@@ -157,6 +157,7 @@ await build({
       function sideGraph(state, player) {
         const pieces = state.pieces.filter((piece) => piece.owner === player);
         const bins = new Map();
+        const vectors = new Map();
         let distanceSum = 0;
         let pairs = 0;
         let close2 = 0;
@@ -168,7 +169,11 @@ await build({
             const distance = Math.abs(a.position.x - b.position.x) + Math.abs(a.position.y - b.position.y);
             const types = [a.type, b.type].sort().join("-");
             const bucket = distance <= 1 ? "d1" : distance <= 2 ? "d2" : distance <= 3 ? "d3" : distance <= 5 ? "d4-5" : "d6+";
+            const dx = Math.abs(a.position.x - b.position.x);
+            const dy = Math.abs(a.position.y - b.position.y);
+            const vector = [Math.min(dx, dy), Math.max(dx, dy)].join(",");
             bins.set(types + ":" + bucket, (bins.get(types + ":" + bucket) ?? 0) + 1);
+            vectors.set(types + ":" + vector, (vectors.get(types + ":" + vector) ?? 0) + 1);
             distanceSum += distance;
             pairs += 1;
             if (distance <= 2) close2 += 1;
@@ -177,12 +182,17 @@ await build({
         }
         const king = pieces.find((piece) => piece.type === "king");
         const kingBins = new Map();
+        const kingVectors = new Map();
         if (king) {
           for (const piece of pieces) {
             if (piece.id === king.id) continue;
-            const distance = Math.abs(king.position.x - piece.position.x) + Math.abs(king.position.y - piece.position.y);
+            const dx = Math.abs(king.position.x - piece.position.x);
+            const dy = Math.abs(king.position.y - piece.position.y);
+            const distance = dx + dy;
+            const vector = [Math.min(dx, dy), Math.max(dx, dy)].join(",");
             const bucket = distance <= 1 ? "d1" : distance <= 2 ? "d2" : distance <= 3 ? "d3" : distance <= 5 ? "d4-5" : "d6+";
             kingBins.set("king-" + piece.type + ":" + bucket, (kingBins.get("king-" + piece.type + ":" + bucket) ?? 0) + 1);
+            kingVectors.set("king->" + piece.type + ":" + vector, (kingVectors.get("king->" + piece.type + ":" + vector) ?? 0) + 1);
           }
         }
         return {
@@ -192,7 +202,9 @@ await build({
           close3,
           connectedness: pieces.length <= 1 ? 1 : close2 / Math.max(1, pieces.length - 1),
           wl1: Object.fromEntries([...bins.entries()].sort()),
+          vectorWl1: Object.fromEntries([...vectors.entries()].sort()),
           kingRings: Object.fromEntries([...kingBins.entries()].sort()),
+          kingVectors: Object.fromEntries([...kingVectors.entries()].sort()),
         };
       }
 
@@ -339,6 +351,7 @@ await build({
               "avgD:" + Math.round(graph.averageDistance),
               "close2:" + Math.min(6, graph.close2),
               ...Object.entries(graph.kingRings).map(([key, value]) => key + "=" + value),
+              ...Object.entries(graph.kingVectors).map(([key, value]) => key + "=" + value),
             ];
             for (const token of tokens) inc(featureLift, token, { seen: 1, wins: sideWon ? 1 : 0 });
             inc(tuningLift, side + ":" + row.tuning[side], { seen: 1, wins: sideWon ? 1 : 0 });

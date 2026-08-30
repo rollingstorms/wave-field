@@ -17,7 +17,7 @@
     "selfplay:hard-study": "node scripts/study-hard-converter.mjs",
     "selfplay:hard-sweep": "node scripts/sweep-hard-params.mjs",
     "search:optim": "node scripts/search-optim-configs.mjs",
-    "build": "tsc && vite build && node scripts/copy-arena-entry.mjs",
+    "build": "npm run engine:build && tsc && vite build && node scripts/copy-arena-entry.mjs",
     "test": "cargo build --manifest-path engine/Cargo.toml && vitest run",
     "test:watch": "cargo build --manifest-path engine/Cargo.toml && vitest"
   },

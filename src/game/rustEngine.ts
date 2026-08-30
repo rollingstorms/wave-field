@@ -47,26 +47,32 @@ interface RustBindings {
 let bindings: RustBindings | null = null;
 
 function requestedRuleEngine(): "rust" | "ts" {
-  if (!import.meta.env.DEV) return "ts";
   if (BOARD_SIZE === BIG_BOARD_SIZE) return "ts";
   const requested = new URLSearchParams(globalThis.location?.search ?? "").get("engine");
   if (requested === "ts" || requested === "typescript") return "ts";
+  if (requested === "rust" || requested === "wasm") return "rust";
   return "rust";
 }
 
 export async function initializeRustEngine(): Promise<void> {
-  if (!import.meta.env.DEV || bindings) return;
+  if (bindings) return;
   if (requestedRuleEngine() === "ts") {
     document.documentElement.dataset.ruleEngine = "typescript";
     console.info("Wave Field: TypeScript rule engine active");
     return;
   }
-  const modulePath = "/engine/pkg/wave_field_engine.js";
-  const loaded = await import(/* @vite-ignore */ modulePath) as RustBindings;
-  await loaded.default();
-  bindings = loaded;
-  document.documentElement.dataset.ruleEngine = "rust-wasm";
-  console.info("Wave Field: Rust rule engine active");
+  const baseUrl = import.meta.env.BASE_URL.endsWith("/") ? import.meta.env.BASE_URL : `${import.meta.env.BASE_URL}/`;
+  const modulePath = `${baseUrl}engine/pkg/wave_field_engine.js`;
+  try {
+    const loaded = await import(/* @vite-ignore */ modulePath) as RustBindings;
+    await loaded.default();
+    bindings = loaded;
+    document.documentElement.dataset.ruleEngine = "rust-wasm";
+    console.info("Wave Field: Rust rule engine active");
+  } catch (error) {
+    document.documentElement.dataset.ruleEngine = "typescript";
+    console.warn("Wave Field: Rust rule engine unavailable; TypeScript rule engine active", error);
+  }
 }
 
 export function rustEngineActive(): boolean {
