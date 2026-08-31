@@ -104,7 +104,7 @@ export function App() {
         const preview = policy === "easy"
           ? playEasyTurn(state, player, { seed: duelSeed, variety })
           : policy === "hard"
-            ? playHardTurn(state, player, { seed: duelSeed, variety, timeBudgetMs: 1_500 })
+            ? playHardTurn(state, player, { seed: duelSeed, variety, timeBudgetMs: 2_500 })
             : playHeuristicTurn(state, player, { seed: duelSeed, variety });
         const tuneCount = componentChangeCount(state.components[player], preview.components[player]);
         setAiStats((stats) => ({

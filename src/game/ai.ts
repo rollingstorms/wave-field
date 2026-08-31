@@ -161,7 +161,7 @@ function samePosition(left: Position, right: Position): boolean {
 function stateKey(state: GameState | GameSnapshot): string {
   const pieces = [...state.pieces]
     .sort((left, right) => left.id.localeCompare(right.id))
-    .map((piece) => `${piece.id}:${piece.owner}:${piece.type}:${piece.position.x},${piece.position.y}`)
+    .map((piece) => `${piece.id}:${piece.owner}:${piece.type}:${piece.position.x},${piece.position.y}:${piece.unstable ? 1 : 0}`)
     .join("|");
   const components = (["blue", "red"] as const)
     .map((side) => `${side}:${pieceTypes.map((pieceType) => state.components[side][pieceType].join(",")).join("/")}`)

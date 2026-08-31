@@ -23,19 +23,19 @@ const EASY_OWN_LOSS_PENALTY: f64 = 5_000.0;
 const EASY_OWN_UNSTABLE_PENALTY: f64 = 500.0;
 const EASY_OWN_KING_DANGER_PENALTY: f64 = 600_000.0;
 const EASY_OWN_KING_MARGIN_BONUS: f64 = 35.0;
-const HARD_DEFAULT_TIME_BUDGET_MS: u64 = 1_500;
-const HARD_MAX_DEPTH: u8 = 4;
-const HARD_ROOT_ACTION_LIMIT: usize = 18;
-const HARD_BRANCH_ACTION_LIMIT: usize = 10;
-const HARD_QUIESCENCE_ACTION_LIMIT: usize = 6;
-const HARD_PROFILE_LIMIT: usize = 14;
+const HARD_DEFAULT_TIME_BUDGET_MS: u64 = 2_500;
+const HARD_MAX_DEPTH: u8 = 5;
+const HARD_ROOT_ACTION_LIMIT: usize = 28;
+const HARD_BRANCH_ACTION_LIMIT: usize = 14;
+const HARD_QUIESCENCE_ACTION_LIMIT: usize = 8;
+const HARD_PROFILE_LIMIT: usize = 20;
 const HARD_QUIESCENCE_DEPTH: u8 = 1;
 const HARD_ROOT_TRAP_ANALYSIS_LIMIT: usize = 8;
 const HARD_REPLY_SAFETY_PROFILE_LIMIT: usize = 1;
-const HARD_REPLY_SAFETY_MOVE_LIMIT: usize = 12;
-const HARD_BLUNDER_FILTER_CANDIDATE_LIMIT: usize = 6;
-const HARD_BLUNDER_FILTER_PROFILE_LIMIT: usize = 4;
-const HARD_BLUNDER_FILTER_MOVE_LIMIT: usize = 48;
+const HARD_REPLY_SAFETY_MOVE_LIMIT: usize = 24;
+const HARD_BLUNDER_FILTER_CANDIDATE_LIMIT: usize = 10;
+const HARD_BLUNDER_FILTER_PROFILE_LIMIT: usize = 6;
+const HARD_BLUNDER_FILTER_MOVE_LIMIT: usize = 96;
 const HARD_CONVERSION_TIEBREAKER_SCALE: f64 = 0.2;
 
 #[cfg(not(target_arch = "wasm32"))]
@@ -394,12 +394,13 @@ fn snapshot_state_key(
         .iter()
         .map(|piece| {
             format!(
-                "{}:{}:{}:{},{}",
+                "{}:{}:{}:{},{}:{}",
                 piece.id,
                 player_key(piece.owner),
                 piece_type_key(piece.piece_type),
                 piece.position.x,
-                piece.position.y
+                piece.position.y,
+                if piece.unstable { 1 } else { 0 }
             )
         })
         .collect::<Vec<_>>();
