@@ -17,7 +17,7 @@
     "selfplay:hard-study": "node scripts/study-hard-converter.mjs",
     "selfplay:hard-sweep": "node scripts/sweep-hard-params.mjs",
     "search:optim": "node scripts/search-optim-configs.mjs",
-    "build": "npm run engine:build && tsc && vite build && node scripts/copy-arena-entry.mjs",
+    "build": "npm run engine:build && tsc && vite build && node scripts/copy-arena-entry.mjs && node scripts/create-sites-worker.mjs",
     "test": "cargo build --manifest-path engine/Cargo.toml && vitest run",
     "test:watch": "cargo build --manifest-path engine/Cargo.toml && vitest"
   },
@@ -31,6 +31,7 @@
     "vitest": "4.0.15"
   },
   "devDependencies": {
+    "@openai/sites-vite-plugin": "^0.2.0",
     "@types/node": "^26.1.2",
     "@types/react": "19.2.14",
     "@types/react-dom": "19.2.3"
