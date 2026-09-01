@@ -288,6 +288,8 @@ pub struct GameSnapshot {
     pub definitions: ComponentDefinitions,
     pub wave_scales: PieceTypeMap<WaveScale>,
     pub home_energy: PieceTypeMap<f64>,
+    #[serde(default)]
+    pub amp_squares: Vec<Position>,
 }
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
@@ -304,6 +306,8 @@ pub struct GameState {
     pub definitions: ComponentDefinitions,
     pub wave_scales: PieceTypeMap<WaveScale>,
     pub home_energy: PieceTypeMap<f64>,
+    #[serde(default)]
+    pub amp_squares: Vec<Position>,
     pub history: Vec<GameSnapshot>,
     pub message: String,
 }
@@ -321,6 +325,7 @@ impl GameState {
             definitions: self.definitions.clone(),
             wave_scales: self.wave_scales.clone(),
             home_energy: self.home_energy.clone(),
+            amp_squares: self.amp_squares.clone(),
         }
     }
 }

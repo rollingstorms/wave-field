@@ -115,6 +115,7 @@ export interface GameSnapshot {
   definitions: ComponentDefinitions;
   waveScales: WaveScales;
   homeEnergy: HomeEnergy;
+  ampSquares: Position[];
 }
 
 export interface GameState extends GameSnapshot {

@@ -48,6 +48,7 @@ let bindings: RustBindings | null = null;
 
 function requestedRuleEngine(): "rust" | "ts" {
   if (BOARD_SIZE === BIG_BOARD_SIZE) return "ts";
+  if (globalThis.location?.pathname.replace(/\/$/, "").endsWith("/amp")) return "ts";
   const requested = new URLSearchParams(globalThis.location?.search ?? "").get("engine");
   if (requested === "ts" || requested === "typescript") return "ts";
   if (requested === "rust" || requested === "wasm") return "rust";

@@ -60,6 +60,7 @@ fn training_candidate_state(state: &GameState, piece_id: &str, destination: Posi
         definitions: state.definitions.clone(),
         wave_scales: state.wave_scales.clone(),
         home_energy: state.home_energy.clone(),
+        amp_squares: state.amp_squares.clone(),
         history: Vec::new(),
         message: String::new(),
     }

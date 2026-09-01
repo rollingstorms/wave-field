@@ -4,6 +4,7 @@ import { evaluateField, evaluatePieceContribution, evaluateTypeFields } from "..
 import { evaluateBasis, evaluateComponentBasis } from "../field/kernels";
 import { DEFAULT_HOME_ENERGY, FIELD_EPSILON } from "../game/constants";
 import { createInitialState } from "../game/initialState";
+import { createAmpSquares } from "../game/variants";
 import type { BasisDefinition, Coefficient, FormulaPreset, GameState, PieceType } from "../game/types";
 
 const allPresets: FormulaPreset[] = [
@@ -52,6 +53,15 @@ function defaultValues(pieceType: PieceType): Coefficient[] {
 }
 
 describe("field engine", () => {
+  it("places amp squares on the third square in from each corner", () => {
+    expect(createAmpSquares(7)).toEqual([
+      { x: 2, y: 2 },
+      { x: 4, y: 2 },
+      { x: 2, y: 4 },
+      { x: 4, y: 4 },
+    ]);
+  });
+
   it("zero pawn coefficient contributes zero away from its home square", () => {
     const state = tuned("pawn", [0]);
     const piece = state.pieces[0];
@@ -138,6 +148,34 @@ describe("field engine", () => {
     const rook = tuned("rook", [-1, -1]);
     expect(evaluatePieceContribution(spy.pieces[0], spy.pieces[0].position, spy)).toBe(0.5);
     expect(evaluatePieceContribution(rook.pieces[0], rook.pieces[0].position, rook)).toBe(0);
+  });
+
+  it("doubles a piece's whole wave pattern when its origin is on an amp square", () => {
+    const normal = tuned("spy", [1, 0]);
+    normal.pieces[0].position = { x: 2, y: 2 };
+    const amped: GameState = {
+      ...structuredClone(normal),
+      ampSquares: [{ x: 2, y: 2 }],
+    };
+    const piece = amped.pieces[0];
+
+    expect(evaluatePieceContribution(piece, { x: 2, y: 2 }, amped))
+      .toBeCloseTo(evaluatePieceContribution(normal.pieces[0], { x: 2, y: 2 }, normal) * 2);
+    expect(evaluatePieceContribution(piece, { x: 3, y: 2 }, amped))
+      .toBeCloseTo(evaluatePieceContribution(normal.pieces[0], { x: 3, y: 2 }, normal) * 2);
+    expect(evaluateField(amped)[2][3]).toBeCloseTo(evaluateField(normal)[2][3] * 2);
+  });
+
+  it("does not amplify a piece merely targeting an amp square from elsewhere", () => {
+    const state = tuned("spy", [1, 0]);
+    state.pieces[0].position = { x: 3, y: 2 };
+    const amped: GameState = {
+      ...structuredClone(state),
+      ampSquares: [{ x: 2, y: 2 }],
+    };
+
+    expect(evaluatePieceContribution(amped.pieces[0], { x: 2, y: 2 }, amped))
+      .toBeCloseTo(evaluatePieceContribution(state.pieces[0], { x: 2, y: 2 }, state));
   });
 
   it("own-square contribution is zero while adjacent contribution still works", () => {

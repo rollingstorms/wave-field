@@ -17,6 +17,7 @@ interface SquareProps {
   influenceTerritory: Territory | null;
   influenceOpacity: number;
   typeSums: Record<PieceType, number> | null;
+  amp: boolean;
   lossPop: boolean;
   energyColor?: string;
   energySummary?: string;
@@ -33,7 +34,7 @@ function formatSigned(value: number) {
   return `${value > 0 ? "+" : ""}${magnitude.replace(".0", "")}`;
 }
 
-export function Square({ position, territory, fieldValue, piece, legal, risky, kingBlocked, selected, dragging, dragPreview, influenceTerritory, influenceOpacity, typeSums, lossPop, energyColor, energySummary = "", energySelected = false, continuousColor, continuousSummary = "", hidePiece = false, onClick }: SquareProps) {
+export function Square({ position, territory, fieldValue, piece, legal, risky, kingBlocked, selected, dragging, dragPreview, influenceTerritory, influenceOpacity, typeSums, amp, lossPop, energyColor, energySummary = "", energySelected = false, continuousColor, continuousSummary = "", hidePiece = false, onClick }: SquareProps) {
   const renderedColor = energyColor ?? continuousColor;
   const coordinate = `${String.fromCharCode(65 + position.x)}${BOARD_SIZE - position.y}`;
   const influenceSummary = influenceTerritory
@@ -44,12 +45,12 @@ export function Square({ position, territory, fieldValue, piece, legal, risky, k
     : "";
   return (
     <button
-      className={`square ${territory} ${energyColor ? "energy-square" : ""} ${continuousColor ? "continuous-square" : ""} ${energySelected ? "energy-selected" : ""} ${legal ? "legal" : ""} ${risky ? "risky-move" : ""} ${selected ? "selected-square" : ""} ${dragPreview ? "drag-preview-square" : ""} ${typeSums ? "type-sums-visible" : ""}`}
+      className={`square ${territory} ${amp ? "amp-square" : ""} ${energyColor ? "energy-square" : ""} ${continuousColor ? "continuous-square" : ""} ${energySelected ? "energy-selected" : ""} ${legal ? "legal" : ""} ${risky ? "risky-move" : ""} ${selected ? "selected-square" : ""} ${dragPreview ? "drag-preview-square" : ""} ${typeSums ? "type-sums-visible" : ""}`}
       style={renderedColor ? { backgroundColor: renderedColor } : undefined}
       onClick={onClick}
       data-board-x={position.x}
       data-board-y={position.y}
-      aria-label={`Square ${coordinate}. ${territory} territory. Field ${fieldValue.toFixed(3)}.${energySummary}${continuousSummary}${risky ? " Moving here loses a piece." : ""}${kingBlocked ? " Reachable, but blocked because it would leave your Big Hat unprotected." : ""}${influenceSummary}${typeSummary}`}
+      aria-label={`Square ${coordinate}. ${territory} territory. Field ${fieldValue.toFixed(3)}.${amp ? " Amp square, pieces here project double wave strength." : ""}${energySummary}${continuousSummary}${risky ? " Moving here loses a piece." : ""}${kingBlocked ? " Reachable, but blocked because it would leave your Big Hat unprotected." : ""}${influenceSummary}${typeSummary}`}
     >
       {influenceOpacity > 0 && influenceTerritory !== "neutral" && (
         <span
@@ -62,6 +63,7 @@ export function Square({ position, territory, fieldValue, piece, legal, risky, k
         <span className={`square-outline ${dragPreview ? "drag-outline" : "selection-outline"}`} aria-hidden="true" />
       )}
       {legal && <span className={risky ? "legal-dot risky-dot" : "legal-dot"} />}
+      {amp && <span className="amp-marker" aria-hidden="true">2x</span>}
       {risky && <span className="risk-marker" aria-hidden="true">!</span>}
       {kingBlocked && <span className="king-block-marker" aria-hidden="true">{PIECE_INITIALS.king}</span>}
       {piece && <Piece piece={piece} selected={selected} dragging={dragging} hidden={hidePiece} />}

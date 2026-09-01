@@ -17,6 +17,7 @@ import { getLegalMoves, getPieceAt, samePosition } from "../game/movement";
 import { applyMove, getPlayableMoves } from "../game/rules";
 import { PIECE_DISPLAY_NAMES, PIECE_INITIALS } from "../game/pieceLabels";
 import type { GameState, Position } from "../game/types";
+import { isAmpSquare } from "../game/variants";
 import { markInstability } from "../game/victory";
 import { Piece, PieceShape } from "./Piece";
 import { Square } from "./Square";
@@ -487,6 +488,7 @@ export function Board({ state, field, typeFields, continuousField, showTypeSums,
                     spy: displayTypeFields.spy[y][x],
                     king: displayTypeFields.king[y][x],
                   } : null}
+                  amp={isAmpSquare(position, state.ampSquares)}
                   lossPop={lossPopKeys.has(`${x}:${y}`)}
                   energyColor={energyView ? energy.color : undefined}
                   energySummary={energySummary}

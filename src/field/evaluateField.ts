@@ -1,8 +1,11 @@
 import { BOARD_SIZE, PIECE_STRENGTH } from "../game/constants";
 import type { ComponentDefinitions, GameState, Piece, PieceType, Position } from "../game/types";
 import { rustEvaluateField } from "../game/rustEngine";
+import { isAmpSquare } from "../game/variants";
 import { offset } from "./distance";
 import { evaluateComponentBasis } from "./kernels";
+
+const AMP_MULTIPLIER = 2;
 
 export function evaluatePieceContribution(
   piece: Piece,
@@ -13,7 +16,8 @@ export function evaluatePieceContribution(
   const coefficients = state.components[piece.owner][piece.type];
   const bases = definitions[piece.type];
   const delta = offset(piece.position, square);
-  if (delta.x === 0 && delta.y === 0) return state.homeEnergy[piece.type];
+  const multiplier = isAmpSquare(piece.position, state.ampSquares) ? AMP_MULTIPLIER : 1;
+  if (delta.x === 0 && delta.y === 0) return state.homeEnergy[piece.type] * multiplier;
   const raw = coefficients.reduce(
     (totals, coefficient, index) => {
       const value = coefficient * evaluateComponentBasis(piece.type, bases[index], delta);
@@ -24,7 +28,7 @@ export function evaluatePieceContribution(
     { positive: 0, negative: 0 },
   );
   const scale = state.waveScales[piece.type];
-  return PIECE_STRENGTH[piece.type] * (raw.positive * scale.friendly + raw.negative * scale.hostile);
+  return multiplier * PIECE_STRENGTH[piece.type] * (raw.positive * scale.friendly + raw.negative * scale.hostile);
 }
 
 export function evaluateSignedPieceContribution(

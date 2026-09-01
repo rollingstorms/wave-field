@@ -763,6 +763,7 @@ fn snapshot_as_state(base: &GameState, snapshot: &GameSnapshot) -> GameState {
         definitions: snapshot.definitions.clone(),
         wave_scales: snapshot.wave_scales.clone(),
         home_energy: snapshot.home_energy.clone(),
+        amp_squares: snapshot.amp_squares.clone(),
         history: Vec::new(),
         message: String::new(),
     }

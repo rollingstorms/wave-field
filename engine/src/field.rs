@@ -8,6 +8,14 @@ fn piece_strength(piece_type: PieceType) -> f64 {
     }
 }
 
+fn amp_multiplier(piece: &Piece, state: &GameState) -> f64 {
+    if state.amp_squares.iter().any(|square| square == &piece.position) {
+        2.0
+    } else {
+        1.0
+    }
+}
+
 fn preset_sign(preset: &FormulaPreset, delta: Position, ring: i32) -> i8 {
     let x = delta.x.abs();
     let y = delta.y.abs();
@@ -426,6 +434,7 @@ pub fn evaluate_field(state: &GameState) -> Field {
         };
         let strength = piece_strength(piece.piece_type);
         let scale = state.wave_scales.get(piece.piece_type);
+        let multiplier = amp_multiplier(piece, state);
         let coefficients = state.components.get(piece.owner).get(piece.piece_type);
         let definitions = state.definitions.get(piece.piece_type);
         let active_components = coefficients
@@ -443,7 +452,7 @@ pub fn evaluate_field(state: &GameState) -> Field {
                     y: y - piece.position.y,
                 };
                 let contribution = if delta.x == 0 && delta.y == 0 {
-                    *state.home_energy.get(piece.piece_type)
+                    *state.home_energy.get(piece.piece_type) * multiplier
                 } else {
                     let mut positive_raw = 0.0;
                     let mut negative_raw = 0.0;
@@ -455,7 +464,7 @@ pub fn evaluate_field(state: &GameState) -> Field {
                             negative_raw += value;
                         }
                     }
-                    strength * (positive_raw * scale.friendly + negative_raw * scale.hostile)
+                    multiplier * strength * (positive_raw * scale.friendly + negative_raw * scale.hostile)
                 };
                 field[y as usize][x as usize] += sign * contribution;
             }

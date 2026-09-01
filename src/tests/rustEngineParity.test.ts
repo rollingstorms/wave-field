@@ -108,6 +108,16 @@ describe("Rust engine parity", () => {
     expect(rust<number[][]>("evaluateField", state)).toEqual(evaluateField(state));
   });
 
+  it("matches amp-square field amplification", () => {
+    const state = createInitialState();
+    state.pieces = [
+      { id: "red-spy", owner: "red", type: "spy", position: { x: 2, y: 2 }, unstable: false },
+    ];
+    state.ampSquares = [{ x: 2, y: 2 }];
+
+    expect(rust<number[][]>("evaluateField", state)).toEqual(evaluateField(state));
+  });
+
   it("matches randomize and reset tuning actions", () => {
     const state = createInitialState();
     const rolls = [0, 0.3, 0.6, 0.9];
