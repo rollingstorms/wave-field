@@ -24,7 +24,8 @@ import type { BasisDefinition, PieceType, Player, PlayerComponents, Position } f
 const routePath = globalThis.location?.pathname.replace(/\/$/, "") ?? "";
 const localNeuralArenaEnabled = import.meta.env.DEV
   && (routePath.endsWith("/local-arena") || import.meta.env.MODE === "arena");
-const hardRouteEnabled = routePath.endsWith("/hard");
+const ampRouteEnabled = routePath.endsWith("/amp");
+const hardRouteEnabled = routePath.endsWith("/hard") || ampRouteEnabled;
 const arenaEnabled = routePath.endsWith("/arena") || hardRouteEnabled || localNeuralArenaEnabled;
 const optimTestEnabled = routePath.endsWith("/optim-test");
 const easyTestEnabled = routePath.endsWith("/easy-test");
