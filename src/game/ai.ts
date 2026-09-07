@@ -1,12 +1,12 @@
-import { evaluateField } from "../field/evaluateField";
+import { evaluateContinuousFieldValue, evaluateField } from "../field/evaluateField";
 import { isSquareCompatible } from "../field/projection";
 import { tuningStrengthFor } from "./constants";
 import { snapshot } from "./initialState";
-import { getLegalMoves } from "./movement";
-import { applyMove, opponent } from "./rules";
+import { getContinuousLegalMoves, getLegalMoves } from "./movement";
+import { applyContinuousMove, applyMove, opponent } from "./rules";
 import { rustPlayEasyTurn, rustPlayHardTurn, rustPlayHeuristicTurn } from "./rustEngine";
 import { activationOrderForProfile } from "./tuning";
-import type { Coefficient, GameSnapshot, GameState, Piece, PieceType, Player, PlayerComponents, Position } from "./types";
+import type { Coefficient, GameSnapshot, GameState, Piece, PieceType, Player, PlayerComponents, PrecisePosition } from "./types";
 import { getUnstablePieces, isKingUnprotected, markInstability } from "./victory";
 
 const pieceTypes: PieceType[] = ["pawn", "rook", "spy", "king"];
@@ -110,7 +110,7 @@ function scoreState(state: GameState, player: Player, field: number[][]): number
     score += direction * materialValue[piece.type] * 120;
     const centerDistance = Math.abs(piece.position.x - 3) + Math.abs(piece.position.y - 3);
     score += direction * (6 - centerDistance) * (piece.type === "spy" ? 2 : 1);
-    score += direction * getLegalMoves(piece.id, state, field).length * 1.5;
+    score += direction * legalDestinations(piece.id, state, field).length * 1.5;
   }
 
   for (const row of field) {
@@ -125,7 +125,7 @@ function scoreState(state: GameState, player: Player, field: number[][]): number
 
   const ownKing = state.pieces.find((piece) => piece.owner === player && piece.type === "king");
   if (ownKing) {
-    const value = field[ownKing.position.y][ownKing.position.x];
+    const value = compatibleValueAt(state, ownKing, field);
     score += isSquareCompatible(player, value) ? Math.min(Math.abs(value), 4) * 25 : -10_000;
   }
   if (isKingUnprotected(enemy, state, field)) score += 400_000;
@@ -150,12 +150,30 @@ function hashUnit(value: string): number {
   return (hash >>> 0) / 4294967295;
 }
 
-function choiceNoise(choice: { pieceId: string; destination: { x: number; y: number }; score: number }, state: GameState, player: Player, seed: number) {
+function choiceNoise(choice: { pieceId: string; destination: PrecisePosition; score: number }, state: GameState, player: Player, seed: number) {
   return hashUnit(`${seed}:${state.turnNumber}:${player}:${choice.pieceId}:${choice.destination.x}:${choice.destination.y}:${choice.score.toFixed(3)}`);
 }
 
-function samePosition(left: Position, right: Position): boolean {
+function samePosition(left: PrecisePosition, right: PrecisePosition): boolean {
   return left.x === right.x && left.y === right.y;
+}
+
+function legalDestinations(pieceId: string, state: GameState, field: number[][]): PrecisePosition[] {
+  return state.variant === "continuous"
+    ? getContinuousLegalMoves(pieceId, state)
+    : getLegalMoves(pieceId, state, field);
+}
+
+function applyAiMove(pieceId: string, destination: PrecisePosition, state: GameState, analyzeCheckmate: boolean) {
+  return state.variant === "continuous"
+    ? applyContinuousMove(pieceId, destination, state, { analyzeCheckmate })
+    : applyMove(pieceId, destination, state, { analyzeCheckmate });
+}
+
+function compatibleValueAt(state: GameState, piece: Piece, field: number[][]): number {
+  return state.variant === "continuous"
+    ? evaluateContinuousFieldValue(state, piece.position)
+    : field[piece.position.y]?.[piece.position.x] ?? 0;
 }
 
 function stateKey(state: GameState | GameSnapshot): string {
@@ -179,7 +197,7 @@ function recentStateCounts(state: GameState): Map<string, number> {
   return counts;
 }
 
-function movedPiece(before: GameSnapshot, after: GameSnapshot): { pieceId: string; from: Position; to: Position } | null {
+function movedPiece(before: GameSnapshot, after: GameSnapshot): { pieceId: string; from: PrecisePosition; to: PrecisePosition } | null {
   for (const piece of before.pieces) {
     const next = after.pieces.find((candidate) => candidate.id === piece.id);
     if (next && !samePosition(piece.position, next.position)) {
@@ -189,9 +207,9 @@ function movedPiece(before: GameSnapshot, after: GameSnapshot): { pieceId: strin
   return null;
 }
 
-function lastMoveByPiece(state: GameState, player: Player): Map<string, { from: Position; to: Position }> {
+function lastMoveByPiece(state: GameState, player: Player): Map<string, { from: PrecisePosition; to: PrecisePosition }> {
   const timeline: GameSnapshot[] = [...state.history, snapshot(state)];
-  const moves = new Map<string, { from: Position; to: Position }>();
+  const moves = new Map<string, { from: PrecisePosition; to: PrecisePosition }>();
   for (let index = timeline.length - 2; index >= 0; index -= 1) {
     const before = timeline[index];
     if (before.currentPlayer !== player) continue;
@@ -204,9 +222,9 @@ function lastMoveByPiece(state: GameState, player: Player): Map<string, { from: 
 function loopPenalty(
   preview: GameState,
   piece: Piece,
-  destination: Position,
+  destination: PrecisePosition,
   repetitionCounts: ReadonlyMap<string, number>,
-  recentMoves: ReadonlyMap<string, { from: Position; to: Position }>,
+  recentMoves: ReadonlyMap<string, { from: PrecisePosition; to: PrecisePosition }>,
 ): number {
   const repeatCount = repetitionCounts.get(stateKey(preview)) ?? 0;
   const previousMove = recentMoves.get(piece.id);
@@ -218,14 +236,14 @@ function loopPenalty(
   return repeatCount * repeatedStatePenalty + (reversesLastMove ? immediateReversalPenalty : 0);
 }
 
-function legalMoveChoices(state: GameState): Array<{ pieceId: string; destination: Position; preview: GameState; score: number }> {
+function legalMoveChoices(state: GameState): Array<{ pieceId: string; destination: PrecisePosition; preview: GameState; score: number }> {
   const field = evaluateField(state);
   return state.pieces
     .filter((piece) => piece.owner === state.currentPlayer)
     .flatMap((piece) =>
-      getLegalMoves(piece.id, state, field)
+      legalDestinations(piece.id, state, field)
         .flatMap((destination) => {
-          const result = applyMove(piece.id, destination, state, { analyzeCheckmate: false });
+          const result = applyAiMove(piece.id, destination, state, false);
           return result.ok ? [{ pieceId: piece.id, destination, preview: result.state, score: 0 }] : [];
         }),
     );
@@ -290,7 +308,7 @@ function lostMaterial(before: GameState, after: GameState, owner: Player): numbe
 
 function ownSafetyScore(state: GameState, player: Player, field: number[][]): number {
   const ownKing = state.pieces.find((piece) => piece.owner === player && piece.type === "king");
-  const ownKingValue = ownKing ? field[ownKing.position.y][ownKing.position.x] : 0;
+  const ownKingValue = ownKing ? compatibleValueAt(state, ownKing, field) : 0;
   const ownUnstable = getUnstablePieces(player, state, field).filter((piece) => piece.type !== "king").length;
   return -(isKingUnprotected(player, state, field) ? easyOwnKingDangerPenalty : 0)
     - ownUnstable * easyOwnUnstablePenalty
@@ -298,7 +316,7 @@ function ownSafetyScore(state: GameState, player: Player, field: number[][]): nu
 }
 
 function easyGenerosityScore(
-  choice: { pieceId: string; destination: Position; preview: GameState },
+  choice: { pieceId: string; destination: PrecisePosition; preview: GameState },
   state: GameState,
   player: Player,
 ): number {
@@ -329,6 +347,12 @@ export function playEasyTurn(state: GameState, player: Player = "red", options: 
     Math.max(1, options.timeBudgetMs ?? 10),
   );
   if (rustState) return rustState;
+  if (state.variant === "continuous") {
+    return playHeuristicTurn(state, player, {
+      ...options,
+      timeBudgetMs: Math.max(80, Math.min(options.timeBudgetMs ?? 120, 500)),
+    });
+  }
 
   const repetitionCounts = recentStateCounts(state);
   const recentMoves = lastMoveByPiece(state, player);
@@ -368,7 +392,7 @@ export function playHeuristicTurn(state: GameState, player: Player = "red", opti
   );
   if (rustState) return rustState;
 
-  const choices: Array<{ tuned: GameState; pieceId: string; destination: { x: number; y: number }; preview: GameState; score: number }> = [];
+  const choices: Array<{ tuned: GameState; pieceId: string; destination: PrecisePosition; preview: GameState; score: number }> = [];
   const fieldCache = new WeakMap<GameState, number[][]>();
   const repetitionCounts = recentStateCounts(state);
   const recentMoves = lastMoveByPiece(state, player);
@@ -386,7 +410,7 @@ export function playHeuristicTurn(state: GameState, player: Player = "red", opti
     return field;
   }
 
-  function rememberChoice(tuned: GameState, pieceId: string, destination: { x: number; y: number }, preview: GameState, score: number) {
+  function rememberChoice(tuned: GameState, pieceId: string, destination: PrecisePosition, preview: GameState, score: number) {
     if (choices.length < exactCandidateLimit || score > bestScore) {
       choices.push({ tuned, pieceId, destination, preview, score });
       choices.sort((a, b) => b.score - a.score);
@@ -410,9 +434,9 @@ export function playHeuristicTurn(state: GameState, player: Player = "red", opti
     fieldCache.set(tuned, tunedBaseField);
 
     for (const piece of tuned.pieces.filter((candidate) => candidate.owner === player)) {
-      for (const destination of getLegalMoves(piece.id, tuned, tunedBaseField)) {
+      for (const destination of legalDestinations(piece.id, tuned, tunedBaseField)) {
         movesChecked += 1;
-        const result = applyMove(piece.id, destination, tuned, { analyzeCheckmate: false });
+        const result = applyAiMove(piece.id, destination, tuned, false);
         if (!result.ok) continue;
         const score = scoreState(result.state, player, getField(result.state))
           - loopPenalty(result.state, piece, destination, repetitionCounts, recentMoves);
@@ -471,7 +495,7 @@ export function playHeuristicTurn(state: GameState, player: Player = "red", opti
   let fallback: GameState | null = null;
   const fullAnalysisChoices = choices.slice(0, nowMs() >= deadline ? 1 : fullAnalysisLimit);
   for (const choice of fullAnalysisChoices) {
-    const result = applyMove(choice.pieceId, choice.destination, choice.tuned);
+    const result = applyAiMove(choice.pieceId, choice.destination, choice.tuned, true);
     if (!result.ok) continue;
     if (result.state.status === `${player}-won`) return { ...result.state, history: [...state.history, snapshot(state)] };
     fallback ??= result.state;
