@@ -257,6 +257,22 @@ export function RulesPage({ onBack }: RulesPageProps) {
         <MovementBoard />
       </section>
 
+      <section className="rules-panel">
+        <Waves size={22} />
+        <h2>Continuous Variant</h2>
+        <p>
+          The /continuous route treats each pattern as low-resolution samples of a continuous
+          wave. The board still uses the sign of the summed field for stability, but pieces
+          move between high-resolution points instead of square centers.
+        </p>
+        <ol>
+          <li>Continuous field shading paints the sampled wave surface; turning it off keeps point movement active.</li>
+          <li>Playable markers are precise destinations, not square centers.</li>
+          <li>Non-Spy pieces must stay in friendly or Neutral field along the sampled path.</li>
+          <li>Pieces have body radius, so overlapping destinations and paths through another piece are blocked.</li>
+        </ol>
+      </section>
+
       <section className="rules-split">
         <div>
           <h2>Instability</h2>
