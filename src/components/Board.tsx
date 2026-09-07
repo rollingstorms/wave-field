@@ -67,6 +67,10 @@ function visualY(y: number) {
   return BOARD_SIZE - 1 - y;
 }
 
+function playerLabel(player: GameState["currentPlayer"]) {
+  return player === "blue" ? "Blue" : "Red";
+}
+
 function preciseKey(position: PrecisePosition) {
   return `${position.x.toFixed(6)}:${position.y.toFixed(6)}`;
 }
@@ -581,11 +585,12 @@ export function Board({ state, field, typeFields, continuousField, showTypeSums,
               className="continuous-piece-anchor"
               key={piece.id}
               data-piece-id={piece.id}
+              role="img"
+              aria-label={`${playerLabel(piece.owner)} ${PIECE_DISPLAY_NAMES[piece.type]}${interactionPiece?.id === piece.id ? ", selected" : ""}${piece.unstable ? ", unstable" : ""}`}
               style={{
                 "--piece-x": piece.position.x,
                 "--piece-y": visualY(piece.position.y),
               } as CSSProperties}
-              aria-hidden="true"
             >
               <Piece
                 piece={piece}
