@@ -4,6 +4,7 @@ const worker = `const htmlPaths = new Set([
   "/",
   "/arena",
   "/big",
+  "/continuous",
   "/easy-test",
   "/hard",
   "/low-rescue-test",
