@@ -1,7 +1,7 @@
 import { BOARD_SIZE, DEBUG_COMPONENT_COUNT_LIMITS } from "../game/constants";
-import { contributionGrid, evaluateSignedPieceContribution } from "../field/evaluateField";
+import { contributionGrid, evaluateContinuousFieldValue, evaluateSignedPieceContribution } from "../field/evaluateField";
 import { projectFieldValue } from "../field/projection";
-import { getLegalMoves } from "../game/movement";
+import { getContinuousLegalMoves, getLegalMoves } from "../game/movement";
 import { PIECE_TYPES, pieceName } from "../game/pieceLabels";
 import { getUnstablePieces, isKingUnprotected } from "../game/victory";
 import type { GameSnapshot, GameState } from "../game/types";
@@ -36,12 +36,24 @@ function playerName(player: Player) {
   return player === "blue" ? "Blue" : "Red";
 }
 
+function mobilityForPiece(pieceId: string, state: GameState, field: number[][]): number {
+  return state.variant === "continuous"
+    ? getContinuousLegalMoves(pieceId, state).length
+    : getLegalMoves(pieceId, state, field).length;
+}
+
+function fieldValueAtPiece(piece: GameState["pieces"][number], state: GameState, field: number[][]): number {
+  return state.variant === "continuous"
+    ? evaluateContinuousFieldValue(state, piece.position)
+    : field[piece.position.y][piece.position.x];
+}
+
 function pressureMetrics(snap: GameSnapshot): PressureMetric[] {
   const state = snap as GameState;
   const field = evaluateFieldForSnapshot(state);
   return players.map((player) => {
     const pieces = state.pieces.filter((piece) => piece.owner === player);
-    const legalMoves = pieces.reduce((total, piece) => total + getLegalMoves(piece.id, state, field).length, 0);
+    const legalMoves = pieces.reduce((total, piece) => total + mobilityForPiece(piece.id, state, field), 0);
     const unstable = getUnstablePieces(player, state, field).filter((piece) => piece.type !== "king").length;
     return { player, legalMoves, unstable, kingInCheck: isKingUnprotected(player, state, field) };
   });
@@ -260,7 +272,7 @@ export function DebugPanel({ state, field, onUpdateDefault, onUpdateWaveScale, o
         <div className="piece-list">
           {state.pieces.map((piece) => (
             <span key={piece.id}>
-              {piece.id}: ({piece.position.x},{piece.position.y}) field {field[piece.position.y][piece.position.x].toFixed(3)} moves {getLegalMoves(piece.id, state, field).length}
+              {piece.id}: ({piece.position.x},{piece.position.y}) field {fieldValueAtPiece(piece, state, field).toFixed(3)} moves {mobilityForPiece(piece.id, state, field)}
             </span>
           ))}
         </div>

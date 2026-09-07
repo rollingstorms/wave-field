@@ -1,6 +1,6 @@
 import { FastForward, Pause, Play, StepForward } from "lucide-react";
 import { BOARD_SIZE } from "../game/constants";
-import { getLegalMoves } from "../game/movement";
+import { getContinuousLegalMoves, getLegalMoves } from "../game/movement";
 import { policyLabel } from "../game/neuralAi";
 import type { AiPolicy } from "../game/neuralAi";
 import type { GameState, Player } from "../game/types";
@@ -33,7 +33,10 @@ function playerName(player: Player) {
 function playerMetrics(state: GameState, field: number[][], player: Player) {
   const pieces = state.pieces.filter((piece) => piece.owner === player);
   const material = pieces.reduce((sum, piece) => sum + materialValues[piece.type], 0);
-  const mobility = pieces.reduce((sum, piece) => sum + getLegalMoves(piece.id, state, field).length, 0);
+  const mobility = pieces.reduce((sum, piece) =>
+    sum + (state.variant === "continuous"
+      ? getContinuousLegalMoves(piece.id, state).length
+      : getLegalMoves(piece.id, state, field).length), 0);
   const unstable = getUnstablePieces(player, state, field).filter((piece) => piece.type !== "king").length;
   const kingInCheck = isKingUnprotected(player, state, field);
   const territory = field.reduce((sum, row) => sum + row.filter((value) => player === "red" ? value > 0 : value < 0).length, 0);

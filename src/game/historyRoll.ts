@@ -1,4 +1,5 @@
-import { BOARD_SIZE, DEFAULT_HOME_ENERGY } from "./constants";
+import { DEFAULT_HOME_ENERGY } from "./constants";
+import { boardCoordinate } from "./coordinates";
 import { PIECE_TYPES, pieceNameLower } from "./pieceLabels";
 import type { Coefficient, GameSnapshot, GameState, HomeEnergy, PieceType, Player } from "./types";
 
@@ -20,10 +21,6 @@ function playerName(player: Player) {
 function signLabel(player: Player, coefficient: Coefficient) {
   const fieldSign = player === "blue" ? -coefficient : coefficient;
   return fieldSign === 1 ? "+" : fieldSign === -1 ? "-" : "0";
-}
-
-function coordinate(x: number, y: number) {
-  return `${String.fromCharCode(65 + x)}${BOARD_SIZE - y}`;
 }
 
 function homeEnergy(snapshot: GameSnapshot): HomeEnergy {
@@ -68,10 +65,10 @@ function describeTransition(before: GameSnapshot, after: GameSnapshot, number: n
 
   for (const piece of moved) {
     const next = after.pieces.find((candidate) => candidate.id === piece.id)!;
-    details.push(`${playerName(piece.owner)} ${pieceNameLower(piece.type)} ${coordinate(piece.position.x, piece.position.y)}→${coordinate(next.position.x, next.position.y)}`);
+    details.push(`${playerName(piece.owner)} ${pieceNameLower(piece.type)} ${boardCoordinate(piece.position)}→${boardCoordinate(next.position)}`);
   }
   for (const piece of removed) {
-    details.push(`${playerName(piece.owner)} ${pieceNameLower(piece.type)} lost at ${coordinate(piece.position.x, piece.position.y)}`);
+    details.push(`${playerName(piece.owner)} ${pieceNameLower(piece.type)} lost at ${boardCoordinate(piece.position)}`);
   }
   if (before.status !== after.status) details.push(`Status ${before.status}→${after.status}`);
 

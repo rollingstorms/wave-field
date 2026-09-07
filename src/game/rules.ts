@@ -1,5 +1,6 @@
 import { addFields, evaluateField, evaluateInstantField } from "../field/evaluateField";
-import { BOARD_SIZE, tuningStrengthFor } from "./constants";
+import { tuningStrengthFor } from "./constants";
+import { boardCoordinate } from "./coordinates";
 import type { Coefficient, GameState, MoveResult, PieceType, Player, PlayerComponents, Position, PrecisePosition } from "./types";
 import { getContinuousLegalMoves, getLegalMoves, samePosition, samePrecisePosition } from "./movement";
 import { PIECE_TYPES, pieceNameLower } from "./pieceLabels";
@@ -31,10 +32,6 @@ function playerName(player: Player): string {
   return player === "red" ? "Red" : "Blue";
 }
 
-function boardCoordinate(position: Position): string {
-  return `${String.fromCharCode(65 + position.x)}${BOARD_SIZE - position.y}`;
-}
-
 const pieceTypes: PieceType[] = PIECE_TYPES;
 const coefficientValues: Coefficient[] = [1, 0, -1];
 const HINT_SEARCH_FAST_STATE_LIMIT = 160;
@@ -46,7 +43,7 @@ export interface PlayableConfigurationHint {
   components: PlayerComponents;
   pieceId: string;
   pieceType: PieceType;
-  destination: Position;
+  destination: PrecisePosition;
   changedComponents: number;
 }
 

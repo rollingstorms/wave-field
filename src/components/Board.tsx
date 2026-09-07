@@ -14,7 +14,7 @@ import { contributionGrid, evaluateContinuousField, evaluateField, evaluateTypeF
 import type { TypeFields } from "../field/evaluateField";
 import { projectFieldValue } from "../field/projection";
 import { getContinuousLegalMoves, getLegalMoves, getPieceAt, getPieceAtPrecise, samePosition, samePrecisePosition } from "../game/movement";
-import { applyContinuousMove, applyMove, getPlayableMoves } from "../game/rules";
+import { applyContinuousMove, applyMove, getContinuousPlayableMoves, getPlayableMoves } from "../game/rules";
 import { PIECE_DISPLAY_NAMES, PIECE_INITIALS } from "../game/pieceLabels";
 import type { GameState, Position, PrecisePosition } from "../game/types";
 import { isAmpSquare } from "../game/variants";
@@ -94,7 +94,7 @@ export function Board({ state, field, typeFields, continuousField, showTypeSums,
   );
   const playableMoves = useMemo(
     () => !locked && interactionPiece
-      ? continuousInteraction ? getContinuousLegalMoves(interactionPiece.id, state) : getPlayableMoves(interactionPiece.id, state, field)
+      ? continuousInteraction ? getContinuousPlayableMoves(interactionPiece.id, state) : getPlayableMoves(interactionPiece.id, state, field)
       : [],
     [continuousInteraction, field, interactionPiece, locked, state],
   );
@@ -297,7 +297,7 @@ export function Board({ state, field, typeFields, continuousField, showTypeSums,
   }
 
   function displayedPlayableMovesFor(pieceId: string): PrecisePosition[] {
-    if (continuousInteraction) return getContinuousLegalMoves(pieceId, state);
+    if (continuousInteraction) return getContinuousPlayableMoves(pieceId, state);
     const piece = state.pieces.find((candidate) => candidate.id === pieceId);
     if (!piece) return [];
     const moves = getPlayableMoves(pieceId, state, field);

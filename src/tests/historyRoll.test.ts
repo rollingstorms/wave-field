@@ -26,6 +26,20 @@ describe("debug history roll", () => {
     expect(entries.at(-1)?.details.some((detail) => detail.includes("Blue round hat C6→"))).toBe(true);
   });
 
+  it("describes continuous moves with precise coordinates", () => {
+    const state = createInitialState();
+    state.variant = "continuous";
+    const moved = gameReducer(state, {
+      type: "continuous-move",
+      pieceId: "blue-spy-1",
+      destination: { x: 5, y: 3 + 1 / 9 },
+    });
+    const entries = buildHistoryRoll(moved);
+
+    expect(entries.at(-1)?.summary).toBe("Blue moved triangle hat");
+    expect(entries.at(-1)?.details).toContain("Blue triangle hat D6→(5, 3.111)");
+  });
+
   it("describes home energy changes", () => {
     const state = createInitialState();
     const changed = gameReducer(state, { type: "update-home-energy", pieceType: "spy", value: 0.75 });
