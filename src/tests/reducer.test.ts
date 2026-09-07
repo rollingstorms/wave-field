@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { evaluateField } from "../field/evaluateField";
+import { evaluateField, evaluateInstantField } from "../field/evaluateField";
 import { gameReducer } from "../game/reducer";
 import { createInitialState } from "../game/initialState";
 import { getLegalMoves } from "../game/movement";
@@ -44,6 +44,27 @@ describe("reducer", () => {
 
     const moved = gameReducer(tuned, { type: "move", pieceId: "blue-pawn-1", destination });
     expect(moved.currentPlayer).toBe("red");
+  });
+
+  it("accumulates entropy field memory after a committed move", () => {
+    const state = createInitialState();
+    const entropyState: GameState = {
+      ...state,
+      entropyField: evaluateInstantField(state),
+    };
+    const before = entropyState.entropyField!;
+    const destination = getLegalMoves("blue-pawn-1", entropyState, evaluateField(entropyState))[0];
+    expect(destination).toBeDefined();
+
+    const moved = gameReducer(entropyState, { type: "move", pieceId: "blue-pawn-1", destination });
+    expect(moved.entropyField).toBeDefined();
+    const instantAfterMove = evaluateInstantField(moved);
+
+    for (let y = 0; y < before.length; y += 1) {
+      for (let x = 0; x < before[y].length; x += 1) {
+        expect(moved.entropyField![y][x]).toBeCloseTo(before[y][x] + instantAfterMove[y][x]);
+      }
+    }
   });
 
   it("keeps only the last activated spy component", () => {

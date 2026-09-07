@@ -1,4 +1,4 @@
-import { evaluateField } from "../field/evaluateField";
+import { addFields, evaluateField, evaluateInstantField } from "../field/evaluateField";
 import { BOARD_SIZE, tuningStrengthFor } from "./constants";
 import type { Coefficient, GameState, MoveResult, PieceType, Player, PlayerComponents, Position } from "./types";
 import { getLegalMoves, samePosition } from "./movement";
@@ -163,6 +163,14 @@ function resolveOwnTurnConsequences(player: Player, previous: GameState, candida
   const deadlineResolved = removeUnrescuedPieces(player, marked, rescueDeadlineIds);
   const selfField = evaluateField(deadlineResolved);
   return markInstability(deadlineResolved, selfField);
+}
+
+function commitEntropyField(state: GameState): GameState {
+  if (!state.entropyField) return state;
+  return {
+    ...state,
+    entropyField: addFields(state.entropyField, evaluateInstantField(state)),
+  };
 }
 
 function lostOwnPieces(player: Player, before: GameState, after: GameState): string[] {
@@ -476,7 +484,7 @@ export function beginTurn(state: GameState, options: RuleOptions = {}): GameStat
 }
 
 function completeAction(previous: GameState, candidate: GameState, options: RuleOptions = {}): MoveResult {
-  const selfResolved = resolveOwnTurnConsequences(previous.currentPlayer, previous, candidate);
+  const selfResolved = commitEntropyField(resolveOwnTurnConsequences(previous.currentPlayer, previous, candidate));
   const selfField = evaluateField(selfResolved);
   if (isKingUnprotected(previous.currentPlayer, selfResolved, selfField)) {
     return { ok: false, state: previous, reason: "That move would leave your Big Hat unprotected." };

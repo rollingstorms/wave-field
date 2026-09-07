@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 from argparse import Namespace
+from pathlib import Path
+import tempfile
 import unittest
 
 import numpy as np
@@ -20,6 +22,7 @@ from wavefield.engine import RustEngine, load_initial_state
 from wavefield.eval import aggregate
 from wavefield.experiment import parse_weights, replay_weight_samples, sample_metadata_summary
 from wavefield.match import play_match_game
+from wavefield.mcts import MctsConfig, mcts_selfplay_records, select_mcts_action
 from wavefield.model import PolicyValueNet, masked_policy_logits
 from wavefield.policy_inspect import inspect_positions
 from wavefield.scenarios import DEFAULT_SCENARIOS, build_scenario_states
@@ -34,6 +37,7 @@ from wavefield.selfplay import (
     session_model_selfplay_records,
 )
 from wavefield.tactical_eval import run_tactical_eval
+from wavefield.train import samples_to_tensors, train_epoch
 
 
 class TrainingSmokeTest(unittest.TestCase):
@@ -218,6 +222,74 @@ class TrainingSmokeTest(unittest.TestCase):
         self.assertGreater(len(samples), 0)
         self.assertEqual(samples[0].action_kind, 1)
 
+    def test_mcts_selects_legal_search_action(self) -> None:
+        state = load_initial_state()
+        model = PolicyValueNet(hidden_size=32)
+
+        result = select_mcts_action(
+            model,
+            state,
+            self.engine,
+            config=MctsConfig(simulations=2, top_k=4, max_depth=2, max_tuning_actions=1),
+            device="cpu",
+            input_view="base",
+        )
+
+        self.assertGreaterEqual(result.visits, 0)
+        self.assertGreater(len(result.policy), 0)
+        if result.action["type"] == "tune":
+            self.assertIn(result.action, legal_tuning_actions(state))
+        else:
+            self.assertIn(result.action, self.engine.legal_actions(state))
+
+    def test_mcts_selfplay_generates_soft_policy_targets(self) -> None:
+        model = PolicyValueNet(hidden_size=32)
+        records = mcts_selfplay_records(
+            self.engine,
+            model,
+            games=1,
+            max_plies=2,
+            seed=29,
+            config=MctsConfig(simulations=1, top_k=3, max_depth=1, max_tuning_actions=1),
+            device="cpu",
+            input_view="base",
+        )
+        samples = [sample for record in records for sample in record.samples]
+
+        self.assertGreater(len(samples), 0)
+        self.assertTrue(any(sample.kind_policy is not None for sample in samples))
+        self.assertTrue(all(abs(float(sample.kind_policy.sum()) - 1.0) < 1.0e-5 for sample in samples if sample.kind_policy is not None))
+
+    def test_train_epoch_accepts_soft_policy_targets(self) -> None:
+        state = load_initial_state()
+        model = PolicyValueNet(hidden_size=32)
+        result = select_mcts_action(
+            model,
+            state,
+            self.engine,
+            config=MctsConfig(simulations=1, top_k=3, max_depth=1, max_tuning_actions=1),
+            device="cpu",
+            input_view="base",
+        )
+        records = mcts_selfplay_records(
+            self.engine,
+            model,
+            games=1,
+            max_plies=1,
+            seed=31,
+            config=MctsConfig(simulations=1, top_k=3, max_depth=1, max_tuning_actions=1),
+            device="cpu",
+            input_view="base",
+        )
+        samples = [sample for record in records for sample in record.samples]
+        self.assertGreater(len(result.policy), 0)
+
+        tensors = samples_to_tensors(samples, torch.device("cpu"))
+        optimizer = torch.optim.AdamW(model.parameters(), lr=1.0e-3)
+        losses = train_epoch(model, optimizer, tensors, batch_size=4)
+
+        self.assertTrue(np.isfinite(losses["loss"]))
+
     def test_head_to_head_match_generates_rich_stats(self) -> None:
         model = PolicyValueNet(hidden_size=32)
         record = play_match_game(
@@ -234,6 +306,82 @@ class TrainingSmokeTest(unittest.TestCase):
         self.assertEqual(summary["games"], 1)
         self.assertIn("win_rates", summary)
         self.assertIn("avg_final_material_balance_red", summary)
+
+    def test_head_to_head_match_accepts_model_search_policy(self) -> None:
+        model = PolicyValueNet(hidden_size=32)
+        record = play_match_game(
+            self.engine,
+            policies={"blue": "model_search", "red": "random"},
+            model=model,
+            device="cpu",
+            max_plies=2,
+            seed=28,
+            temperature=0.0,
+            input_view="base",
+            max_tuning_actions=1,
+            mcts_config=MctsConfig(simulations=2, top_k=4, max_depth=2, max_tuning_actions=1),
+        )
+
+        self.assertGreaterEqual(record.stats.plies, 1)
+        self.assertGreaterEqual(record.stats.ai_turns_by_player["blue"], 1)
+
+    def test_head_to_head_match_can_record_replay(self) -> None:
+        record = play_match_game(
+            self.engine,
+            policies={"blue": "random", "red": "random"},
+            model=None,
+            device="cpu",
+            max_plies=2,
+            seed=32,
+            temperature=0.0,
+            input_view="base",
+            record_replay=True,
+        )
+
+        self.assertEqual(len(record.replay), record.stats.plies)
+        self.assertIn("actions", record.replay[0])
+        self.assertIn("pieceCounts", record.replay[0])
+
+    def test_experiment_can_write_baseline_eval_replays(self) -> None:
+        from wavefield.experiment import (
+            JsonlLogger,
+            TerminalProgress,
+            parse_baseline_opponents,
+            run_baseline_eval,
+        )
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            args = Namespace(
+                run_dir=Path(tmpdir),
+                baseline_eval_games=1,
+                baseline_eval_max_plies=2,
+                eval_max_plies=None,
+                max_plies=2,
+                seed=33,
+                eval_temperature=0.0,
+                input_view="base",
+                full_policy=False,
+                max_tuning_actions=1,
+                eval_pressure=False,
+                record_eval_replays=True,
+            )
+            logger = JsonlLogger(Path(tmpdir) / "events.jsonl", TerminalProgress(False, 1))
+            model = PolicyValueNet(hidden_size=32)
+
+            run_baseline_eval(
+                self.engine,
+                model,
+                args,
+                torch.device("cpu"),
+                iteration=1,
+                logger=logger,
+                progress=TerminalProgress(False, 1),
+                opponents=parse_baseline_opponents("random"),
+            )
+
+            replay_path = Path(tmpdir) / "eval_replays.jsonl"
+            self.assertTrue(replay_path.exists())
+            self.assertIn("baseline_eval_replay", replay_path.read_text())
 
     def test_batched_model_selfplay_generates_samples(self) -> None:
         model = PolicyValueNet(hidden_size=32)
@@ -374,6 +522,22 @@ class TrainingSmokeTest(unittest.TestCase):
         self.assertEqual(summary["phases"], {"endgame": 6})
         self.assertEqual(summary["low_material"], 6)
         self.assertEqual(summary["legal_count"]["mean"], 4.0)
+
+    def test_experiment_bootstrap_mix_allocation(self) -> None:
+        from wavefield.experiment import allocate_bootstrap_mix, parse_bootstrap_mix
+
+        mix = parse_bootstrap_mix("easy=2,heuristic=6,hard=8")
+
+        self.assertEqual(mix, {"easy": 2, "heuristic": 6, "hard": 8})
+        self.assertEqual(
+            allocate_bootstrap_mix(16, "hard", mix),
+            [("easy", 2), ("heuristic", 6), ("hard", 8)],
+        )
+        self.assertEqual(
+            allocate_bootstrap_mix(12, "hard", mix),
+            [("easy", 2), ("heuristic", 4), ("hard", 6)],
+        )
+        self.assertEqual(allocate_bootstrap_mix(5, "hard", {}), [("hard", 5)])
 
     def test_local_model_server_uses_model_tuning_head(self) -> None:
         server = ModelMoveServer.__new__(ModelMoveServer)

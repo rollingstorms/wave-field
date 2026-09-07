@@ -52,6 +52,9 @@ class Sample:
     action_kind: int = 0
     legal_tuning_mask: np.ndarray | None = None
     tuning_action_index: int = -100
+    kind_policy: np.ndarray | None = None
+    move_policy: np.ndarray | None = None
+    tuning_policy: np.ndarray | None = None
     history_board: np.ndarray | None = None
     history_side: np.ndarray | None = None
     metadata: Dict[str, Any] = field(default_factory=dict)
@@ -121,6 +124,7 @@ class GameRecord:
     samples: List[Sample]
     stats: GameStats
     final_state: Dict[str, Any]
+    replay: List[Dict[str, Any]] = field(default_factory=list)
 
 
 Profile = MutableMapping[str, float]

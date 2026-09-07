@@ -116,6 +116,7 @@ export interface GameSnapshot {
   waveScales: WaveScales;
   homeEnergy: HomeEnergy;
   ampSquares: Position[];
+  entropyField?: number[][];
 }
 
 export interface GameState extends GameSnapshot {

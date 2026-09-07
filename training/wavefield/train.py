@@ -9,7 +9,7 @@ import torch
 import torch.nn.functional as F
 
 from .engine import RustEngine
-from .encoding import TUNING_ACTION_SIZE
+from .encoding import ACTION_SIZE, TUNING_ACTION_SIZE
 from .model import PolicyValueNet, masked_policy_logits
 from .selfplay import (
     CapValueMode,
@@ -62,14 +62,44 @@ def samples_to_tensors(samples: List[Sample], device: torch.device) -> Dict[str,
         else np.zeros((TUNING_ACTION_SIZE,), dtype=np.float32)
         for sample in samples
     ]
+    kind_targets = []
+    move_policy_targets = []
+    tuning_policy_targets = []
+    for sample in samples:
+        if sample.kind_policy is None:
+            kind_target = np.zeros((2,), dtype=np.float32)
+            kind_target[int(sample.action_kind)] = 1.0
+        else:
+            kind_target = sample.kind_policy.astype(np.float32)
+        kind_targets.append(kind_target)
+
+        if sample.move_policy is None:
+            move_target = np.zeros((ACTION_SIZE,), dtype=np.float32)
+            if sample.action_index >= 0:
+                move_target[int(sample.action_index)] = 1.0
+        else:
+            move_target = sample.move_policy.astype(np.float32)
+        move_policy_targets.append(move_target)
+
+        if sample.tuning_policy is None:
+            tuning_target = np.zeros((TUNING_ACTION_SIZE,), dtype=np.float32)
+            if sample.tuning_action_index >= 0:
+                tuning_target[int(sample.tuning_action_index)] = 1.0
+        else:
+            tuning_target = sample.tuning_policy.astype(np.float32)
+        tuning_policy_targets.append(tuning_target)
+
     tensors = {
         "board": torch.tensor(np.stack([sample.board for sample in samples]), dtype=torch.float32, device=device),
         "side": torch.tensor(np.stack([sample.side for sample in samples]), dtype=torch.float32, device=device),
         "legal_mask": torch.tensor(np.stack([sample.legal_mask for sample in samples]), dtype=torch.float32, device=device),
         "actions": torch.tensor([sample.action_index for sample in samples], dtype=torch.long, device=device),
         "action_kinds": torch.tensor([sample.action_kind for sample in samples], dtype=torch.long, device=device),
+        "kind_policy": torch.tensor(np.stack(kind_targets), dtype=torch.float32, device=device),
+        "move_policy": torch.tensor(np.stack(move_policy_targets), dtype=torch.float32, device=device),
         "legal_tuning_mask": torch.tensor(np.stack(tuning_masks), dtype=torch.float32, device=device),
         "tuning_actions": torch.tensor([sample.tuning_action_index for sample in samples], dtype=torch.long, device=device),
+        "tuning_policy": torch.tensor(np.stack(tuning_policy_targets), dtype=torch.float32, device=device),
         "values": torch.tensor([sample.value for sample in samples], dtype=torch.float32, device=device),
     }
     if all(sample.history_board is not None and sample.history_side is not None for sample in samples):
@@ -84,6 +114,10 @@ def samples_to_tensors(samples: List[Sample], device: torch.device) -> Dict[str,
             device=device,
         )
     return tensors
+
+
+def _soft_policy_loss(logits: torch.Tensor, targets: torch.Tensor) -> torch.Tensor:
+    return -(targets * F.log_softmax(logits, dim=1)).sum(dim=1).mean()
 
 
 def train_epoch(
@@ -115,23 +149,25 @@ def train_epoch(
             history_board=history_board,
             history_side=history_side,
         )
-        action_kinds = tensors["action_kinds"][batch]
-        kind_loss = F.cross_entropy(kind_logits, action_kinds)
+        kind_targets = tensors["kind_policy"][batch]
+        kind_loss = _soft_policy_loss(kind_logits, kind_targets)
 
-        move_rows = action_kinds == 0
+        move_targets = tensors["move_policy"][batch]
+        move_rows = move_targets.sum(dim=1) > 0
         if bool(move_rows.any()):
-            policy_loss = F.cross_entropy(
+            policy_loss = _soft_policy_loss(
                 masked_policy_logits(move_logits[move_rows], tensors["legal_mask"][batch][move_rows]),
-                tensors["actions"][batch][move_rows],
+                move_targets[move_rows],
             )
         else:
             policy_loss = move_logits.sum() * 0.0
 
-        tuning_rows = action_kinds == 1
+        tuning_targets = tensors["tuning_policy"][batch]
+        tuning_rows = tuning_targets.sum(dim=1) > 0
         if bool(tuning_rows.any()):
-            tuning_loss = F.cross_entropy(
+            tuning_loss = _soft_policy_loss(
                 masked_policy_logits(tuning_logits[tuning_rows], tensors["legal_tuning_mask"][batch][tuning_rows]),
-                tensors["tuning_actions"][batch][tuning_rows],
+                tuning_targets[tuning_rows],
             )
         else:
             tuning_loss = tuning_logits.sum() * 0.0

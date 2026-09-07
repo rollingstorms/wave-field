@@ -6,7 +6,7 @@ import sys
 import time
 from collections import Counter
 from pathlib import Path
-from typing import Any, Dict, Iterable, List
+from typing import Any, Dict, Iterable, List, Tuple
 
 import numpy as np
 import torch
@@ -15,6 +15,7 @@ from .eval import aggregate
 from .encoding import SIDE_SIZE, board_channels_for_view
 from .engine import RustEngine
 from .model import PolicyValueNet
+from .mcts import MctsConfig, mcts_selfplay_records
 from .scenarios import DEFAULT_SCENARIOS, build_scenario_states, scenario_names
 from .selfplay import Sample, heuristic_bootstrap_records, rust_random_training_samples, session_model_selfplay_records
 from .train import resolve_device, samples_to_tensors, train_epoch
@@ -42,12 +43,22 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--max-plies", type=int, default=120)
     parser.add_argument("--pretrain-random-games", type=int, default=0)
     parser.add_argument("--bootstrap-policy", choices=("heuristic", "hard", "easy"), default="heuristic")
+    parser.add_argument(
+        "--bootstrap-mix",
+        default="",
+        help="Comma-separated teacher mix, for example easy=2,heuristic=6,hard=8. Empty uses --bootstrap-policy.",
+    )
     parser.add_argument("--bootstrap-variety", type=float, default=None)
     parser.add_argument("--bootstrap-time-budget-ms", type=int, default=None)
     parser.add_argument("--heuristic-bootstrap-games", type=int, default=0)
     parser.add_argument("--heuristic-bootstrap-per-iteration", type=int, default=0)
     parser.add_argument("--random-games-per-iteration", type=int, default=0)
     parser.add_argument("--model-games", type=int, default=100)
+    parser.add_argument("--mcts-games-per-iteration", type=int, default=0)
+    parser.add_argument("--mcts-simulations", type=int, default=8)
+    parser.add_argument("--mcts-top-k", type=int, default=8)
+    parser.add_argument("--mcts-depth", type=int, default=6)
+    parser.add_argument("--mcts-c-puct", type=float, default=1.5)
     parser.add_argument("--scenario-games-per-iteration", type=int, default=0)
     parser.add_argument("--scenario-bootstrap-per-iteration", type=int, default=0)
     parser.add_argument("--scenario-eval-games", type=int, default=0)
@@ -77,6 +88,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--baseline-eval-games", type=int, default=0, help="Run side-swapped model-vs-baseline matches during eval.")
     parser.add_argument("--baseline-eval-max-plies", type=int, default=None, help="Override ply cap for baseline eval matches.")
     parser.add_argument("--baseline-opponents", default="heuristic", help="Comma-separated policies: heuristic,hard,easy,random.")
+    parser.add_argument("--record-eval-replays", action="store_true", help="Write baseline eval game traces to eval_replays.jsonl.")
     parser.add_argument("--save-every", type=int, default=1)
     parser.add_argument("--cap-value", choices=("zero", "material"), default="material")
     parser.add_argument("--progress", action="store_true", help="Show compact ANSI progress lines during long runs.")
@@ -286,6 +298,55 @@ def parse_weights(raw: str) -> Dict[str, int]:
     return weights
 
 
+def parse_bootstrap_mix(raw: str) -> Dict[str, int]:
+    weights = parse_weights(raw)
+    invalid = [policy for policy in weights if policy not in {"easy", "heuristic", "hard"}]
+    if invalid:
+        raise ValueError(f"Invalid bootstrap policy in --bootstrap-mix: {invalid}. Expected easy, heuristic, or hard.")
+    if weights and sum(weights.values()) <= 0:
+        raise ValueError("--bootstrap-mix must include at least one positive policy weight.")
+    return weights
+
+
+def allocate_bootstrap_mix(
+    total_games: int,
+    default_policy: str,
+    mix_weights: Dict[str, int],
+) -> List[Tuple[str, int]]:
+    if total_games <= 0:
+        return []
+    if not mix_weights:
+        return [(default_policy, total_games)]
+
+    total_weight = sum(mix_weights.values())
+    raw_counts = [
+        (policy, total_games * weight / total_weight)
+        for policy, weight in mix_weights.items()
+        if weight > 0
+    ]
+    counts = {policy: int(raw + 0.5) for policy, raw in raw_counts}
+    delta = total_games - sum(counts.values())
+    if delta > 0:
+        fractions = sorted(
+            ((raw - int(raw), policy) for policy, raw in raw_counts),
+            reverse=True,
+        )
+        for _, policy in fractions[:delta]:
+            counts[policy] += 1
+    elif delta < 0:
+        fractions = sorted(
+            ((counts[policy] - raw, policy) for policy, raw in raw_counts),
+            reverse=True,
+        )
+        for _, policy in fractions:
+            if delta == 0:
+                break
+            if counts[policy] > 0:
+                counts[policy] -= 1
+                delta += 1
+    return [(policy, counts[policy]) for policy in mix_weights if counts.get(policy, 0) > 0]
+
+
 def bootstrap_variety(args: argparse.Namespace) -> float:
     if args.bootstrap_variety is not None:
         return args.bootstrap_variety
@@ -296,6 +357,20 @@ def bootstrap_time_budget_ms(args: argparse.Namespace) -> int:
     if args.bootstrap_time_budget_ms is not None:
         return args.bootstrap_time_budget_ms
     return 1_500 if args.bootstrap_policy == "hard" else 10
+
+
+def teacher_variety(args: argparse.Namespace, policy: str) -> float:
+    if args.bootstrap_variety is not None:
+        return args.bootstrap_variety
+    return 0.0 if policy == "hard" else 0.55
+
+
+def teacher_time_budget_ms(args: argparse.Namespace, policy: str) -> int:
+    if args.bootstrap_time_budget_ms is not None and policy == "hard":
+        return args.bootstrap_time_budget_ms
+    if args.bootstrap_time_budget_ms is not None and not args.bootstrap_mix:
+        return args.bootstrap_time_budget_ms
+    return 1_500 if policy == "hard" else 10
 
 
 def replay_weight_samples(
@@ -332,6 +407,57 @@ def generation_summary(records: List[Any], samples: List[Sample]) -> Dict[str, A
         },
         "metadata": sample_metadata_summary(samples),
     }
+
+
+def generate_bootstrap_mix(
+    engine: RustEngine,
+    args: argparse.Namespace,
+    total_games: int,
+    seed: int,
+    phase: str,
+    progress: TerminalProgress,
+    iteration: int,
+    bootstrap_mix: Dict[str, int],
+    initial_states: List[Dict[str, Any]] | None = None,
+) -> Tuple[List[Any], List[Sample], Dict[str, float], Dict[str, int]]:
+    plan = allocate_bootstrap_mix(total_games, args.bootstrap_policy, bootstrap_mix)
+    records: List[Any] = []
+    samples: List[Sample] = []
+    profile: Dict[str, float] = {}
+    policy_counts: Dict[str, int] = {}
+    state_offset = 0
+
+    for policy_index, (policy, games) in enumerate(plan):
+        policy_states = None
+        if initial_states is not None:
+            policy_states = initial_states[state_offset:state_offset + games]
+        policy_profile: Dict[str, float] = {}
+        detail = f"{games} {policy} games"
+        progress.phase(iteration, phase, detail)
+        policy_records = heuristic_bootstrap_records(
+            engine,
+            games=games,
+            max_plies=args.max_plies,
+            seed=seed + policy_index * 10_000,
+            cap_value=args.cap_value,
+            input_view=args.input_view,
+            bootstrap_policy=policy,
+            heuristic_variety=teacher_variety(args, policy),
+            heuristic_time_budget_ms=teacher_time_budget_ms(args, policy),
+            initial_states=policy_states,
+            collect_metrics=False,
+            history_plies=args.history_plies,
+            profile=policy_profile,
+        )
+        policy_samples = [sample for record in policy_records for sample in record.samples]
+        records.extend(policy_records)
+        samples.extend(policy_samples)
+        policy_counts[policy] = policy_counts.get(policy, 0) + games
+        for key, value in policy_profile.items():
+            profile[f"{policy}_{key}"] = profile.get(f"{policy}_{key}", 0.0) + value
+        state_offset += games
+
+    return records, samples, profile, policy_counts
 
 
 def train_samples(
@@ -505,9 +631,11 @@ def run_baseline_eval(
                     full_policy=args.full_policy,
                     max_tuning_actions=args.max_tuning_actions,
                     collect_metrics=args.eval_pressure,
+                    record_replay=args.record_eval_replays,
                 )
                 for game in range(games_per_side)
             ]
+            summary = aggregate(records)
             logger.write(
                 {
                     "event": "baseline_eval",
@@ -518,9 +646,30 @@ def run_baseline_eval(
                     "games_per_side": games_per_side,
                     "max_plies": max_plies,
                     "seconds": round(time.perf_counter() - started_at, 3),
-                    "summary": aggregate(records),
+                    "summary": summary,
                 }
             )
+            if args.record_eval_replays:
+                replay_path = args.run_dir / "eval_replays.jsonl"
+                with replay_path.open("a", encoding="utf-8") as handle:
+                    for game, record in enumerate(records):
+                        handle.write(
+                            json.dumps(
+                                {
+                                    "event": "baseline_eval_replay",
+                                    "iteration": iteration,
+                                    "game": game,
+                                    "opponent": opponent,
+                                    "model_side": model_side,
+                                    "policies": policies,
+                                    "max_plies": max_plies,
+                                    "stats": record.stats.to_dict(),
+                                    "replay": record.replay,
+                                },
+                                sort_keys=True,
+                            )
+                            + "\n"
+                        )
 
 
 def run_tactical_eval_phase(
@@ -593,9 +742,10 @@ def main() -> None:
     device = resolve_device(args.device)
     source_weights = parse_weights(args.source_weights)
     phase_weights = parse_weights(args.phase_weights)
+    bootstrap_mix = parse_bootstrap_mix(args.bootstrap_mix)
     scenarios = scenario_names(args.scenarios)
-    teacher_variety = bootstrap_variety(args)
-    teacher_time_budget_ms = bootstrap_time_budget_ms(args)
+    effective_teacher_variety = bootstrap_variety(args)
+    effective_teacher_time_budget_ms = bootstrap_time_budget_ms(args)
     baseline_opponents = parse_baseline_opponents(args.baseline_opponents)
     if args.input_view != "base" and (args.pretrain_random_games > 0 or args.random_games_per_iteration > 0):
         raise ValueError("Rust random training batches currently support only --input-view base")
@@ -654,8 +804,9 @@ def main() -> None:
                 "device": str(device),
                 "source_weights": source_weights,
                 "phase_weights": phase_weights,
-                "bootstrap_effective_variety": teacher_variety,
-                "bootstrap_effective_time_budget_ms": teacher_time_budget_ms,
+                "bootstrap_mix": bootstrap_mix,
+                "bootstrap_effective_variety": effective_teacher_variety,
+                "bootstrap_effective_time_budget_ms": effective_teacher_time_budget_ms,
                 "scenarios": scenarios,
                 "board_channels": board_channels_for_view(args.input_view),
                 "side_size": SIDE_SIZE,
@@ -720,23 +871,16 @@ def main() -> None:
 
     if args.heuristic_bootstrap_games > 0:
         started_at = time.perf_counter()
-        bootstrap_profile: Dict[str, float] = {}
-        progress.phase(0, "heuristic_bootstrap", f"{args.heuristic_bootstrap_games} games")
-        records = heuristic_bootstrap_records(
+        records, samples, bootstrap_profile, policy_counts = generate_bootstrap_mix(
             engine,
-            games=args.heuristic_bootstrap_games,
-            max_plies=args.max_plies,
+            args,
+            args.heuristic_bootstrap_games,
             seed=args.seed + 25_000,
-            cap_value=args.cap_value,
-            input_view=args.input_view,
-            bootstrap_policy=args.bootstrap_policy,
-            heuristic_variety=teacher_variety,
-            heuristic_time_budget_ms=teacher_time_budget_ms,
-            collect_metrics=False,
-            history_plies=args.history_plies,
-            profile=bootstrap_profile,
+            phase="heuristic_bootstrap",
+            progress=progress,
+            iteration=0,
+            bootstrap_mix=bootstrap_mix,
         )
-        samples = [sample for record in records for sample in record.samples]
         logger.write(
             {
                 "event": "generate",
@@ -744,6 +888,7 @@ def main() -> None:
                 "iteration": 0,
                 "seconds": round(time.perf_counter() - started_at, 3),
                 "summary": generation_summary(records, samples),
+                "policy_counts": policy_counts,
                 "profile": {key: round(value, 6) for key, value in sorted(bootstrap_profile.items())},
             }
         )
@@ -777,23 +922,16 @@ def main() -> None:
         iteration_samples: List[Sample] = []
         if args.heuristic_bootstrap_per_iteration > 0:
             started_at = time.perf_counter()
-            bootstrap_profile = {}
-            progress.phase(iteration, "heuristic_bootstrap_iteration", f"{args.heuristic_bootstrap_per_iteration} games")
-            records = heuristic_bootstrap_records(
+            records, bootstrap_samples, bootstrap_profile, policy_counts = generate_bootstrap_mix(
                 engine,
-                games=args.heuristic_bootstrap_per_iteration,
-                max_plies=args.max_plies,
+                args,
+                args.heuristic_bootstrap_per_iteration,
                 seed=args.seed + 35_000 + iteration,
-                cap_value=args.cap_value,
-                input_view=args.input_view,
-                bootstrap_policy=args.bootstrap_policy,
-                heuristic_variety=teacher_variety,
-                heuristic_time_budget_ms=teacher_time_budget_ms,
-                collect_metrics=False,
-                history_plies=args.history_plies,
-                profile=bootstrap_profile,
+                phase="heuristic_bootstrap_iteration",
+                progress=progress,
+                iteration=iteration,
+                bootstrap_mix=bootstrap_mix,
             )
-            bootstrap_samples = [sample for record in records for sample in record.samples]
             iteration_samples.extend(bootstrap_samples)
             logger.write(
                 {
@@ -802,6 +940,7 @@ def main() -> None:
                     "iteration": iteration,
                     "seconds": round(time.perf_counter() - started_at, 3),
                     "summary": generation_summary(records, bootstrap_samples),
+                    "policy_counts": policy_counts,
                     "profile": {key: round(value, 6) for key, value in sorted(bootstrap_profile.items())},
                 }
             )
@@ -882,6 +1021,46 @@ def main() -> None:
                 }
             )
 
+        if args.mcts_games_per_iteration > 0:
+            started_at = time.perf_counter()
+            progress.phase(iteration, "mcts_model_session", f"{args.mcts_games_per_iteration} games")
+            records = mcts_selfplay_records(
+                engine,
+                model,
+                games=args.mcts_games_per_iteration,
+                max_plies=args.max_plies,
+                seed=args.seed + 60_000 + iteration,
+                config=MctsConfig(
+                    simulations=args.mcts_simulations,
+                    c_puct=args.mcts_c_puct,
+                    top_k=args.mcts_top_k,
+                    max_depth=args.mcts_depth,
+                    max_tuning_actions=args.max_tuning_actions,
+                    policy_temperature=args.temperature,
+                ),
+                device=device,
+                input_view=args.input_view,
+                history_plies=args.history_plies,
+                cap_value=args.cap_value,
+            )
+            mcts_samples = [sample for record in records for sample in record.samples]
+            iteration_samples.extend(mcts_samples)
+            logger.write(
+                {
+                    "event": "generate",
+                    "phase": "mcts_model_session",
+                    "iteration": iteration,
+                    "seconds": round(time.perf_counter() - started_at, 3),
+                    "summary": generation_summary(records, mcts_samples),
+                    "mcts": {
+                        "simulations": args.mcts_simulations,
+                        "top_k": args.mcts_top_k,
+                        "depth": args.mcts_depth,
+                        "c_puct": args.mcts_c_puct,
+                    },
+                }
+            )
+
         if args.scenario_bootstrap_per_iteration > 0:
             progress.phase(iteration, "scenario_build", f"{args.scenario_bootstrap_per_iteration} games")
             scenario_states = build_scenario_states(
@@ -891,24 +1070,17 @@ def main() -> None:
                 seed=args.seed + 65_000 + iteration,
             )
             started_at = time.perf_counter()
-            scenario_bootstrap_profile: Dict[str, float] = {}
-            progress.phase(iteration, "scenario_heuristic_bootstrap", f"{args.scenario_bootstrap_per_iteration} games")
-            records = heuristic_bootstrap_records(
+            records, bootstrap_samples, scenario_bootstrap_profile, policy_counts = generate_bootstrap_mix(
                 engine,
-                games=args.scenario_bootstrap_per_iteration,
-                max_plies=args.max_plies,
+                args,
+                args.scenario_bootstrap_per_iteration,
                 seed=args.seed + 66_000 + iteration,
-                cap_value=args.cap_value,
-                input_view=args.input_view,
-                bootstrap_policy=args.bootstrap_policy,
-                heuristic_variety=teacher_variety,
-                heuristic_time_budget_ms=teacher_time_budget_ms,
+                phase="scenario_heuristic_bootstrap",
+                progress=progress,
+                iteration=iteration,
+                bootstrap_mix=bootstrap_mix,
                 initial_states=scenario_states,
-                collect_metrics=False,
-                history_plies=args.history_plies,
-                profile=scenario_bootstrap_profile,
             )
-            bootstrap_samples = [sample for record in records for sample in record.samples]
             iteration_samples.extend(bootstrap_samples)
             logger.write(
                 {
@@ -917,6 +1089,7 @@ def main() -> None:
                     "iteration": iteration,
                     "seconds": round(time.perf_counter() - started_at, 3),
                     "summary": generation_summary(records, bootstrap_samples),
+                    "policy_counts": policy_counts,
                     "profile": {key: round(value, 6) for key, value in sorted(scenario_bootstrap_profile.items())},
                 }
             )

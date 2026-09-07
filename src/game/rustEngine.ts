@@ -48,7 +48,8 @@ let bindings: RustBindings | null = null;
 
 function requestedRuleEngine(): "rust" | "ts" {
   if (BOARD_SIZE === BIG_BOARD_SIZE) return "ts";
-  if (globalThis.location?.pathname.replace(/\/$/, "").endsWith("/amp")) return "ts";
+  const routePath = globalThis.location?.pathname.replace(/\/$/, "") ?? "";
+  if (routePath.endsWith("/amp") || routePath.endsWith("/entropy")) return "ts";
   const requested = new URLSearchParams(globalThis.location?.search ?? "").get("engine");
   if (requested === "ts" || requested === "typescript") return "ts";
   if (requested === "rust" || requested === "wasm") return "rust";
@@ -96,34 +97,45 @@ function callRust<T>(operation: () => T): T | null {
   }
 }
 
+function supportsRustState(state: GameState): boolean {
+  return !state.entropyField;
+}
+
 export function rustEvaluateField(state: GameState): number[][] | null {
+  if (!supportsRustState(state)) return null;
   return callRust(() => JSON.parse(bindings!.evaluate_field_json(stateJson(state))) as number[][]);
 }
 
 export function rustInfluenceContributors(position: Position, state: GameState): SquareInfluenceContributors | null {
+  if (!supportsRustState(state)) return null;
   return callRust(() =>
     JSON.parse(bindings!.influence_contributors_json(position.x, position.y, stateJson(state))) as SquareInfluenceContributors);
 }
 
 export function rustAllInfluenceContributors(state: GameState): SquareInfluenceContributors[][] | null {
+  if (!supportsRustState(state)) return null;
   return callRust(() =>
     JSON.parse(bindings!.all_influence_contributors_json(stateJson(state))) as SquareInfluenceContributors[][]);
 }
 
 export function rustInstabilityInfluenceLinks(threshold: number, state: GameState): InstabilityInfluenceLink[] | null {
+  if (!supportsRustState(state)) return null;
   return callRust(() =>
     JSON.parse(bindings!.instability_influence_links_json(threshold, stateJson(state))) as InstabilityInfluenceLink[]);
 }
 
 export function rustLegalMoves(pieceId: string, state: GameState): Position[] | null {
+  if (!supportsRustState(state)) return null;
   return callRust(() => JSON.parse(bindings!.legal_moves_json(pieceId, stateJson(state))) as Position[]);
 }
 
 export function rustPlayableMoves(pieceId: string, state: GameState): Position[] | null {
+  if (!supportsRustState(state)) return null;
   return callRust(() => JSON.parse(bindings!.playable_moves_json(pieceId, stateJson(state))) as Position[]);
 }
 
 export function rustClosestPlayableConfiguration<T>(player: Player, state: GameState): T | null {
+  if (!supportsRustState(state)) return null;
   return callRust(() => JSON.parse(bindings!.closest_playable_configuration_json(player, stateJson(state))) as T);
 }
 
@@ -134,6 +146,7 @@ export function rustHintSearch<T>(
   maxTuningStates: number,
   timeBudgetMs: number,
 ): T | null {
+  if (!supportsRustState(state)) return null;
   return callRust(() =>
     JSON.parse(bindings!.hint_search_json(player, focusedPieceId ?? "", stateJson(state), maxTuningStates, timeBudgetMs)) as T);
 }
@@ -144,11 +157,13 @@ export function rustApplyMove(
   state: GameState,
   analyzeCheckmate: boolean,
 ): MoveResult | null {
+  if (!supportsRustState(state)) return null;
   return callRust(() =>
     JSON.parse(bindings!.apply_move_json(pieceId, destination.x, destination.y, stateJson(state), analyzeCheckmate)) as MoveResult);
 }
 
 export function rustBeginTurn(state: GameState, analyzeCheckmate: boolean): GameState | null {
+  if (!supportsRustState(state)) return null;
   return callRust(() => JSON.parse(bindings!.begin_turn_json(stateJson(state), analyzeCheckmate)) as GameState);
 }
 
@@ -159,36 +174,43 @@ export function rustApplyTuning(
   value: Coefficient,
   state: GameState,
 ): MoveResult | null {
+  if (!supportsRustState(state)) return null;
   return callRust(() =>
     JSON.parse(bindings!.apply_tuning_json(player, pieceType, componentIndex, value, stateJson(state))) as MoveResult);
 }
 
 export function rustResignInCheck(state: GameState): MoveResult | null {
+  if (!supportsRustState(state)) return null;
   return callRust(() => JSON.parse(bindings!.resign_in_check_json(stateJson(state))) as MoveResult);
 }
 
 export function rustApplyClosestPlayableHint(state: GameState): MoveResult | null {
+  if (!supportsRustState(state)) return null;
   return callRust(() => JSON.parse(bindings!.apply_closest_playable_hint_json(stateJson(state))) as MoveResult);
 }
 
 export function rustResetTuning(state: GameState): MoveResult | null {
+  if (!supportsRustState(state)) return null;
   return callRust(() => JSON.parse(bindings!.reset_tuning_json(stateJson(state))) as MoveResult);
 }
 
 export function rustRandomizeTuning(state: GameState, rolls: number[]): MoveResult | null {
+  if (!supportsRustState(state)) return null;
   return callRust(() => JSON.parse(bindings!.randomize_tuning_json(JSON.stringify(rolls), stateJson(state))) as MoveResult);
 }
 
 export function rustUnstablePieceIds(player: Player, state: GameState): string[] | null {
+  if (!supportsRustState(state)) return null;
   return callRust(() => JSON.parse(bindings!.unstable_piece_ids_json(player, stateJson(state))) as string[]);
 }
 
 export function rustKingUnprotected(player: Player, state: GameState): boolean | null {
+  if (!supportsRustState(state)) return null;
   return callRust(() => bindings!.king_unprotected_json(player, stateJson(state)));
 }
 
 export function rustMarkInstability(state: GameState): GameState | null {
-  return bindings
+  return bindings && supportsRustState(state)
     ? JSON.parse(bindings.mark_instability_json(stateJson(state))) as GameState
     : null;
 }
@@ -200,7 +222,7 @@ export function rustPlayHeuristicTurn(
   variety: number,
   timeBudgetMs: number,
 ): GameState | null {
-  return bindings
+  return bindings && supportsRustState(state)
     ? JSON.parse(bindings.play_heuristic_turn_json(player, stateJson(state), seed, variety, timeBudgetMs)) as GameState
     : null;
 }
@@ -213,7 +235,7 @@ export function rustPlayHardTurn(
   timeBudgetMs: number,
   tuning?: { conversionWeight?: number; trapFocus?: number; cycleWeight?: number },
 ): GameState | null {
-  return bindings
+  return bindings && supportsRustState(state)
     ? JSON.parse(bindings.play_hard_turn_json(
       player,
       stateJson(state),
@@ -234,6 +256,7 @@ export function rustPlayEasyTurn(
   variety: number,
   timeBudgetMs: number,
 ): GameState | null {
+  if (!supportsRustState(state)) return null;
   return callRust(() =>
     JSON.parse(bindings!.play_easy_turn_json(player, stateJson(state), seed, variety, timeBudgetMs)) as GameState);
 }

@@ -1,4 +1,5 @@
 import { cloneDefinitions, DEFAULT_COMPONENTS } from "../field/componentDefinitions";
+import { evaluateInstantField } from "../field/evaluateField";
 import { BOARD_CENTER, BOARD_SIZE, DEFAULT_HOME_ENERGY, DEFAULT_WAVE_SCALES } from "./constants";
 import { activationOrdersForPlayers } from "./tuning";
 import { createAmpSquares } from "./variants";
@@ -6,6 +7,7 @@ import type { ComponentDefinitions, GameSnapshot, GameState, HomeEnergy, Piece, 
 
 const routePath = globalThis.location?.pathname.replace(/\/$/, "") ?? "";
 const ampRouteEnabled = routePath.endsWith("/amp");
+const entropyRouteEnabled = routePath.endsWith("/entropy");
 
 function piece(owner: Player, type: PieceType, x: number, y: number, n: number): Piece {
   return { id: `${owner}-${type}-${n}`, owner, type, position: { x, y }, unstable: false };
@@ -44,7 +46,7 @@ export function createInitialState(
     blue: structuredClone(defaultComponents),
     red: structuredClone(defaultComponents),
   };
-  return {
+  const state: GameState = {
     pieces: createInitialPieces(),
     currentPlayer: "blue",
     components,
@@ -60,6 +62,7 @@ export function createInitialState(
     turnNumber: 1,
     message: "Blue to move",
   };
+  return entropyRouteEnabled ? { ...state, entropyField: evaluateInstantField(state) } : state;
 }
 
 export function snapshot(state: GameState): GameSnapshot {
@@ -75,6 +78,7 @@ export function snapshot(state: GameState): GameSnapshot {
     waveScales: structuredClone(state.waveScales),
     homeEnergy: structuredClone(state.homeEnergy),
     ampSquares: structuredClone(state.ampSquares),
+    entropyField: state.entropyField ? structuredClone(state.entropyField) : undefined,
   };
 }
 
@@ -89,6 +93,7 @@ export function fromSnapshot(
     waveScales: structuredClone(snap.waveScales ?? DEFAULT_WAVE_SCALES),
     homeEnergy: structuredClone(snap.homeEnergy ?? DEFAULT_HOME_ENERGY),
     ampSquares: structuredClone(snap.ampSquares ?? []),
+    entropyField: snap.entropyField ? structuredClone(snap.entropyField) : undefined,
     defaultComponents: structuredClone(defaultComponents),
     history,
     message: `${snap.currentPlayer === "blue" ? "Blue" : "Red"} to move`,

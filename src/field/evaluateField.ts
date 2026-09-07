@@ -41,7 +41,7 @@ export function evaluateSignedPieceContribution(
   return sigma * evaluatePieceContribution(piece, square, state, definitions);
 }
 
-export function evaluateField(state: GameState, definitions: ComponentDefinitions = state.definitions): number[][] {
+export function evaluateInstantField(state: GameState, definitions: ComponentDefinitions = state.definitions): number[][] {
   if (definitions === state.definitions) {
     const rustField = rustEvaluateField(state);
     if (rustField) return rustField;
@@ -51,6 +51,15 @@ export function evaluateField(state: GameState, definitions: ComponentDefinition
       state.pieces.reduce((total, piece) => total + evaluateSignedPieceContribution(piece, { x, y }, state, definitions), 0),
     ),
   );
+}
+
+export function addFields(left: number[][], right: number[][]): number[][] {
+  return left.map((row, y) => row.map((value, x) => value + (right[y]?.[x] ?? 0)));
+}
+
+export function evaluateField(state: GameState, definitions: ComponentDefinitions = state.definitions): number[][] {
+  if (definitions === state.definitions && state.entropyField) return state.entropyField;
+  return evaluateInstantField(state, definitions);
 }
 
 export type TypeFields = Record<PieceType, number[][]>;
