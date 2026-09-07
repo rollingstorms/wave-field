@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { DEFAULT_DEFINITIONS, validateDefinition } from "../field/componentDefinitions";
-import { evaluateField, evaluatePieceContribution, evaluateTypeFields } from "../field/evaluateField";
+import { evaluateContinuousField, evaluateContinuousPieceContribution, evaluateField, evaluatePieceContribution, evaluateTypeFields } from "../field/evaluateField";
 import { evaluateBasis, evaluateComponentBasis } from "../field/kernels";
 import { DEFAULT_HOME_ENERGY, FIELD_EPSILON } from "../game/constants";
 import { createInitialState } from "../game/initialState";
@@ -141,6 +141,31 @@ describe("field engine", () => {
       expect(evaluatePieceContribution(piece, piece.position, state)).toBe(DEFAULT_HOME_ENERGY[pieceType]);
       expect(typeFields[pieceType][piece.position.y][piece.position.x]).toBe(DEFAULT_HOME_ENERGY[pieceType]);
     });
+  });
+
+  it("continuous contribution matches square contribution at exact square centers", () => {
+    const state = createInitialState();
+    for (const piece of state.pieces) {
+      for (let y = 0; y < 7; y += 1) {
+        for (let x = 0; x < 7; x += 1) {
+          expect(evaluateContinuousPieceContribution(piece, { x, y }, state))
+            .toBeCloseTo(evaluatePieceContribution(piece, { x, y }, state));
+        }
+      }
+    }
+  });
+
+  it("continuous field samples the complete field at square centers", () => {
+    const state = createInitialState();
+    const field = evaluateField(state);
+    const continuous = evaluateContinuousField(state, 1);
+    for (let row = 0; row < 7; row += 1) {
+      for (let x = 0; x < 7; x += 1) {
+        const y = 6 - row;
+        expect(continuous[row][x].point).toEqual({ x, y });
+        expect(continuous[row][x].value).toBeCloseTo(field[y][x]);
+      }
+    }
   });
 
   it("home square contribution ignores tuned component values", () => {

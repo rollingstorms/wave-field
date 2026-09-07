@@ -9,7 +9,11 @@ fn piece_strength(piece_type: PieceType) -> f64 {
 }
 
 fn amp_multiplier(piece: &Piece, state: &GameState) -> f64 {
-    if state.amp_squares.iter().any(|square| square == &piece.position) {
+    if state
+        .amp_squares
+        .iter()
+        .any(|square| square == &piece.position)
+    {
         2.0
     } else {
         1.0
@@ -464,7 +468,9 @@ pub fn evaluate_field(state: &GameState) -> Field {
                             negative_raw += value;
                         }
                     }
-                    multiplier * strength * (positive_raw * scale.friendly + negative_raw * scale.hostile)
+                    multiplier
+                        * strength
+                        * (positive_raw * scale.friendly + negative_raw * scale.hostile)
                 };
                 field[y as usize][x as usize] += sign * contribution;
             }

@@ -3,13 +3,14 @@ import { DEBUG_COMPONENT_COUNT_LIMITS, DEFAULT_HOME_ENERGY, DEFAULT_WAVE_SCALES,
 import { playHeuristicTurn } from "./ai";
 import { createInitialState, fromSnapshot, snapshot } from "./initialState";
 import { pieceNameLower } from "./pieceLabels";
-import { applyHintSearch, applyMove, applyTuning, beginTurn, randomizeTuning, resetTuning, resignInCheck } from "./rules";
+import { applyContinuousMove, applyHintSearch, applyMove, applyTuning, beginTurn, randomizeTuning, resetTuning, resignInCheck } from "./rules";
 import { activationOrdersForPlayers } from "./tuning";
-import type { BasisDefinition, Coefficient, GameState, PieceType, Player, Position } from "./types";
+import type { BasisDefinition, Coefficient, GameState, PieceType, Player, Position, PrecisePosition } from "./types";
 
 export type GameAction =
   | { type: "select"; pieceId: string | null }
   | { type: "move"; pieceId: string; destination: Position }
+  | { type: "continuous-move"; pieceId: string; destination: PrecisePosition }
   | { type: "tune"; pieceType: PieceType; componentIndex: number; value: Coefficient }
   | { type: "resign" }
   | { type: "hint"; focusedPieceId?: string | null }
@@ -83,6 +84,10 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
       const result = applyMove(action.pieceId, action.destination, state);
       return result.ok ? result.state : { ...state, message: result.reason ?? state.message };
     }
+    case "continuous-move": {
+      const result = applyContinuousMove(action.pieceId, action.destination, state);
+      return result.ok ? result.state : { ...state, message: result.reason ?? state.message };
+    }
     case "tune": {
       const result = applyTuning(state.currentPlayer, action.pieceType, action.componentIndex, action.value, state);
       return result.ok ? result.state : { ...state, message: result.reason ?? state.message };
@@ -114,7 +119,7 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
     }
     case "restart": {
       const definitions = action.keepDefinitions ? state.definitions : cloneDefinitions();
-      return beginTurn(createInitialState(state.defaultComponents, definitions, state.waveScales, state.homeEnergy));
+      return beginTurn(createInitialState(state.defaultComponents, definitions, state.waveScales, state.homeEnergy, state.ampSquares, state.variant));
     }
     case "update-wave-scale": {
       if (!Number.isFinite(action.value) || action.value < 0 || action.value > 4) {

@@ -10,13 +10,13 @@ import { BOARD_SIZE } from "../game/constants";
 import { createCmykEnergyGrid, ENERGY_CHANNELS } from "../field/cmykEnergy";
 import type { EnergyChannelState } from "../field/cmykEnergy";
 import { continuousFieldColor } from "../field/continuousColor";
-import { contributionGrid, evaluateField, evaluateTypeFields } from "../field/evaluateField";
+import { contributionGrid, evaluateContinuousField, evaluateField, evaluateTypeFields } from "../field/evaluateField";
 import type { TypeFields } from "../field/evaluateField";
 import { projectFieldValue } from "../field/projection";
-import { getLegalMoves, getPieceAt, samePosition } from "../game/movement";
-import { applyMove, getPlayableMoves } from "../game/rules";
+import { getContinuousLegalMoves, getLegalMoves, getPieceAt, getPieceAtPrecise, samePosition, samePrecisePosition } from "../game/movement";
+import { applyContinuousMove, applyMove, getPlayableMoves } from "../game/rules";
 import { PIECE_DISPLAY_NAMES, PIECE_INITIALS } from "../game/pieceLabels";
-import type { GameState, Position } from "../game/types";
+import type { GameState, Position, PrecisePosition } from "../game/types";
 import { isAmpSquare } from "../game/variants";
 import { markInstability } from "../game/victory";
 import { Piece, PieceShape } from "./Piece";
@@ -32,7 +32,7 @@ interface BoardProps {
   energyChannels: EnergyChannelState;
   locked?: boolean;
   onSelect: (pieceId: string | null) => void;
-  onMove: (pieceId: string, destination: Position) => void;
+  onMove: (pieceId: string, destination: PrecisePosition) => void;
   onResign: () => void;
   onHint: (focusedPieceId?: string | null) => void;
   hintSearching?: boolean;
@@ -41,29 +41,34 @@ interface BoardProps {
 
 const FILE_LABELS = Array.from({ length: BOARD_SIZE }, (_, index) => String.fromCharCode(65 + index));
 const RANK_LABELS = Array.from({ length: BOARD_SIZE }, (_, index) => index + 1);
+const CONTINUOUS_SAMPLES_PER_SQUARE = 9;
 
 interface ActiveDrag {
   pieceId: string;
   contactId: number;
   input: "pointer" | "touch";
-  start: Position;
-  legalMoves: Position[];
+  start: PrecisePosition;
+  legalMoves: PrecisePosition[];
 }
 
 interface LossPop {
   id: string;
-  position: Position;
+  position: PrecisePosition;
 }
 
 interface MovementAnimation {
   id: string;
   piece: NonNullable<GameState["pieces"][number]>;
-  from: Position;
-  to: Position;
+  from: PrecisePosition;
+  to: PrecisePosition;
 }
 
 function visualY(y: number) {
   return BOARD_SIZE - 1 - y;
+}
+
+function preciseKey(position: PrecisePosition) {
+  return `${position.x.toFixed(6)}:${position.y.toFixed(6)}`;
 }
 
 export function Board({ state, field, typeFields, continuousField, showTypeSums, energyView, energyChannels, locked = false, onSelect, onMove, onResign, onHint, hintSearching = false, onToggleEnergyChannel }: BoardProps) {
@@ -73,26 +78,33 @@ export function Board({ state, field, typeFields, continuousField, showTypeSums,
   const lossPopTimersRef = useRef<Array<ReturnType<typeof globalThis.setTimeout>>>([]);
   const suppressClickRef = useRef(false);
   const [draggingPieceId, setDraggingPieceId] = useState<string | null>(null);
-  const [dragPreview, setDragPreview] = useState<Position | null>(null);
+  const [dragPreview, setDragPreview] = useState<PrecisePosition | null>(null);
   const [lossPops, setLossPops] = useState<LossPop[]>([]);
   const [movementAnimations, setMovementAnimations] = useState<MovementAnimation[]>([]);
   const [movingPieceIds, setMovingPieceIds] = useState<Set<string>>(() => new Set());
   const [energySelection, setEnergySelection] = useState<Position | null>(null);
   const selectedPiece = state.pieces.find((piece) => piece.id === state.selectedPieceId);
+  const continuousInteraction = state.variant === "continuous" && continuousField && !energyView;
   const interactionPiece = energyView ? undefined : state.pieces.find((piece) => piece.id === draggingPieceId) ?? selectedPiece;
   const reachableMoves = useMemo(
-    () => !locked && interactionPiece ? getLegalMoves(interactionPiece.id, state, field) : [],
-    [field, interactionPiece, locked, state],
+    () => !locked && interactionPiece
+      ? continuousInteraction ? getContinuousLegalMoves(interactionPiece.id, state) : getLegalMoves(interactionPiece.id, state, field)
+      : [],
+    [continuousInteraction, field, interactionPiece, locked, state],
   );
   const playableMoves = useMemo(
-    () => !locked && interactionPiece ? getPlayableMoves(interactionPiece.id, state, field) : [],
-    [field, interactionPiece, locked, state],
+    () => !locked && interactionPiece
+      ? continuousInteraction ? getContinuousLegalMoves(interactionPiece.id, state) : getPlayableMoves(interactionPiece.id, state, field)
+      : [],
+    [continuousInteraction, field, interactionPiece, locked, state],
   );
   const previewState = useMemo<GameState>(() => {
     if (!draggingPieceId || !dragPreview) return state;
     const piece = state.pieces.find((candidate) => candidate.id === draggingPieceId);
-    if (piece && !samePosition(piece.position, dragPreview)) {
-      const result = applyMove(draggingPieceId, dragPreview, state);
+    if (piece && !samePrecisePosition(piece.position, dragPreview)) {
+      const result = continuousInteraction
+        ? applyContinuousMove(draggingPieceId, dragPreview, state)
+        : applyMove(draggingPieceId, dragPreview, state);
       if (result.ok) return result.state;
     }
     const moved = {
@@ -102,7 +114,7 @@ export function Board({ state, field, typeFields, continuousField, showTypeSums,
       ),
     };
     return markInstability(moved, evaluateField(moved));
-  }, [dragPreview, draggingPieceId, state]);
+  }, [continuousInteraction, dragPreview, draggingPieceId, state]);
   const previewing = Boolean(draggingPieceId && dragPreview);
   const displayField = useMemo(
     () => previewing ? evaluateField(previewState) : field,
@@ -116,6 +128,13 @@ export function Board({ state, field, typeFields, continuousField, showTypeSums,
     ...displayField.flat().map((value) => Math.abs(value)),
     0,
   );
+  const continuousSamples = useMemo(
+    () => continuousField && !energyView ? evaluateContinuousField(previewState, CONTINUOUS_SAMPLES_PER_SQUARE) : null,
+    [continuousField, energyView, previewState],
+  );
+  const maximumContinuousMagnitude = continuousSamples
+    ? Math.max(...continuousSamples.flat().map((sample) => Math.abs(sample.value)), 0)
+    : 0;
   const energyGrid = useMemo(
     () => createCmykEnergyGrid(displayTypeFields, energyChannels),
     [displayTypeFields, energyChannels],
@@ -132,45 +151,47 @@ export function Board({ state, field, typeFields, continuousField, showTypeSums,
     ? Math.max(...influenceGrid.flat().map((value) => Math.abs(value)), 0)
     : 0;
   const lossPopKeys = useMemo(
-    () => new Set(lossPops.map((pop) => `${pop.position.x}:${pop.position.y}`)),
+    () => new Set(lossPops.map((pop) => preciseKey(pop.position))),
     [lossPops],
   );
   const riskyMoveLossCounts = useMemo(() => {
     if (!interactionPiece) return new Map<string, number>();
     const ownPieceIds = new Set(state.pieces.filter((piece) => piece.owner === interactionPiece.owner).map((piece) => piece.id));
+    if (continuousInteraction) return new Map<string, number>();
     return new Map(playableMoves.flatMap((move) => {
       const result = applyMove(interactionPiece.id, move, state, { analyzeCheckmate: false });
       if (!result.ok) return [];
       const survivingOwnIds = new Set(result.state.pieces.filter((piece) => piece.owner === interactionPiece.owner).map((piece) => piece.id));
       const lossCount = [...ownPieceIds].filter((id) => !survivingOwnIds.has(id)).length;
-      return lossCount > 0 ? [[`${move.x}:${move.y}`, lossCount] as const] : [];
+      return lossCount > 0 ? [[preciseKey(move), lossCount] as const] : [];
     }));
-  }, [interactionPiece, playableMoves, state]);
+  }, [continuousInteraction, interactionPiece, playableMoves, state]);
   const legalMoves = useMemo(() => {
-    const safeMoves = playableMoves.filter((move) => !riskyMoveLossCounts.has(`${move.x}:${move.y}`));
+    const safeMoves = playableMoves.filter((move) => !riskyMoveLossCounts.has(preciseKey(move)));
     if (safeMoves.length > 0 || playableMoves.length === 0) return playableMoves;
-    const minimumLoss = Math.min(...playableMoves.map((move) => riskyMoveLossCounts.get(`${move.x}:${move.y}`) ?? 0));
-    return playableMoves.filter((move) => (riskyMoveLossCounts.get(`${move.x}:${move.y}`) ?? 0) === minimumLoss);
+    const minimumLoss = Math.min(...playableMoves.map((move) => riskyMoveLossCounts.get(preciseKey(move)) ?? 0));
+    return playableMoves.filter((move) => (riskyMoveLossCounts.get(preciseKey(move)) ?? 0) === minimumLoss);
   }, [playableMoves, riskyMoveLossCounts]);
   const riskyMoveKeys = useMemo(
-    () => new Set(legalMoves.flatMap((move) => riskyMoveLossCounts.has(`${move.x}:${move.y}`) ? [`${move.x}:${move.y}`] : [])),
+    () => new Set(legalMoves.flatMap((move) => riskyMoveLossCounts.has(preciseKey(move)) ? [preciseKey(move)] : [])),
     [legalMoves, riskyMoveLossCounts],
   );
   const playableMoveKeys = useMemo(
-    () => new Set(playableMoves.map((move) => `${move.x}:${move.y}`)),
+    () => new Set(playableMoves.map(preciseKey)),
     [playableMoves],
   );
   const kingBlockedMoveKeys = useMemo(() => {
+    if (continuousInteraction) return new Set<string>();
     if (!interactionPiece) return new Set<string>();
     return new Set(reachableMoves.flatMap((move) => {
-      const key = `${move.x}:${move.y}`;
+      const key = preciseKey(move);
       if (playableMoveKeys.has(key)) return [];
       const result = applyMove(interactionPiece.id, move, state, { analyzeCheckmate: false });
       return result.reason?.toLowerCase().includes("big hat unprotected") || result.reason?.toLowerCase().includes("king unprotected") ? [key] : [];
     }));
-  }, [interactionPiece, playableMoveKeys, reachableMoves, state]);
+  }, [continuousInteraction, interactionPiece, playableMoveKeys, reachableMoves, state]);
   const safeMoves = useMemo(
-    () => playableMoves.filter((move) => !riskyMoveLossCounts.has(`${move.x}:${move.y}`)),
+    () => playableMoves.filter((move) => !riskyMoveLossCounts.has(preciseKey(move))),
     [playableMoves, riskyMoveLossCounts],
   );
   const noSafePlayableMoves = playableMoves.length > 0 && safeMoves.length === 0;
@@ -196,7 +217,7 @@ export function Board({ state, field, typeFields, continuousField, showTypeSums,
     const lost = previousPieces.filter((piece) => !currentIds.has(piece.id));
     const moved = state.pieces.flatMap((piece) => {
       const previous = previousById.get(piece.id);
-      return previous && !samePosition(previous.position, piece.position)
+      return previous && !samePrecisePosition(previous.position, piece.position)
         ? [{ id: `${piece.id}:${globalThis.performance.now()}`, piece, from: previous.position, to: piece.position }]
         : [];
     });
@@ -253,7 +274,30 @@ export function Board({ state, field, typeFields, continuousField, showTypeSums,
     return x >= 0 && x < BOARD_SIZE && y >= 0 && y < BOARD_SIZE ? position : null;
   }
 
-  function displayedPlayableMovesFor(pieceId: string): Position[] {
+  function precisePositionFromPointer(clientX: number, clientY: number): PrecisePosition | null {
+    const board = boardRef.current;
+    if (!board) return null;
+    const bounds = board.getBoundingClientRect();
+    const rawX = ((clientX - bounds.left) / bounds.width) * BOARD_SIZE - 0.5;
+    const rawVisualY = ((clientY - bounds.top) / bounds.height) * BOARD_SIZE - 0.5;
+    const rawY = visualY(rawVisualY);
+    const step = 1 / CONTINUOUS_SAMPLES_PER_SQUARE;
+    const x = Math.min(BOARD_SIZE - 1, Math.max(0, Math.round(rawX / step) * step));
+    const y = Math.min(BOARD_SIZE - 1, Math.max(0, Math.round(rawY / step) * step));
+    return Number.isFinite(x) && Number.isFinite(y) ? { x, y } : null;
+  }
+
+  function getContinuousPieceNear(position: PrecisePosition): GameState["pieces"][number] | undefined {
+    const exact = getPieceAtPrecise(state, position);
+    if (exact) return exact;
+    const pickRadius = 0.5;
+    return state.pieces.find((piece) =>
+      Math.abs(piece.position.x - position.x) <= pickRadius
+      && Math.abs(piece.position.y - position.y) <= pickRadius);
+  }
+
+  function displayedPlayableMovesFor(pieceId: string): PrecisePosition[] {
+    if (continuousInteraction) return getContinuousLegalMoves(pieceId, state);
     const piece = state.pieces.find((candidate) => candidate.id === pieceId);
     if (!piece) return [];
     const moves = getPlayableMoves(pieceId, state, field);
@@ -273,8 +317,17 @@ export function Board({ state, field, typeFields, continuousField, showTypeSums,
 
   function startDrag(contactId: number, input: ActiveDrag["input"], clientX: number, clientY: number) {
     if (locked || state.status !== "playing" || dragRef.current) return false;
-    const position = positionFromPointer(clientX, clientY);
-    const piece = position ? getPieceAt(state, position) : undefined;
+    const precisePosition = continuousInteraction ? precisePositionFromPointer(clientX, clientY) : null;
+    if (
+      continuousInteraction
+      && selectedPiece
+      && precisePosition
+      && !samePrecisePosition(selectedPiece.position, precisePosition)
+    ) {
+      return false;
+    }
+    const squarePosition = precisePosition ? null : positionFromPointer(clientX, clientY);
+    const piece = precisePosition ? getContinuousPieceNear(precisePosition) : squarePosition ? getPieceAt(state, squarePosition) : undefined;
     if (!piece || piece.owner !== state.currentPlayer) return false;
 
     const moves = displayedPlayableMovesFor(piece.id);
@@ -288,22 +341,22 @@ export function Board({ state, field, typeFields, continuousField, showTypeSums,
   function updateDrag(contactId: number, input: ActiveDrag["input"], clientX: number, clientY: number) {
     const drag = dragRef.current;
     if (!drag || drag.contactId !== contactId || drag.input !== input) return false;
-    const position = positionFromPointer(clientX, clientY);
-    const legal = position && drag.legalMoves.some((move) => samePosition(move, position));
+    const position = continuousInteraction ? precisePositionFromPointer(clientX, clientY) : positionFromPointer(clientX, clientY);
+    const legal = position && drag.legalMoves.some((move) => samePrecisePosition(move, position));
     const nextPreview = legal ? position : drag.start;
-    setDragPreview((current) => current && samePosition(current, nextPreview) ? current : nextPreview);
+    setDragPreview((current) => current && samePrecisePosition(current, nextPreview) ? current : nextPreview);
     return true;
   }
 
   function completeDrag(contactId: number, input: ActiveDrag["input"], clientX: number, clientY: number, commit: boolean) {
     const drag = dragRef.current;
     if (!drag || drag.contactId !== contactId || drag.input !== input) return false;
-    const position = positionFromPointer(clientX, clientY);
-    const destination = commit && position && drag.legalMoves.some((move) => samePosition(move, position))
+    const position = continuousInteraction ? precisePositionFromPointer(clientX, clientY) : positionFromPointer(clientX, clientY);
+    const destination = commit && position && drag.legalMoves.some((move) => samePrecisePosition(move, position))
       ? position
       : null;
 
-    if (destination && !samePosition(destination, drag.start)) {
+    if (destination && !samePrecisePosition(destination, drag.start)) {
       suppressClickRef.current = true;
       globalThis.setTimeout(() => {
         suppressClickRef.current = false;
@@ -367,12 +420,28 @@ export function Board({ state, field, typeFields, continuousField, showTypeSums,
     event.stopPropagation();
   }
 
-  function handleSquare(position: Position) {
+  function handleSquare(position: Position, event: ReactMouseEvent<HTMLButtonElement>) {
     if (energyView) {
       setEnergySelection(position);
       return;
     }
     if (locked) return;
+    if (continuousInteraction) {
+      const precisePosition = precisePositionFromPointer(event.clientX, event.clientY);
+      if (!precisePosition) return;
+      const clickedPiece = getContinuousPieceNear(precisePosition);
+      const isLegalPoint = selectedPiece && legalMoves.some((move) => samePrecisePosition(move, precisePosition));
+      if (selectedPiece && isLegalPoint) {
+        onMove(selectedPiece.id, precisePosition);
+        return;
+      }
+      if (clickedPiece?.owner === state.currentPlayer && state.status === "playing") {
+        onSelect(clickedPiece.id);
+        return;
+      }
+      onSelect(null);
+      return;
+    }
     const piece = getPieceAt(state, position);
     const isLegal = selectedPiece && legalMoves.some((move) => samePosition(move, position));
     if (selectedPiece && isLegal) {
@@ -385,6 +454,25 @@ export function Board({ state, field, typeFields, continuousField, showTypeSums,
     }
     onSelect(null);
   }
+
+  function handleContinuousBoardClick(event: ReactMouseEvent<HTMLButtonElement>) {
+    if (locked || energyView || !continuousInteraction) return;
+    const precisePosition = precisePositionFromPointer(event.clientX, event.clientY);
+    if (!precisePosition) return;
+    const clickedPiece = getContinuousPieceNear(precisePosition);
+    const isLegalPoint = selectedPiece && legalMoves.some((move) => samePrecisePosition(move, precisePosition));
+    if (selectedPiece && isLegalPoint) {
+      onMove(selectedPiece.id, precisePosition);
+      return;
+    }
+    if (clickedPiece?.owner === state.currentPlayer && state.status === "playing") {
+      onSelect(clickedPiece.id);
+      return;
+    }
+    onSelect(null);
+  }
+
+  const continuousPieces = continuousInteraction ? previewState.pieces : [];
 
   return (
     <section className="board-wrap" aria-label="Wave Field board" style={{ "--board-size": BOARD_SIZE } as CSSProperties}>
@@ -423,7 +511,7 @@ export function Board({ state, field, typeFields, continuousField, showTypeSums,
       <div className="board-row-wrap">
         <div className="ranks left">{RANK_LABELS.map((rank) => <span key={rank}>{rank}</span>)}</div>
         <div
-          className={`board ${draggingPieceId ? "dragging" : ""}`}
+          className={`board ${draggingPieceId ? "dragging" : ""} ${continuousSamples ? "continuous-render" : ""}`}
           ref={boardRef}
           onPointerDown={handlePointerDown}
           onPointerMove={handlePointerMove}
@@ -435,6 +523,32 @@ export function Board({ state, field, typeFields, continuousField, showTypeSums,
           onTouchCancel={(event) => finishTouchDrag(event, false)}
           onClickCapture={handleClickCapture}
         >
+          {continuousSamples && (
+            <div
+              className="continuous-field-layer"
+              style={{
+                "--continuous-resolution": BOARD_SIZE * CONTINUOUS_SAMPLES_PER_SQUARE,
+              } as CSSProperties}
+              aria-hidden="true"
+            >
+              {continuousSamples.flatMap((row, rowIndex) =>
+                row.map((sample, x) => (
+                  <span
+                    key={`${x}-${rowIndex}`}
+                    style={{ backgroundColor: continuousFieldColor(sample.value, maximumContinuousMagnitude) }}
+                  />
+                )),
+              )}
+            </div>
+          )}
+          {continuousInteraction && (
+            <button
+              type="button"
+              className="continuous-hit-layer"
+              aria-label="Continuous movement field"
+              onClick={handleContinuousBoardClick}
+            />
+          )}
           {movementAnimations.map((animation) => (
             <span
               className="piece-move-ghost"
@@ -451,11 +565,42 @@ export function Board({ state, field, typeFields, continuousField, showTypeSums,
               <Piece piece={animation.piece} selected={false} dragging={false} />
             </span>
           ))}
+          {continuousInteraction && interactionPiece && legalMoves.map((move) => (
+            <span
+              className="continuous-legal-point"
+              key={preciseKey(move)}
+              style={{
+                "--move-x": move.x,
+                "--move-y": visualY(move.y),
+              } as CSSProperties}
+              aria-hidden="true"
+            />
+          ))}
+          {continuousPieces.map((piece) => (
+            <span
+              className="continuous-piece-anchor"
+              key={piece.id}
+              data-piece-id={piece.id}
+              style={{
+                "--piece-x": piece.position.x,
+                "--piece-y": visualY(piece.position.y),
+              } as CSSProperties}
+              aria-hidden="true"
+            >
+              <Piece
+                piece={piece}
+                selected={Boolean(interactionPiece && piece.id === interactionPiece.id)}
+                dragging={piece.id === draggingPieceId}
+                hidden={Boolean(movingPieceIds.has(piece.id))}
+              />
+              {piece.unstable && <span className="unstable continuous-unstable" aria-label="unstable">!</span>}
+            </span>
+          ))}
           {Array.from({ length: BOARD_SIZE }, (_, row) =>
             Array.from({ length: BOARD_SIZE }, (_, x) => {
               const y = visualY(row);
               const position = { x, y };
-              const piece = getPieceAt(previewState, position);
+              const piece = continuousInteraction ? undefined : getPieceAt(previewState, position);
               const influenceValue = influenceGrid?.[y][x] ?? 0;
               const influence = Math.abs(influenceValue);
               const energy = energyGrid[y][x];
@@ -472,12 +617,12 @@ export function Board({ state, field, typeFields, continuousField, showTypeSums,
                   territory={projectFieldValue(displayField[y][x])}
                   fieldValue={displayField[y][x]}
                   piece={piece}
-                  legal={!energyView && legalMoves.some((move) => samePosition(move, position))}
-                  risky={!energyView && riskyMoveKeys.has(`${x}:${y}`)}
-                  kingBlocked={!energyView && kingBlockedMoveKeys.has(`${x}:${y}`)}
+                  legal={!energyView && !continuousInteraction && legalMoves.some((move) => samePosition(move, position))}
+                  risky={!energyView && riskyMoveKeys.has(preciseKey(position))}
+                  kingBlocked={!energyView && kingBlockedMoveKeys.has(preciseKey(position))}
                   selected={Boolean(piece && interactionPiece && piece.id === interactionPiece.id)}
                   dragging={piece?.id === draggingPieceId}
-                  dragPreview={Boolean(draggingPieceId && dragPreview && samePosition(dragPreview, position))}
+                  dragPreview={Boolean(!continuousInteraction && draggingPieceId && dragPreview && samePosition(dragPreview, position))}
                   influenceTerritory={!energyView && influenceGrid ? projectFieldValue(influenceValue) : null}
                   influenceOpacity={!energyView && maximumInfluence > 0 && influence > 0
                     ? 0.45 + (influence / maximumInfluence) * 0.55
@@ -489,18 +634,19 @@ export function Board({ state, field, typeFields, continuousField, showTypeSums,
                     king: displayTypeFields.king[y][x],
                   } : null}
                   amp={isAmpSquare(position, state.ampSquares)}
-                  lossPop={lossPopKeys.has(`${x}:${y}`)}
+                  lossPop={lossPopKeys.has(preciseKey(position))}
                   energyColor={energyView ? energy.color : undefined}
                   energySummary={energySummary}
                   energySelected={Boolean(energyView && energySelection && samePosition(energySelection, position))}
-                  continuousColor={continuousField && !energyView
+                  continuousColor={continuousField && !energyView && !continuousSamples
                     ? continuousFieldColor(displayField[y][x], maximumFieldMagnitude)
                     : undefined}
                   continuousSummary={continuousField && !energyView
                     ? ` Relative field magnitude ${fieldMagnitudePercent} percent.`
                     : ""}
                   hidePiece={Boolean(piece && movingPieceIds.has(piece.id))}
-                  onClick={() => handleSquare(position)}
+                  passive={continuousInteraction}
+                  onClick={(event) => handleSquare(position, event)}
                 />
               );
             }),

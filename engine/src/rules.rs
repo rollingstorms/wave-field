@@ -49,6 +49,7 @@ fn training_candidate_state(state: &GameState, piece_id: &str, destination: Posi
         piece.position = destination;
     }
     GameState {
+        variant: state.variant,
         pieces,
         current_player: state.current_player,
         components: state.components.clone(),

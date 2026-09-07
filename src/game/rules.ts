@@ -1,7 +1,7 @@
 import { addFields, evaluateField, evaluateInstantField } from "../field/evaluateField";
 import { BOARD_SIZE, tuningStrengthFor } from "./constants";
-import type { Coefficient, GameState, MoveResult, PieceType, Player, PlayerComponents, Position } from "./types";
-import { getLegalMoves, samePosition } from "./movement";
+import type { Coefficient, GameState, MoveResult, PieceType, Player, PlayerComponents, Position, PrecisePosition } from "./types";
+import { getContinuousLegalMoves, getLegalMoves, samePosition, samePrecisePosition } from "./movement";
 import { PIECE_TYPES, pieceNameLower } from "./pieceLabels";
 import { activationOrderForProfile, isTuningAtStrength } from "./tuning";
 import { getUnstablePieces, isKingUnprotected, markInstability, removeUnrescuedPieces } from "./victory";
@@ -54,7 +54,7 @@ interface HintSearchSuccess {
   ok: true;
   state: GameState;
   pieceID: string;
-  moves: Position[];
+  moves: PrecisePosition[];
   safe: boolean;
   lossCount: number;
   tuningDistance: number;
@@ -77,8 +77,8 @@ interface RuleOptions {
 interface HintSearchCandidate {
   state: GameState;
   pieceId: string;
-  moves: Position[];
-  primary: Position;
+  moves: PrecisePosition[];
+  primary: PrecisePosition;
   lossCount: number;
   sameLossMoves: number;
   tuningDistance: number;
@@ -87,7 +87,7 @@ interface HintSearchCandidate {
 
 interface HintMoveEvaluation {
   pieceId: string;
-  destination: Position;
+  destination: PrecisePosition;
   lossCount: number;
 }
 
@@ -104,11 +104,17 @@ function componentOptions(pieceType: PieceType, count: number): Coefficient[][] 
   return options;
 }
 
-function movePiece(state: GameState, pieceId: string, destination: Position): GameState {
+function movePiece(state: GameState, pieceId: string, destination: PrecisePosition): GameState {
   return {
     ...state,
     pieces: state.pieces.map((piece) => piece.id === pieceId ? { ...piece, position: destination } : piece),
   };
+}
+
+function legalDestinations(pieceId: string, state: GameState, field: number[][] = evaluateField(state)): PrecisePosition[] {
+  return state.variant === "continuous"
+    ? getContinuousLegalMoves(pieceId, state)
+    : getLegalMoves(pieceId, state, field);
 }
 
 function tunePieceProfile(
@@ -210,7 +216,7 @@ function playableEvaluations(player: Player, state: GameState, focusedPieceId: s
   const field = evaluateField(state);
   return state.pieces
     .filter((piece) => piece.owner === player && (!focusedPieceId || piece.id === focusedPieceId))
-    .flatMap((piece) => getLegalMoves(piece.id, state, field).flatMap((destination) => {
+    .flatMap((piece) => legalDestinations(piece.id, state, field).flatMap((destination) => {
       const resolved = resolveOwnTurnConsequences(player, state, movePiece(state, piece.id, destination));
       if (isKingUnprotected(player, resolved, evaluateField(resolved))) return [];
       return [{
@@ -309,7 +315,8 @@ export function findClosestPlayableConfiguration(player: Player, state: GameStat
   const rustHint = rustClosestPlayableConfiguration<PlayableConfigurationHint>(player, state);
   if (rustHint) return rustHint;
   const current = state.components[player];
-  for (const components of allComponentOptions(state, player)) {
+  const componentOptions = state.variant === "continuous" ? [current] : allComponentOptions(state, player);
+  for (const components of componentOptions) {
     const tuned = {
       ...state,
       components: {
@@ -320,7 +327,7 @@ export function findClosestPlayableConfiguration(player: Player, state: GameStat
     const field = evaluateField(tuned);
     const pieces = tuned.pieces.filter((piece) => piece.owner === player);
     for (const piece of pieces) {
-      for (const destination of getLegalMoves(piece.id, tuned, field)) {
+      for (const destination of legalDestinations(piece.id, tuned, field)) {
         const resolved = resolveOwnTurnConsequences(player, tuned, movePiece(tuned, piece.id, destination));
         if (!isKingUnprotected(player, resolved, evaluateField(resolved))) {
           return {
@@ -432,7 +439,7 @@ function boundedHintSearch(player: Player, focusedPieceId: string | null, state:
 function hasPlayableMoveInCurrentConfiguration(player: Player, state: GameState, field: number[][]): boolean {
   const pieces = state.pieces.filter((piece) => piece.owner === player);
   for (const piece of pieces) {
-    for (const destination of getLegalMoves(piece.id, state, field)) {
+    for (const destination of legalDestinations(piece.id, state, field)) {
       const resolved = resolveOwnTurnConsequences(player, state, movePiece(state, piece.id, destination));
       if (!isKingUnprotected(player, resolved, evaluateField(resolved))) return true;
     }
@@ -523,10 +530,42 @@ export function applyMove(pieceId: string, destination: Position, state: GameSta
   return completeAction(state, candidate, options);
 }
 
+export function applyContinuousMove(pieceId: string, destination: PrecisePosition, state: GameState, options: RuleOptions = {}): MoveResult {
+  if (state.variant !== "continuous") return applyMove(pieceId, destination, state, options);
+  if (state.status !== "playing") return { ok: false, state, reason: "The game is over." };
+  const piece = state.pieces.find((candidate) => candidate.id === pieceId);
+  if (!piece || piece.owner !== state.currentPlayer) return { ok: false, state, reason: "Choose one of your pieces." };
+
+  if (!getContinuousLegalMoves(pieceId, state).some((move) => samePrecisePosition(move, destination))) {
+    return { ok: false, state, reason: "That point is not a legal move." };
+  }
+
+  const candidate = {
+    ...state,
+    pieces: state.pieces.map((item) => item.id === pieceId ? { ...item, position: destination } : item),
+  };
+  return completeAction(state, candidate, options);
+}
+
 export function getPlayableMoves(pieceId: string, state: GameState, field: number[][] = evaluateField(state)): Position[] {
   const rustMoves = rustPlayableMoves(pieceId, state);
   if (rustMoves) return rustMoves;
   return getLegalMoves(pieceId, state, field).filter((destination) => applyMove(pieceId, destination, state, { analyzeCheckmate: false }).ok);
+}
+
+export function getContinuousPlayableMoves(pieceId: string, state: GameState): PrecisePosition[] {
+  if (state.variant !== "continuous") return getPlayableMoves(pieceId, state);
+  if (state.status !== "playing") return [];
+  const piece = state.pieces.find((candidate) => candidate.id === pieceId);
+  if (!piece || piece.owner !== state.currentPlayer) return [];
+  return getContinuousLegalMoves(pieceId, state)
+    .filter((destination) => {
+      const candidate = {
+        ...state,
+        pieces: state.pieces.map((item) => item.id === pieceId ? { ...item, position: destination } : item),
+      };
+      return completeAction(state, candidate, { analyzeCheckmate: false }).ok;
+    });
 }
 
 export function resignInCheck(state: GameState): MoveResult {

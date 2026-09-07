@@ -1,4 +1,4 @@
-import { evaluateField } from "../field/evaluateField";
+import { evaluateContinuousFieldValue, evaluateField } from "../field/evaluateField";
 import { isSquareCompatible } from "../field/projection";
 import type { GameState, Piece, Player } from "./types";
 import { rustKingUnprotected, rustMarkInstability, rustUnstablePieceIds } from "./rustEngine";
@@ -11,7 +11,10 @@ export function getUnstablePieces(player: Player, state: GameState, field: numbe
   }
   return state.pieces.filter((piece) => {
     if (piece.owner !== player) return false;
-    return !isSquareCompatible(player, field[piece.position.y][piece.position.x]);
+    const value = state.variant === "continuous"
+      ? evaluateContinuousFieldValue(state, piece.position)
+      : field[piece.position.y][piece.position.x];
+    return !isSquareCompatible(player, value);
   });
 }
 
@@ -22,7 +25,12 @@ export function markInstability(state: GameState, field: number[][]): GameState 
     ...state,
     pieces: state.pieces.map((piece) => ({
       ...piece,
-      unstable: !isSquareCompatible(piece.owner, field[piece.position.y][piece.position.x]),
+      unstable: !isSquareCompatible(
+        piece.owner,
+        state.variant === "continuous"
+          ? evaluateContinuousFieldValue(state, piece.position)
+          : field[piece.position.y][piece.position.x],
+      ),
     })),
   };
 }
@@ -31,7 +39,12 @@ export function isKingUnprotected(player: Player, state: GameState, field: numbe
   const rustResult = rustKingUnprotected(player, state);
   if (rustResult !== null) return rustResult;
   const king = state.pieces.find((piece) => piece.owner === player && piece.type === "king");
-  return Boolean(king && !isSquareCompatible(player, field[king.position.y][king.position.x]));
+  return Boolean(king && !isSquareCompatible(
+    player,
+    state.variant === "continuous"
+      ? evaluateContinuousFieldValue(state, king.position)
+      : field[king.position.y][king.position.x],
+  ));
 }
 
 export function removeUnrescuedPieces(

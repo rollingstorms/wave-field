@@ -752,6 +752,7 @@ fn abstract_state_key(state: &GameState, context: &mut HardSearchContext) -> Str
 
 fn snapshot_as_state(base: &GameState, snapshot: &GameSnapshot) -> GameState {
     GameState {
+        variant: snapshot.variant,
         pieces: snapshot.pieces.clone(),
         current_player: snapshot.current_player,
         components: snapshot.components.clone(),

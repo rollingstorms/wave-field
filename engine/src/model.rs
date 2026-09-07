@@ -275,9 +275,22 @@ pub enum GameStatus {
     BlueWon,
 }
 
+#[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(rename_all = "lowercase")]
+pub enum GameVariant {
+    Classic,
+    Continuous,
+}
+
+fn default_variant() -> GameVariant {
+    GameVariant::Classic
+}
+
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct GameSnapshot {
+    #[serde(default = "default_variant")]
+    pub variant: GameVariant,
     pub pieces: Vec<Piece>,
     pub current_player: Player,
     pub components: PlayerMap<PlayerComponents>,
@@ -295,6 +308,8 @@ pub struct GameSnapshot {
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct GameState {
+    #[serde(default = "default_variant")]
+    pub variant: GameVariant,
     pub pieces: Vec<Piece>,
     pub current_player: Player,
     pub components: PlayerMap<PlayerComponents>,
@@ -315,6 +330,7 @@ pub struct GameState {
 impl GameState {
     pub(crate) fn snapshot(&self) -> GameSnapshot {
         GameSnapshot {
+            variant: self.variant,
             pieces: self.pieces.clone(),
             current_player: self.current_player,
             components: self.components.clone(),

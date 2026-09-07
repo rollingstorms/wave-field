@@ -19,12 +19,13 @@ import type { AiPolicy } from "../game/neuralAi";
 import { createGameVariantConfig } from "../game/optimizedConfig";
 import { gameReducer } from "../game/reducer";
 import type { CSSProperties } from "react";
-import type { BasisDefinition, PieceType, Player, PlayerComponents, Position } from "../game/types";
+import type { BasisDefinition, PieceType, Player, PlayerComponents, PrecisePosition } from "../game/types";
 
 const routePath = globalThis.location?.pathname.replace(/\/$/, "") ?? "";
 const localNeuralArenaEnabled = import.meta.env.DEV
   && (routePath.endsWith("/local-arena") || import.meta.env.MODE === "arena");
 const ampRouteEnabled = routePath.endsWith("/amp");
+const continuousRouteEnabled = routePath.endsWith("/continuous");
 const hardRouteEnabled = routePath.endsWith("/hard") || ampRouteEnabled;
 const arenaEnabled = routePath.endsWith("/arena") || hardRouteEnabled || localNeuralArenaEnabled;
 const optimTestEnabled = routePath.endsWith("/optim-test");
@@ -59,7 +60,7 @@ export function App() {
   const [state, dispatch] = useReducer(gameReducer, undefined, createArenaInitialState);
   const [duelSeed, setDuelSeed] = useState(() => Math.floor(Math.random() * 1_000_000_000));
   const [developerMode, setDeveloperMode] = useState(false);
-  const [continuousField, setContinuousField] = useState(false);
+  const [continuousField, setContinuousField] = useState(continuousRouteEnabled);
   const [showTypeSums, setShowTypeSums] = useState(false);
   const [energyView, setEnergyView] = useState(false);
   const [energyChannels, setEnergyChannels] = useState<EnergyChannelState>({ ...ALL_ENERGY_CHANNELS });
@@ -284,7 +285,11 @@ export function App() {
           energyChannels={energyChannels}
           locked={aiTurn || energyView || currentPolicy !== "human"}
           onSelect={(pieceId) => dispatch({ type: "select", pieceId })}
-          onMove={(pieceId: string, destination: Position) => dispatch({ type: "move", pieceId, destination })}
+          onMove={(pieceId: string, destination: PrecisePosition) => dispatch({
+            type: state.variant === "continuous" ? "continuous-move" : "move",
+            pieceId,
+            destination,
+          })}
           onResign={() => dispatch({ type: "resign" })}
           onHint={requestHint}
           hintSearching={hintSearching}

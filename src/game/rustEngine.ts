@@ -49,7 +49,7 @@ let bindings: RustBindings | null = null;
 function requestedRuleEngine(): "rust" | "ts" {
   if (BOARD_SIZE === BIG_BOARD_SIZE) return "ts";
   const routePath = globalThis.location?.pathname.replace(/\/$/, "") ?? "";
-  if (routePath.endsWith("/amp") || routePath.endsWith("/entropy")) return "ts";
+  if (routePath.endsWith("/amp") || routePath.endsWith("/entropy") || routePath.endsWith("/continuous")) return "ts";
   const requested = new URLSearchParams(globalThis.location?.search ?? "").get("engine");
   if (requested === "ts" || requested === "typescript") return "ts";
   if (requested === "rust" || requested === "wasm") return "rust";
@@ -98,7 +98,7 @@ function callRust<T>(operation: () => T): T | null {
 }
 
 function supportsRustState(state: GameState): boolean {
-  return !state.entropyField;
+  return !state.entropyField && state.variant !== "continuous";
 }
 
 export function rustEvaluateField(state: GameState): number[][] | null {

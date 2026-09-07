@@ -3,6 +3,7 @@ export type PieceType = "pawn" | "rook" | "spy" | "king";
 export type Territory = "red" | "neutral" | "blue";
 export type Coefficient = -1 | 0 | 1;
 export type GameStatus = "playing" | "red-won" | "blue-won";
+export type GameVariant = "classic" | "continuous";
 export type FormulaPreset =
   | "checkerboard"
   | "diagonal-stripes"
@@ -32,11 +33,16 @@ export interface Position {
   y: number;
 }
 
+export interface PrecisePosition {
+  x: number;
+  y: number;
+}
+
 export interface Piece {
   id: string;
   owner: Player;
   type: PieceType;
-  position: Position;
+  position: PrecisePosition;
   unstable: boolean;
 }
 
@@ -105,6 +111,7 @@ export type ComponentDefinitions = {
 };
 
 export interface GameSnapshot {
+  variant: GameVariant;
   pieces: Piece[];
   currentPlayer: Player;
   components: Record<Player, PlayerComponents>;

@@ -1,6 +1,7 @@
 import { BOARD_SIZE, FIELD_EPSILON } from "../game/constants";
 import { PIECE_DISPLAY_NAMES, PIECE_INITIALS } from "../game/pieceLabels";
 import type { Piece as PieceModel, PieceType, Position, Territory } from "../game/types";
+import type { MouseEvent as ReactMouseEvent, ReactNode } from "react";
 import { Piece } from "./Piece";
 
 interface SquareProps {
@@ -25,7 +26,8 @@ interface SquareProps {
   continuousColor?: string;
   continuousSummary?: string;
   hidePiece?: boolean;
-  onClick: () => void;
+  passive?: boolean;
+  onClick?: (event: ReactMouseEvent<HTMLButtonElement>) => void;
 }
 
 function formatSigned(value: number) {
@@ -34,7 +36,7 @@ function formatSigned(value: number) {
   return `${value > 0 ? "+" : ""}${magnitude.replace(".0", "")}`;
 }
 
-export function Square({ position, territory, fieldValue, piece, legal, risky, kingBlocked, selected, dragging, dragPreview, influenceTerritory, influenceOpacity, typeSums, amp, lossPop, energyColor, energySummary = "", energySelected = false, continuousColor, continuousSummary = "", hidePiece = false, onClick }: SquareProps) {
+export function Square({ position, territory, fieldValue, piece, legal, risky, kingBlocked, selected, dragging, dragPreview, influenceTerritory, influenceOpacity, typeSums, amp, lossPop, energyColor, energySummary = "", energySelected = false, continuousColor, continuousSummary = "", hidePiece = false, passive = false, onClick }: SquareProps) {
   const renderedColor = energyColor ?? continuousColor;
   const coordinate = `${String.fromCharCode(65 + position.x)}${BOARD_SIZE - position.y}`;
   const influenceSummary = influenceTerritory
@@ -43,15 +45,11 @@ export function Square({ position, territory, fieldValue, piece, legal, risky, k
   const typeSummary = typeSums
     ? ` Total ${formatSigned(fieldValue)}. ${PIECE_DISPLAY_NAMES.pawn} ${formatSigned(typeSums.pawn)}, ${PIECE_DISPLAY_NAMES.rook} ${formatSigned(typeSums.rook)}, ${PIECE_DISPLAY_NAMES.spy} ${formatSigned(typeSums.spy)}, ${PIECE_DISPLAY_NAMES.king} ${formatSigned(typeSums.king)}.`
     : "";
-  return (
-    <button
-      className={`square ${territory} ${amp ? "amp-square" : ""} ${energyColor ? "energy-square" : ""} ${continuousColor ? "continuous-square" : ""} ${energySelected ? "energy-selected" : ""} ${legal ? "legal" : ""} ${risky ? "risky-move" : ""} ${selected ? "selected-square" : ""} ${dragPreview ? "drag-preview-square" : ""} ${typeSums ? "type-sums-visible" : ""}`}
-      style={renderedColor ? { backgroundColor: renderedColor } : undefined}
-      onClick={onClick}
-      data-board-x={position.x}
-      data-board-y={position.y}
-      aria-label={`Square ${coordinate}. ${territory} territory. Field ${fieldValue.toFixed(3)}.${amp ? " Amp square, pieces here project double wave strength." : ""}${energySummary}${continuousSummary}${risky ? " Moving here loses a piece." : ""}${kingBlocked ? " Reachable, but blocked because it would leave your Big Hat unprotected." : ""}${influenceSummary}${typeSummary}`}
-    >
+  const className = `square ${territory} ${amp ? "amp-square" : ""} ${energyColor ? "energy-square" : ""} ${continuousColor ? "continuous-square" : ""} ${energySelected ? "energy-selected" : ""} ${legal ? "legal" : ""} ${risky ? "risky-move" : ""} ${selected ? "selected-square" : ""} ${dragPreview ? "drag-preview-square" : ""} ${typeSums ? "type-sums-visible" : ""}`;
+  const style = renderedColor ? { backgroundColor: renderedColor } : undefined;
+  const label = `Square ${coordinate}. ${territory} territory. Field ${fieldValue.toFixed(3)}.${amp ? " Amp square, pieces here project double wave strength." : ""}${energySummary}${continuousSummary}${risky ? " Moving here loses a piece." : ""}${kingBlocked ? " Reachable, but blocked because it would leave your Big Hat unprotected." : ""}${influenceSummary}${typeSummary}`;
+  const content: ReactNode = (
+    <>
       {influenceOpacity > 0 && influenceTerritory !== "neutral" && (
         <span
           className={`influence-overlay influence-${influenceTerritory}`}
@@ -82,6 +80,34 @@ export function Square({ position, territory, fieldValue, piece, legal, risky, k
           <i className="type-sum-value king">{formatSigned(typeSums.king)}</i>
         </span>
       )}
+    </>
+  );
+
+  if (passive) {
+    return (
+      <div
+        className={`${className} passive-square`}
+        style={style}
+        data-board-x={position.x}
+        data-board-y={position.y}
+        role="img"
+        aria-label={label}
+      >
+        {content}
+      </div>
+    );
+  }
+
+  return (
+    <button
+      className={className}
+      style={style}
+      onClick={onClick}
+      data-board-x={position.x}
+      data-board-y={position.y}
+      aria-label={label}
+    >
+      {content}
     </button>
   );
 }

@@ -3,7 +3,7 @@ import { evaluateField, evaluateInstantField } from "../field/evaluateField";
 import { gameReducer } from "../game/reducer";
 import { createInitialState } from "../game/initialState";
 import { getLegalMoves } from "../game/movement";
-import { beginTurn } from "../game/rules";
+import { beginTurn, getContinuousPlayableMoves } from "../game/rules";
 import type { GameState } from "../game/types";
 
 function expandedState(pieceType: "spy" | "king"): GameState {
@@ -44,6 +44,74 @@ describe("reducer", () => {
 
     const moved = gameReducer(tuned, { type: "move", pieceId: "blue-pawn-1", destination });
     expect(moved.currentPlayer).toBe("red");
+  });
+
+  it("continuous moves can commit high-resolution destinations", () => {
+    const state = createInitialState();
+    state.variant = "continuous";
+    state.currentPlayer = "blue";
+    state.pieces = [
+      { id: "blue-spy", owner: "blue", type: "spy", position: { x: 3, y: 3 }, unstable: false },
+    ];
+
+    const moved = gameReducer(state, {
+      type: "continuous-move",
+      pieceId: "blue-spy",
+      destination: { x: 4, y: 3 + 1 / 9 },
+    });
+
+    expect(moved.pieces.find((piece) => piece.id === "blue-spy")?.position).toEqual({ x: 4, y: 3 + 1 / 9 });
+    expect(moved.currentPlayer).toBe("red");
+    expect(moved.history).toHaveLength(1);
+  });
+
+  it("continuous initial position commits a fractional spy move", () => {
+    const state = createInitialState();
+    state.variant = "continuous";
+
+    const moved = gameReducer(state, {
+      type: "continuous-move",
+      pieceId: "blue-spy-1",
+      destination: { x: 5, y: 3 + 1 / 9 },
+    });
+
+    expect(moved.pieces.find((piece) => piece.id === "blue-spy-1")?.position).toEqual({ x: 5, y: 3 + 1 / 9 });
+    expect(moved.currentPlayer).toBe("red");
+  });
+
+  it("continuous beginTurn accepts fractional piece positions", () => {
+    const state = createInitialState();
+    state.variant = "continuous";
+    state.currentPlayer = "red";
+    state.pieces = [
+      { id: "red-spy", owner: "red", type: "spy", position: { x: 3 + 1 / 9, y: 3 }, unstable: false },
+      { id: "red-king", owner: "red", type: "king", position: { x: 4, y: 4 + 1 / 9 }, unstable: false },
+      { id: "blue-king", owner: "blue", type: "king", position: { x: 1, y: 1 }, unstable: false },
+    ];
+
+    const started = beginTurn(state);
+
+    expect(started.variant).toBe("continuous");
+    expect(started.currentPlayer).toBe("red");
+    expect(started.message).toMatch(/Red/);
+  });
+
+  it("continuous playable moves can be computed from a fractional origin", () => {
+    const state = createInitialState();
+    state.variant = "continuous";
+    state.currentPlayer = "red";
+    state.pieces = [
+      { id: "red-spy", owner: "red", type: "spy", position: { x: 3 + 1 / 9, y: 3 }, unstable: false },
+    ];
+
+    expect(getContinuousPlayableMoves("red-spy", state).length).toBeGreaterThan(0);
+  });
+
+  it("restart preserves the continuous variant", () => {
+    const state = createInitialState();
+    state.variant = "continuous";
+
+    expect(gameReducer(state, { type: "restart", keepDefinitions: true }).variant).toBe("continuous");
   });
 
   it("accumulates entropy field memory after a committed move", () => {

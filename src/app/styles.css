@@ -187,6 +187,57 @@ h1 {
   -webkit-touch-callout: none;
 }
 
+.continuous-field-layer {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  display: grid;
+  grid-template-columns: repeat(var(--continuous-resolution), 1fr);
+  grid-template-rows: repeat(var(--continuous-resolution), 1fr);
+  pointer-events: none;
+}
+
+.continuous-field-layer span {
+  min-width: 0;
+  min-height: 0;
+}
+
+.continuous-hit-layer {
+  position: absolute;
+  inset: 0;
+  z-index: 9;
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  border: 0;
+  background: transparent;
+  cursor: crosshair;
+}
+
+.board.continuous-render .square {
+  z-index: 1;
+  border-right: 0;
+  border-bottom: 0;
+  background-color: transparent;
+  pointer-events: none;
+  cursor: crosshair;
+}
+
+.board.continuous-render .square.red,
+.board.continuous-render .square.neutral,
+.board.continuous-render .square.blue {
+  background-color: transparent;
+}
+
+.board.continuous-render .square::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  border: 0;
+  pointer-events: none;
+}
+
 .stuck-hint-button {
   position: absolute;
   left: clamp(34px, calc((var(--hint-x) + 0.80) * 100% / var(--board-size, 7)), calc(100% - 34px));
@@ -751,6 +802,41 @@ h1 {
 
 .piece-move-ghost .piece {
   filter: drop-shadow(0 5px 4px rgba(9, 11, 11, 0.38));
+}
+
+.continuous-piece-anchor {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: calc(100% / var(--board-size, 7));
+  height: calc(100% / var(--board-size, 7));
+  z-index: 11;
+  pointer-events: none;
+  transform: translate(calc(var(--piece-x) * 100%), calc(var(--piece-y) * 100%));
+}
+
+.continuous-piece-anchor .piece {
+  filter: drop-shadow(0 4px 3px rgba(9, 11, 11, 0.42));
+}
+
+.continuous-legal-point {
+  position: absolute;
+  left: calc((var(--move-x) + 0.5) * 100% / var(--board-size, 7));
+  top: calc((var(--move-y) + 0.5) * 100% / var(--board-size, 7));
+  z-index: 10;
+  width: 7px;
+  height: 7px;
+  border: 1px solid rgba(9, 11, 11, 0.65);
+  border-radius: 50%;
+  background: rgba(238, 234, 225, 0.86);
+  box-shadow: 0 0 0 1px rgba(238, 234, 225, 0.18);
+  pointer-events: none;
+  transform: translate(-50%, -50%);
+}
+
+.continuous-unstable {
+  right: 10%;
+  top: 10%;
 }
 
 @keyframes piece-move {
