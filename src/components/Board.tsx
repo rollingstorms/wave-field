@@ -84,7 +84,7 @@ export function Board({ state, field, typeFields, continuousField, showTypeSums,
   const [movingPieceIds, setMovingPieceIds] = useState<Set<string>>(() => new Set());
   const [energySelection, setEnergySelection] = useState<Position | null>(null);
   const selectedPiece = state.pieces.find((piece) => piece.id === state.selectedPieceId);
-  const continuousInteraction = state.variant === "continuous" && continuousField && !energyView;
+  const continuousInteraction = state.variant === "continuous" && !energyView;
   const interactionPiece = energyView ? undefined : state.pieces.find((piece) => piece.id === draggingPieceId) ?? selectedPiece;
   const reachableMoves = useMemo(
     () => !locked && interactionPiece
@@ -511,7 +511,7 @@ export function Board({ state, field, typeFields, continuousField, showTypeSums,
       <div className="board-row-wrap">
         <div className="ranks left">{RANK_LABELS.map((rank) => <span key={rank}>{rank}</span>)}</div>
         <div
-          className={`board ${draggingPieceId ? "dragging" : ""} ${continuousSamples ? "continuous-render" : ""}`}
+          className={`board ${draggingPieceId ? "dragging" : ""} ${continuousInteraction || continuousSamples ? "continuous-render" : ""}`}
           ref={boardRef}
           onPointerDown={handlePointerDown}
           onPointerMove={handlePointerMove}
