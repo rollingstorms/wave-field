@@ -1,5 +1,10 @@
 import { BOARD_SIZE, DEBUG_COMPONENT_COUNT_LIMITS } from "../game/constants";
-import { contributionGrid, evaluateContinuousFieldValue, evaluateSignedPieceContribution } from "../field/evaluateField";
+import {
+  contributionGrid,
+  evaluateContinuousFieldValue,
+  evaluateSignedContinuousPieceContribution,
+  evaluateSignedPieceContribution,
+} from "../field/evaluateField";
 import { projectFieldValue } from "../field/projection";
 import { getContinuousLegalMoves, getLegalMoves } from "../game/movement";
 import { PIECE_TYPES, pieceName } from "../game/pieceLabels";
@@ -48,6 +53,12 @@ function fieldValueAtPiece(piece: GameState["pieces"][number], state: GameState,
     : field[piece.position.y][piece.position.x];
 }
 
+function contributionAtPieceCenter(piece: GameState["pieces"][number], state: GameState): number {
+  return state.variant === "continuous"
+    ? evaluateSignedContinuousPieceContribution(piece, piece.position, state)
+    : evaluateSignedPieceContribution(piece, piece.position, state);
+}
+
 function pressureMetrics(snap: GameSnapshot): PressureMetric[] {
   const state = snap as GameState;
   const field = evaluateFieldForSnapshot(state);
@@ -62,7 +73,11 @@ function pressureMetrics(snap: GameSnapshot): PressureMetric[] {
 function evaluateFieldForSnapshot(state: GameState) {
   return Array.from({ length: BOARD_SIZE }, (_, y) =>
     Array.from({ length: BOARD_SIZE }, (_, x) =>
-      state.pieces.reduce((total, piece) => total + evaluateSignedPieceContribution(piece, { x, y }, state), 0),
+      state.pieces.reduce((total, piece) => total + (
+        state.variant === "continuous"
+          ? evaluateSignedContinuousPieceContribution(piece, { x, y }, state)
+          : evaluateSignedPieceContribution(piece, { x, y }, state)
+      ), 0),
     ),
   );
 }
@@ -281,7 +296,7 @@ export function DebugPanel({ state, field, onUpdateDefault, onUpdateWaveScale, o
         <summary>Contribution at selected square</summary>
         <div className="piece-list">
           {state.pieces.map((piece) => (
-            <span key={piece.id}>{piece.id}: center contribution {evaluateSignedPieceContribution(piece, piece.position, state).toFixed(3)}</span>
+            <span key={piece.id}>{piece.id}: center contribution {contributionAtPieceCenter(piece, state).toFixed(3)}</span>
           ))}
         </div>
       </details>
