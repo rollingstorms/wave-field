@@ -90,6 +90,33 @@ describe("movement", () => {
     expect(getLegalMoves("red-pawn", state, zeroField())).not.toContainEqual({ x: 4, y: 3.5 });
   });
 
+  it("continuous movement rejects destinations inside a one-square radius", () => {
+    const state = onePieceState("pawn", "red");
+    state.variant = "continuous";
+    const piece = state.pieces[0];
+
+    expect(canContinuousPieceEnter(piece, { x: 3 + 8 / 9, y: 3 }, state, {
+      samplesPerSquare: 9,
+      fieldValueAt: () => 0,
+    })).toBe(false);
+    expect(canContinuousPieceEnter(piece, { x: 4, y: 3 }, state, {
+      samplesPerSquare: 9,
+      fieldValueAt: () => 0,
+    })).toBe(true);
+  });
+
+  it("continuous legal choices omit points inside a one-square radius", () => {
+    const state = onePieceState("pawn", "red");
+    state.variant = "continuous";
+    const moves = getContinuousLegalMoves("red-pawn", state, {
+      samplesPerSquare: 9,
+      fieldValueAt: () => 0,
+    });
+
+    expect(moves).not.toContainEqual({ x: 3 + 8 / 9, y: 3 });
+    expect(moves).toContainEqual({ x: 4, y: 3 });
+  });
+
   it("continuous movement checks hostile field values along the sampled path", () => {
     const state = onePieceState("pawn", "red");
     state.variant = "continuous";

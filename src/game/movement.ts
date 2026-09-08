@@ -6,6 +6,7 @@ import { rustLegalMoves } from "./rustEngine";
 
 export const CONTINUOUS_MOVEMENT_SAMPLES_PER_SQUARE = 9;
 export const CONTINUOUS_PIECE_RADIUS = 0.35;
+export const CONTINUOUS_MIN_MOVE_DISTANCE = 1;
 const PRECISE_EPSILON = 1e-9;
 
 export function inBounds(position: Position): boolean {
@@ -130,6 +131,7 @@ export function canContinuousPieceEnter(
   options: ContinuousMovementOptions = {},
 ): boolean {
   if (!inContinuousBounds(destination) || samePrecisePosition(piece.position, destination)) return false;
+  if (squaredDistance(piece.position, destination) < CONTINUOUS_MIN_MOVE_DISTANCE ** 2 - PRECISE_EPSILON) return false;
   if (continuousPieceBlocksPath(piece, destination, state)) return false;
   const samplesPerSquare = options.samplesPerSquare ?? CONTINUOUS_MOVEMENT_SAMPLES_PER_SQUARE;
   const fieldValueAt = options.fieldValueAt ?? ((point) => evaluateContinuousFieldValue(state, point));

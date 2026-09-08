@@ -5,6 +5,7 @@ import { applyMove } from "../game/rules";
 import type { GameState, PieceType } from "../game/types";
 import { evaluateField } from "../field/evaluateField";
 import { getUnstablePieces, isKingUnprotected } from "../game/victory";
+import { CONTINUOUS_MIN_MOVE_DISTANCE } from "../game/movement";
 
 const pieceTypes: PieceType[] = ["pawn", "rook", "spy", "king"];
 
@@ -107,7 +108,7 @@ describe("heuristic opponent", () => {
     expect(result.history).toHaveLength(opening.history.length + 1);
   });
 
-  it("heuristic opponent completes a continuous turn with a high-resolution move", () => {
+  it("heuristic opponent completes a continuous turn with a legal-distance move", () => {
     const state = createInitialState();
     state.variant = "continuous";
     state.currentPlayer = "red";
@@ -125,7 +126,7 @@ describe("heuristic opponent", () => {
     expect(result.history).toHaveLength(state.history.length + 1);
     expect(moved).toBeDefined();
     expect(moved?.position).not.toEqual({ x: 3, y: 3 });
-    expect(Number.isInteger(moved!.position.x) && Number.isInteger(moved!.position.y)).toBe(false);
+    expect(Math.hypot(moved!.position.x - 3, moved!.position.y - 3)).toBeGreaterThanOrEqual(CONTINUOUS_MIN_MOVE_DISTANCE);
   });
 
   it("easy opponent remains bounded on continuous high-resolution moves", () => {

@@ -265,6 +265,7 @@ export function RulesPage({ onBack }: RulesPageProps) {
         <ol>
           <li>Continuous field shading paints the sampled wave surface; turning it off keeps point movement active.</li>
           <li>Playable markers are precise destinations, not square centers.</li>
+          <li>Continuous moves must travel at least one square of distance.</li>
           <li>Non-Spy pieces must stay in friendly or Neutral field along the sampled path.</li>
           <li>Pieces have body radius, so overlapping destinations and paths through another piece are blocked.</li>
         </ol>
