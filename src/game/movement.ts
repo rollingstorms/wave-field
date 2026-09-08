@@ -1,6 +1,6 @@
 import { BOARD_SIZE } from "./constants";
 import type { GameState, Piece, Position, PrecisePosition } from "./types";
-import { evaluateContinuousFieldValue } from "../field/evaluateField";
+import { evaluateContinuousFieldValue, evaluateField } from "../field/evaluateField";
 import { isSquareCompatible } from "../field/projection";
 import { rustLegalMoves } from "./rustEngine";
 
@@ -152,9 +152,10 @@ export function getContinuousLegalMoves(
     canContinuousPieceEnter(piece, destination, state, { samplesPerSquare, fieldValueAt }));
 }
 
-export function getLegalMoves(pieceId: string, state: GameState, field: number[][]): Position[] {
-  const rustMoves = rustLegalMoves(pieceId, state);
+export function getLegalMoves(pieceId: string, state: GameState, field?: number[][]): Position[] {
+  const rustMoves = field ? null : rustLegalMoves(pieceId, state);
   if (rustMoves) return rustMoves;
+  const activeField = field ?? evaluateField(state);
   const piece = state.pieces.find((candidate) => candidate.id === pieceId);
   if (!piece) return [];
   const moves: Position[] = [];
@@ -163,7 +164,7 @@ export function getLegalMoves(pieceId: string, state: GameState, field: number[]
       if (dx === 0 && dy === 0) continue;
       let destination = { x: piece.position.x + dx, y: piece.position.y + dy };
       while (inBounds(destination)) {
-        if (getPieceAt(state, destination) || !isSpectrallyPassable(piece, destination, field)) break;
+        if (getPieceAt(state, destination) || !isSpectrallyPassable(piece, destination, activeField)) break;
         moves.push(destination);
         destination = { x: destination.x + dx, y: destination.y + dy };
       }

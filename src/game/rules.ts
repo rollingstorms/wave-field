@@ -544,10 +544,20 @@ export function applyContinuousMove(pieceId: string, destination: PrecisePositio
   return completeAction(state, candidate, options);
 }
 
-export function getPlayableMoves(pieceId: string, state: GameState, field: number[][] = evaluateField(state)): Position[] {
-  const rustMoves = rustPlayableMoves(pieceId, state);
+export function getPlayableMoves(pieceId: string, state: GameState, field?: number[][]): Position[] {
+  const rustMoves = field ? null : rustPlayableMoves(pieceId, state);
   if (rustMoves) return rustMoves;
-  return getLegalMoves(pieceId, state, field).filter((destination) => applyMove(pieceId, destination, state, { analyzeCheckmate: false }).ok);
+  const activeField = field ?? evaluateField(state);
+  if (state.status !== "playing") return [];
+  const piece = state.pieces.find((candidate) => candidate.id === pieceId);
+  if (!piece || piece.owner !== state.currentPlayer) return [];
+  return getLegalMoves(pieceId, state, activeField).filter((destination) => {
+    const candidate = {
+      ...state,
+      pieces: state.pieces.map((item) => item.id === pieceId ? { ...item, position: destination } : item),
+    };
+    return completeAction(state, candidate, { analyzeCheckmate: false }).ok;
+  });
 }
 
 export function getContinuousPlayableMoves(pieceId: string, state: GameState): PrecisePosition[] {
