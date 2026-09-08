@@ -544,6 +544,17 @@ export function applyContinuousMove(pieceId: string, destination: PrecisePositio
   return completeAction(state, candidate, options);
 }
 
+export function applyKnownLegalMove(pieceId: string, destination: PrecisePosition, state: GameState, options: RuleOptions = {}): MoveResult {
+  if (state.status !== "playing") return { ok: false, state, reason: "The game is over." };
+  const piece = state.pieces.find((candidate) => candidate.id === pieceId);
+  if (!piece || piece.owner !== state.currentPlayer) return { ok: false, state, reason: "Choose one of your pieces." };
+  const candidate = {
+    ...state,
+    pieces: state.pieces.map((item) => item.id === pieceId ? { ...item, position: destination } : item),
+  };
+  return completeAction(state, candidate, options);
+}
+
 export function getPlayableMoves(pieceId: string, state: GameState, field?: number[][]): Position[] {
   const rustMoves = field ? null : rustPlayableMoves(pieceId, state);
   if (rustMoves) return rustMoves;
@@ -551,13 +562,8 @@ export function getPlayableMoves(pieceId: string, state: GameState, field?: numb
   if (state.status !== "playing") return [];
   const piece = state.pieces.find((candidate) => candidate.id === pieceId);
   if (!piece || piece.owner !== state.currentPlayer) return [];
-  return getLegalMoves(pieceId, state, activeField).filter((destination) => {
-    const candidate = {
-      ...state,
-      pieces: state.pieces.map((item) => item.id === pieceId ? { ...item, position: destination } : item),
-    };
-    return completeAction(state, candidate, { analyzeCheckmate: false }).ok;
-  });
+  return getLegalMoves(pieceId, state, activeField)
+    .filter((destination) => applyKnownLegalMove(pieceId, destination, state, { analyzeCheckmate: false }).ok);
 }
 
 export function getContinuousPlayableMoves(pieceId: string, state: GameState): PrecisePosition[] {
@@ -566,13 +572,7 @@ export function getContinuousPlayableMoves(pieceId: string, state: GameState): P
   const piece = state.pieces.find((candidate) => candidate.id === pieceId);
   if (!piece || piece.owner !== state.currentPlayer) return [];
   return getContinuousLegalMoves(pieceId, state)
-    .filter((destination) => {
-      const candidate = {
-        ...state,
-        pieces: state.pieces.map((item) => item.id === pieceId ? { ...item, position: destination } : item),
-      };
-      return completeAction(state, candidate, { analyzeCheckmate: false }).ok;
-    });
+    .filter((destination) => applyKnownLegalMove(pieceId, destination, state, { analyzeCheckmate: false }).ok);
 }
 
 export function resignInCheck(state: GameState): MoveResult {

@@ -14,7 +14,7 @@ import { contributionGrid, evaluateContinuousField, evaluateField, evaluateTypeF
 import type { TypeFields } from "../field/evaluateField";
 import { projectFieldValue } from "../field/projection";
 import { getContinuousLegalMoves, getLegalMoves, getPieceAt, getPieceAtPrecise, samePosition, samePrecisePosition } from "../game/movement";
-import { applyContinuousMove, applyMove, getContinuousPlayableMoves, getPlayableMoves } from "../game/rules";
+import { applyContinuousMove, applyKnownLegalMove, applyMove, getContinuousPlayableMoves, getPlayableMoves } from "../game/rules";
 import { PIECE_DISPLAY_NAMES, PIECE_INITIALS } from "../game/pieceLabels";
 import type { GameState, Position, PrecisePosition } from "../game/types";
 import { isAmpSquare } from "../game/variants";
@@ -163,7 +163,7 @@ export function Board({ state, field, typeFields, continuousField, showTypeSums,
     const ownPieceIds = new Set(state.pieces.filter((piece) => piece.owner === interactionPiece.owner).map((piece) => piece.id));
     return new Map(playableMoves.flatMap((move) => {
       const result = continuousInteraction
-        ? applyContinuousMove(interactionPiece.id, move, state, { analyzeCheckmate: false })
+        ? applyKnownLegalMove(interactionPiece.id, move, state, { analyzeCheckmate: false })
         : applyMove(interactionPiece.id, move, state, { analyzeCheckmate: false });
       if (!result.ok) return [];
       const survivingOwnIds = new Set(result.state.pieces.filter((piece) => piece.owner === interactionPiece.owner).map((piece) => piece.id));
