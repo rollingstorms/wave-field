@@ -633,21 +633,7 @@ h1 {
   inset: 30%;
   border-color: #090b0b;
   background: var(--influence);
-  border-radius: 0;
-  transform: rotate(45deg);
-}
-
-.risk-marker {
-  position: absolute;
-  left: 50%;
-  top: 50%;
-  z-index: 6;
-  color: #090b0b;
-  font-size: 0.95rem;
-  font-weight: 700;
-  line-height: 1;
-  pointer-events: none;
-  transform: translate(-50%, -52%);
+  border-radius: 50%;
 }
 
 .king-block-marker {
@@ -832,6 +818,12 @@ h1 {
   box-shadow: 0 0 0 1px rgba(238, 234, 225, 0.18);
   pointer-events: none;
   transform: translate(-50%, -50%);
+}
+
+.continuous-legal-point.risky-point {
+  border-color: rgba(9, 11, 11, 0.74);
+  background: var(--influence);
+  box-shadow: 0 0 0 1px rgba(245, 225, 134, 0.32);
 }
 
 .continuous-unstable {
@@ -1957,15 +1949,6 @@ select, .editor-bar button, .secondary, .import-button {
 .marker-demo .risky-dot {
   background: var(--influence);
   border-color: #090b0b;
-  transform: rotate(45deg);
-}
-
-.marker-demo b {
-  grid-column: 1;
-  grid-row: 1;
-  z-index: 1;
-  justify-self: center;
-  color: #090b0b;
 }
 
 .quick-reference {

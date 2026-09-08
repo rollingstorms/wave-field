@@ -161,9 +161,10 @@ export function Board({ state, field, typeFields, continuousField, showTypeSums,
   const riskyMoveLossCounts = useMemo(() => {
     if (!interactionPiece) return new Map<string, number>();
     const ownPieceIds = new Set(state.pieces.filter((piece) => piece.owner === interactionPiece.owner).map((piece) => piece.id));
-    if (continuousInteraction) return new Map<string, number>();
     return new Map(playableMoves.flatMap((move) => {
-      const result = applyMove(interactionPiece.id, move, state, { analyzeCheckmate: false });
+      const result = continuousInteraction
+        ? applyContinuousMove(interactionPiece.id, move, state, { analyzeCheckmate: false })
+        : applyMove(interactionPiece.id, move, state, { analyzeCheckmate: false });
       if (!result.ok) return [];
       const survivingOwnIds = new Set(result.state.pieces.filter((piece) => piece.owner === interactionPiece.owner).map((piece) => piece.id));
       const lossCount = [...ownPieceIds].filter((id) => !survivingOwnIds.has(id)).length;
@@ -571,7 +572,7 @@ export function Board({ state, field, typeFields, continuousField, showTypeSums,
           ))}
           {continuousInteraction && interactionPiece && legalMoves.map((move) => (
             <span
-              className="continuous-legal-point"
+              className={`continuous-legal-point ${riskyMoveKeys.has(preciseKey(move)) ? "risky-point" : ""}`}
               key={preciseKey(move)}
               style={{
                 "--move-x": move.x,

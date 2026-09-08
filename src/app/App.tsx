@@ -69,7 +69,7 @@ export function App() {
     ? hardRouteEnabled
       ? { blue: "human", red: "hard" }
       : { blue: "easy", red: "easy" }
-    : { blue: "human", red: "easy" });
+    : { blue: "human", red: "hard" });
   const [duelRunning, setDuelRunning] = useState(false);
   const [duelSpeedMs, setDuelSpeedMs] = useState(450);
   const [duelMaxTurns, setDuelMaxTurns] = useState(80);
@@ -265,7 +265,7 @@ export function App() {
             onToggleAi={() => {
               setSidePolicies((policies) => (
                 policies.blue === "human" && policies.red === "human"
-                  ? { blue: "human", red: "heuristic" }
+                  ? { blue: "human", red: "hard" }
                   : { blue: "human", red: "human" }
               ));
               setDuelRunning(false);

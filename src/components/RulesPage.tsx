@@ -125,10 +125,7 @@ function MovementBoard() {
             {piece?.unstable && <span className="unstable">!</span>}
             {playable.has(key) && <span className="legal-dot" />}
             {risky.has(key) && (
-              <>
-                <span className="legal-dot risky-dot" />
-                <span className="risk-marker">!</span>
-              </>
+              <span className="legal-dot risky-dot" />
             )}
             {kingBlocked.has(key) && <span className="king-block-marker">{PIECE_INITIALS.king}</span>}
           </div>
@@ -251,7 +248,7 @@ export function RulesPage({ onBack }: RulesPageProps) {
           <ul>
             <li>White rings mark playable destinations.</li>
             <li>A yellow {PIECE_INITIALS.king} marks a move blocked by Big Hat safety.</li>
-            <li>A yellow diamond with ! warns that one of your pieces may be lost.</li>
+            <li>A yellow dot warns that one of your pieces may be lost.</li>
           </ul>
         </div>
         <MovementBoard />
@@ -286,7 +283,7 @@ export function RulesPage({ onBack }: RulesPageProps) {
         <div className="marker-demo" aria-label="Move marker examples">
           <span><i className="legal-dot" /> Safe move</span>
           <span><i className="king-block-marker">{PIECE_INITIALS.king}</i> Big Hat unsafe</span>
-          <span><i className="legal-dot risky-dot" /><b>!</b> Loss warning</span>
+          <span><i className="legal-dot risky-dot" /> Loss warning</span>
         </div>
       </section>
 

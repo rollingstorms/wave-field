@@ -62,7 +62,6 @@ export function Square({ position, territory, fieldValue, piece, legal, risky, k
       )}
       {legal && <span className={risky ? "legal-dot risky-dot" : "legal-dot"} />}
       {amp && <span className="amp-marker" aria-hidden="true">2x</span>}
-      {risky && <span className="risk-marker" aria-hidden="true">!</span>}
       {kingBlocked && <span className="king-block-marker" aria-hidden="true">{PIECE_INITIALS.king}</span>}
       {piece && <Piece piece={piece} selected={selected} dragging={dragging} hidden={hidePiece} />}
       {piece?.unstable && <span className="unstable" aria-label="unstable">!</span>}
