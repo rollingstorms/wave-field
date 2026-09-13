@@ -47,7 +47,7 @@ interface RustBindings {
 let bindings: RustBindings | null = null;
 
 function requestedRuleEngine(): "rust" | "ts" {
-  if (BOARD_SIZE === BIG_BOARD_SIZE) return "ts";
+  if (BOARD_SIZE !== 7) return "ts";
   const routePath = globalThis.location?.pathname.replace(/\/$/, "") ?? "";
   if (routePath.endsWith("/amp") || routePath.endsWith("/entropy") || routePath.endsWith("/continuous")) return "ts";
   const requested = new URLSearchParams(globalThis.location?.search ?? "").get("engine");

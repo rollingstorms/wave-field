@@ -448,6 +448,20 @@ No robust recursive grammar was found. There is no evidence yet that
 "configuration C of Scale-I pieces makes Piece-II, and the analogous C of
 Scale-II pieces makes Piece-III" follows naturally from the current kernels.
 
+### Tower II Correction
+
+The later mixed-scale Tower II near-miss that used `2 R2 + 1 R1 + 1 T1 + 1 B1`
+is rejected as a playable recipe candidate: the contributing Tower I lands
+inside the intended 2x2 Tower II footprint. It remains useful as evidence that
+Tower II signatures are close to Triangle II signatures under the current
+support-expanded metric, but it should not be treated as a valid generation
+pattern.
+
+The current working implementation therefore does not lock in a Tower II
+recipe. The next test surface is the playable `/wavefielder` route on a 25x25
+board, where footprint legality can be evaluated in-game instead of only in
+ASCII pattern space.
+
 ## Diagnostic Local Signatures
 
 Lower-dimensional signatures were tested for distinguishability:

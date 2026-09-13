@@ -6,7 +6,6 @@ import { DebugPanel } from "../components/DebugPanel";
 import { HistoryRoll } from "../components/HistoryRoll";
 import { RulesPage } from "../components/RulesPage";
 import { GameActions, TurnStatus } from "../components/TurnStatus";
-import { WavefielderDemo } from "../components/WavefielderDemo";
 import { WaveEditor } from "../components/WaveEditor";
 import { definitionForSlot } from "../field/componentDefinitions";
 import { ALL_ENERGY_CHANNELS } from "../field/cmykEnergy";
@@ -32,7 +31,6 @@ const arenaEnabled = routePath.endsWith("/arena") || hardRouteEnabled || localNe
 const optimTestEnabled = routePath.endsWith("/optim-test");
 const easyTestEnabled = routePath.endsWith("/easy-test");
 const lowRescueTestEnabled = routePath.endsWith("/low-rescue-test");
-const wavefielderEnabled = routePath.endsWith("/wavefielder");
 type SidePolicy = AiPolicy | "human";
 type AiStats = Record<Player, { turns: number; tuneActions: number; lastTurnTunes: number }>;
 const pieceTypes: PieceType[] = ["pawn", "rook", "spy", "king"];
@@ -59,10 +57,6 @@ function componentChangeCount(before: PlayerComponents, after: PlayerComponents)
 }
 
 export function App() {
-  if (wavefielderEnabled) {
-    return <WavefielderDemo />;
-  }
-
   const [state, dispatch] = useReducer(gameReducer, undefined, createArenaInitialState);
   const [duelSeed, setDuelSeed] = useState(() => Math.floor(Math.random() * 1_000_000_000));
   const [developerMode, setDeveloperMode] = useState(false);

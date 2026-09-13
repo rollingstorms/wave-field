@@ -26,10 +26,26 @@ const towerComponentOneGrid = [
   [1, 1, 1, -1, 1, 1, 1],
 ];
 
+function centeredGrid(values: number[][]): number[][] {
+  if (values.length === BOARD_SIZE && values.every((row) => row.length === BOARD_SIZE)) return values;
+  const grid = Array.from({ length: BOARD_SIZE }, () => Array.from({ length: BOARD_SIZE }, () => 0));
+  const boardCenter = Math.floor(BOARD_SIZE / 2);
+  const sourceCenterY = Math.floor(values.length / 2);
+  const sourceCenterX = Math.floor((values[0]?.length ?? 1) / 2);
+  values.forEach((row, y) => {
+    row.forEach((value, x) => {
+      const targetY = boardCenter + y - sourceCenterY;
+      const targetX = boardCenter + x - sourceCenterX;
+      if (grid[targetY]?.[targetX] !== undefined) grid[targetY][targetX] = value;
+    });
+  });
+  return grid;
+}
+
 export const DEBUG_DEFINITIONS: ComponentDefinitions = {
   pawn: [{ kind: "preset", name: "Checkerboard", preset: "checkerboard", decayBase: 2, originScale: 1 }],
   rook: [
-    { kind: "grid", name: "Tower grid", gridValues: towerComponentOneGrid, decayBase: 2, originScale: 1 },
+    { kind: "grid", name: "Tower grid", gridValues: centeredGrid(towerComponentOneGrid), decayBase: 2, originScale: 1 },
     { kind: "ring", name: "Pull gap push", geometry: "chebyshev", ringValues: [0, 1, 0, -1], repeat: true, decayBase: 2, originScale: 1 },
   ],
   spy: [
