@@ -18,7 +18,7 @@ from .model import PolicyValueNet
 from .mcts import MctsConfig, mcts_selfplay_records
 from .scenarios import DEFAULT_SCENARIOS, build_scenario_states, scenario_names
 from .selfplay import Sample, heuristic_bootstrap_records, rust_random_training_samples, session_model_selfplay_records
-from .train import resolve_device, samples_to_tensors, train_epoch
+from .train import evaluate_loss, resolve_device, samples_to_tensors, train_epoch
 
 
 def parse_args() -> argparse.Namespace:
@@ -57,8 +57,22 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--mcts-games-per-iteration", type=int, default=0)
     parser.add_argument("--mcts-simulations", type=int, default=8)
     parser.add_argument("--mcts-top-k", type=int, default=8)
+    parser.add_argument("--mcts-min-tune-candidates", type=int, default=1)
+    parser.add_argument("--mcts-min-move-candidates", type=int, default=1)
     parser.add_argument("--mcts-depth", type=int, default=6)
     parser.add_argument("--mcts-c-puct", type=float, default=1.5)
+    parser.add_argument(
+        "--mcts-force-first-tune-prob",
+        type=float,
+        default=0.0,
+        help="MCTS self-play probability of forcing the first eligible action in a turn to be tuning.",
+    )
+    parser.add_argument(
+        "--mcts-force-tune-prob",
+        type=float,
+        default=0.0,
+        help="MCTS self-play probability of forcing any eligible search action to be tuning.",
+    )
     parser.add_argument("--scenario-games-per-iteration", type=int, default=0)
     parser.add_argument("--scenario-bootstrap-per-iteration", type=int, default=0)
     parser.add_argument("--scenario-eval-games", type=int, default=0)
@@ -68,6 +82,12 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--iterations", type=int, default=1)
     parser.add_argument("--epochs", type=int, default=3)
     parser.add_argument("--batch-size", type=int, default=128)
+    parser.add_argument(
+        "--validation-fraction",
+        type=float,
+        default=0.0,
+        help="Hold out this fraction of each generated training batch for validation loss logging.",
+    )
     parser.add_argument("--rollout-batch-size", type=int, default=128)
     parser.add_argument("--temperature", type=float, default=1.0)
     parser.add_argument("--kind-temperature", type=float, default=None, help="Training self-play temperature for tune-vs-move kind sampling.")
@@ -471,6 +491,7 @@ def train_samples(
     iteration: int,
     logger: JsonlLogger,
     progress: TerminalProgress,
+    validation_fraction: float = 0.0,
 ) -> None:
     if not samples:
         logger.write(
@@ -483,7 +504,19 @@ def train_samples(
         )
         return
 
-    tensors = samples_to_tensors(samples, device)
+    training_samples = samples
+    validation_samples: List[Sample] = []
+    if validation_fraction > 0.0 and len(samples) > 1:
+        validation_count = max(1, int(round(len(samples) * validation_fraction)))
+        validation_count = min(validation_count, len(samples) - 1)
+        rng = np.random.default_rng(10_000_000 + iteration)
+        order = rng.permutation(len(samples))
+        validation_indexes = set(int(index) for index in order[:validation_count])
+        validation_samples = [sample for index, sample in enumerate(samples) if index in validation_indexes]
+        training_samples = [sample for index, sample in enumerate(samples) if index not in validation_indexes]
+
+    tensors = samples_to_tensors(training_samples, device)
+    validation_tensors = samples_to_tensors(validation_samples, device) if validation_samples else None
     for epoch in range(1, epochs + 1):
         started_at = time.perf_counter()
         losses = train_epoch(
@@ -501,23 +534,39 @@ def train_samples(
                 totals,
             ),
         )
-        progress.clear()
-        logger.write(
-            {
-                "event": "train_epoch",
-                "phase": phase,
-                "iteration": iteration,
-                "epoch": epoch,
-                "samples": len(samples),
-                "seconds": round(time.perf_counter() - started_at, 3),
-                "loss": round(losses["loss"], 6),
-                "kind": round(losses["kind"], 6),
-                "policy": round(losses["policy"], 6),
-                "tuning": round(losses["tuning"], 6),
-                "value": round(losses["value"], 6),
-                "history_plies": getattr(model, "history_plies", 1),
-            }
+        validation_losses = (
+            evaluate_loss(model, validation_tensors, batch_size=batch_size)
+            if validation_tensors is not None
+            else None
         )
+        progress.clear()
+        event = {
+            "event": "train_epoch",
+            "phase": phase,
+            "iteration": iteration,
+            "epoch": epoch,
+            "samples": len(training_samples),
+            "raw_samples": len(samples),
+            "validation_samples": len(validation_samples),
+            "seconds": round(time.perf_counter() - started_at, 3),
+            "loss": round(losses["loss"], 6),
+            "kind": round(losses["kind"], 6),
+            "policy": round(losses["policy"], 6),
+            "tuning": round(losses["tuning"], 6),
+            "value": round(losses["value"], 6),
+            "history_plies": getattr(model, "history_plies", 1),
+        }
+        if validation_losses is not None:
+            event.update(
+                {
+                    "validation_loss": round(validation_losses["loss"], 6),
+                    "validation_kind": round(validation_losses["kind"], 6),
+                    "validation_policy": round(validation_losses["policy"], 6),
+                    "validation_tuning": round(validation_losses["tuning"], 6),
+                    "validation_value": round(validation_losses["value"], 6),
+                }
+            )
+        logger.write(event)
 
 
 def run_session_eval(
@@ -764,6 +813,12 @@ def main() -> None:
         raise ValueError("encoder_sequence needs --encoder-checkpoint unless --unfreeze-encoder trains it from scratch.")
     if not 0.0 <= args.force_first_tune_prob <= 1.0:
         raise ValueError("--force-first-tune-prob must be between 0 and 1.")
+    if not 0.0 <= args.validation_fraction < 1.0:
+        raise ValueError("--validation-fraction must be at least 0 and less than 1.")
+    if not 0.0 <= args.mcts_force_first_tune_prob <= 1.0:
+        raise ValueError("--mcts-force-first-tune-prob must be between 0 and 1.")
+    if not 0.0 <= args.mcts_force_tune_prob <= 1.0:
+        raise ValueError("--mcts-force-tune-prob must be between 0 and 1.")
     if args.resume_checkpoint is not None and (args.pretrain_random_games > 0 or args.heuristic_bootstrap_games > 0):
         raise ValueError("Resume runs should use per-iteration generation, not bootstrap phases.")
     torch.manual_seed(args.seed)
@@ -867,6 +922,7 @@ def main() -> None:
             0,
             logger,
             progress,
+            validation_fraction=args.validation_fraction,
         )
 
     if args.heuristic_bootstrap_games > 0:
@@ -915,6 +971,7 @@ def main() -> None:
             0,
             logger,
             progress,
+            validation_fraction=args.validation_fraction,
         )
 
     final_iteration = start_iteration + args.iterations
@@ -1034,9 +1091,13 @@ def main() -> None:
                     simulations=args.mcts_simulations,
                     c_puct=args.mcts_c_puct,
                     top_k=args.mcts_top_k,
+                    min_tune_candidates=args.mcts_min_tune_candidates,
+                    min_move_candidates=args.mcts_min_move_candidates,
                     max_depth=args.mcts_depth,
                     max_tuning_actions=args.max_tuning_actions,
                     policy_temperature=args.temperature,
+                    force_first_tune_prob=args.mcts_force_first_tune_prob,
+                    force_tune_prob=args.mcts_force_tune_prob,
                 ),
                 device=device,
                 input_view=args.input_view,
@@ -1055,8 +1116,12 @@ def main() -> None:
                     "mcts": {
                         "simulations": args.mcts_simulations,
                         "top_k": args.mcts_top_k,
+                        "min_tune_candidates": args.mcts_min_tune_candidates,
+                        "min_move_candidates": args.mcts_min_move_candidates,
                         "depth": args.mcts_depth,
                         "c_puct": args.mcts_c_puct,
+                        "force_first_tune_prob": args.mcts_force_first_tune_prob,
+                        "force_tune_prob": args.mcts_force_tune_prob,
                     },
                 }
             )
@@ -1177,6 +1242,7 @@ def main() -> None:
             iteration,
             logger,
             progress,
+            validation_fraction=args.validation_fraction,
         )
         if args.eval_every > 0 and iteration % args.eval_every == 0:
             run_session_eval(engine, model, args, device, iteration, logger, progress)

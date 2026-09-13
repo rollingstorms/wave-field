@@ -120,6 +120,58 @@ def _soft_policy_loss(logits: torch.Tensor, targets: torch.Tensor) -> torch.Tens
     return -(targets * F.log_softmax(logits, dim=1)).sum(dim=1).mean()
 
 
+def _loss_components(
+    model: PolicyValueNet,
+    tensors: Dict[str, torch.Tensor],
+    batch: torch.Tensor,
+) -> Dict[str, torch.Tensor]:
+    history_board = tensors["history_board"][batch] if "history_board" in tensors else None
+    history_side = tensors["history_side"][batch] if "history_side" in tensors else None
+    kind_logits, move_logits, tuning_logits = model.full_policy(
+        tensors["board"][batch],
+        tensors["side"][batch],
+        history_board=history_board,
+        history_side=history_side,
+    )
+    _legacy_logits, predicted_values = model(
+        tensors["board"][batch],
+        tensors["side"][batch],
+        history_board=history_board,
+        history_side=history_side,
+    )
+    kind_targets = tensors["kind_policy"][batch]
+    kind_loss = _soft_policy_loss(kind_logits, kind_targets)
+
+    move_targets = tensors["move_policy"][batch]
+    move_rows = move_targets.sum(dim=1) > 0
+    if bool(move_rows.any()):
+        policy_loss = _soft_policy_loss(
+            masked_policy_logits(move_logits[move_rows], tensors["legal_mask"][batch][move_rows]),
+            move_targets[move_rows],
+        )
+    else:
+        policy_loss = move_logits.sum() * 0.0
+
+    tuning_targets = tensors["tuning_policy"][batch]
+    tuning_rows = tuning_targets.sum(dim=1) > 0
+    if bool(tuning_rows.any()):
+        tuning_loss = _soft_policy_loss(
+            masked_policy_logits(tuning_logits[tuning_rows], tensors["legal_tuning_mask"][batch][tuning_rows]),
+            tuning_targets[tuning_rows],
+        )
+    else:
+        tuning_loss = tuning_logits.sum() * 0.0
+    value_loss = F.mse_loss(predicted_values, tensors["values"][batch])
+    loss = kind_loss + policy_loss + tuning_loss + value_loss
+    return {
+        "loss": loss,
+        "kind": kind_loss,
+        "policy": policy_loss,
+        "tuning": tuning_loss,
+        "value": value_loss,
+    }
+
+
 def train_epoch(
     model: PolicyValueNet,
     optimizer: torch.optim.Optimizer,
@@ -135,58 +187,41 @@ def train_epoch(
 
     for batch_number, start in enumerate(range(0, sample_count, batch_size), start=1):
         batch = order[start:start + batch_size]
-        history_board = tensors["history_board"][batch] if "history_board" in tensors else None
-        history_side = tensors["history_side"][batch] if "history_side" in tensors else None
-        kind_logits, move_logits, tuning_logits = model.full_policy(
-            tensors["board"][batch],
-            tensors["side"][batch],
-            history_board=history_board,
-            history_side=history_side,
-        )
-        _legacy_logits, predicted_values = model(
-            tensors["board"][batch],
-            tensors["side"][batch],
-            history_board=history_board,
-            history_side=history_side,
-        )
-        kind_targets = tensors["kind_policy"][batch]
-        kind_loss = _soft_policy_loss(kind_logits, kind_targets)
-
-        move_targets = tensors["move_policy"][batch]
-        move_rows = move_targets.sum(dim=1) > 0
-        if bool(move_rows.any()):
-            policy_loss = _soft_policy_loss(
-                masked_policy_logits(move_logits[move_rows], tensors["legal_mask"][batch][move_rows]),
-                move_targets[move_rows],
-            )
-        else:
-            policy_loss = move_logits.sum() * 0.0
-
-        tuning_targets = tensors["tuning_policy"][batch]
-        tuning_rows = tuning_targets.sum(dim=1) > 0
-        if bool(tuning_rows.any()):
-            tuning_loss = _soft_policy_loss(
-                masked_policy_logits(tuning_logits[tuning_rows], tensors["legal_tuning_mask"][batch][tuning_rows]),
-                tuning_targets[tuning_rows],
-            )
-        else:
-            tuning_loss = tuning_logits.sum() * 0.0
-        value_loss = F.mse_loss(predicted_values, tensors["values"][batch])
-        loss = kind_loss + policy_loss + tuning_loss + value_loss
+        losses = _loss_components(model, tensors, batch)
+        loss = losses["loss"]
 
         optimizer.zero_grad()
         loss.backward()
         optimizer.step()
 
         weight = batch.shape[0] / sample_count
-        totals["loss"] += loss.item() * weight
-        totals["kind"] += kind_loss.item() * weight
-        totals["policy"] += policy_loss.item() * weight
-        totals["tuning"] += tuning_loss.item() * weight
-        totals["value"] += value_loss.item() * weight
+        for key in totals:
+            totals[key] += losses[key].item() * weight
         if progress is not None:
             progress(batch_number, batch_count, totals)
 
+    return totals
+
+
+def evaluate_loss(
+    model: PolicyValueNet,
+    tensors: Dict[str, torch.Tensor],
+    batch_size: int,
+) -> Dict[str, float]:
+    model.eval()
+    sample_count = tensors["actions"].shape[0]
+    totals = {"loss": 0.0, "kind": 0.0, "policy": 0.0, "tuning": 0.0, "value": 0.0}
+    with torch.no_grad():
+        for start in range(0, sample_count, batch_size):
+            batch = torch.arange(
+                start,
+                min(start + batch_size, sample_count),
+                device=tensors["actions"].device,
+            )
+            losses = _loss_components(model, tensors, batch)
+            weight = batch.shape[0] / sample_count
+            for key in totals:
+                totals[key] += losses[key].item() * weight
     return totals
 
 

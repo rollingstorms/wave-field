@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from argparse import Namespace
+import json
 from pathlib import Path
 import tempfile
 import unittest
@@ -37,7 +38,7 @@ from wavefield.selfplay import (
     session_model_selfplay_records,
 )
 from wavefield.tactical_eval import run_tactical_eval
-from wavefield.train import samples_to_tensors, train_epoch
+from wavefield.train import evaluate_loss, samples_to_tensors, train_epoch
 
 
 class TrainingSmokeTest(unittest.TestCase):
@@ -260,6 +261,29 @@ class TrainingSmokeTest(unittest.TestCase):
         self.assertTrue(any(sample.kind_policy is not None for sample in samples))
         self.assertTrue(all(abs(float(sample.kind_policy.sum()) - 1.0) < 1.0e-5 for sample in samples if sample.kind_policy is not None))
 
+    def test_mcts_selfplay_can_force_tuning_targets(self) -> None:
+        model = PolicyValueNet(hidden_size=32)
+        records = mcts_selfplay_records(
+            self.engine,
+            model,
+            games=1,
+            max_plies=2,
+            seed=30,
+            config=MctsConfig(
+                simulations=1,
+                top_k=4,
+                max_depth=1,
+                max_tuning_actions=1,
+                force_first_tune_prob=1.0,
+            ),
+            device="cpu",
+            input_view="base",
+        )
+        samples = [sample for record in records for sample in record.samples]
+
+        self.assertTrue(any(sample.action_kind == 1 for sample in samples))
+        self.assertTrue(any(sample.tuning_policy is not None for sample in samples))
+
     def test_train_epoch_accepts_soft_policy_targets(self) -> None:
         state = load_initial_state()
         model = PolicyValueNet(hidden_size=32)
@@ -289,6 +313,32 @@ class TrainingSmokeTest(unittest.TestCase):
         losses = train_epoch(model, optimizer, tensors, batch_size=4)
 
         self.assertTrue(np.isfinite(losses["loss"]))
+
+    def test_evaluate_loss_accepts_soft_policy_targets(self) -> None:
+        model = PolicyValueNet(hidden_size=32)
+        records = mcts_selfplay_records(
+            self.engine,
+            model,
+            games=1,
+            max_plies=2,
+            seed=34,
+            config=MctsConfig(
+                simulations=1,
+                top_k=4,
+                max_depth=1,
+                max_tuning_actions=1,
+                force_first_tune_prob=1.0,
+            ),
+            device="cpu",
+            input_view="base",
+        )
+        samples = [sample for record in records for sample in record.samples]
+        tensors = samples_to_tensors(samples, torch.device("cpu"))
+
+        losses = evaluate_loss(model, tensors, batch_size=4)
+
+        self.assertTrue(np.isfinite(losses["loss"]))
+        self.assertIn("tuning", losses)
 
     def test_head_to_head_match_generates_rich_stats(self) -> None:
         model = PolicyValueNet(hidden_size=32)
@@ -382,6 +432,51 @@ class TrainingSmokeTest(unittest.TestCase):
             replay_path = Path(tmpdir) / "eval_replays.jsonl"
             self.assertTrue(replay_path.exists())
             self.assertIn("baseline_eval_replay", replay_path.read_text())
+
+    def test_experiment_train_samples_logs_validation_loss(self) -> None:
+        from wavefield.experiment import JsonlLogger, TerminalProgress, train_samples
+
+        model = PolicyValueNet(hidden_size=32)
+        records = mcts_selfplay_records(
+            self.engine,
+            model,
+            games=1,
+            max_plies=2,
+            seed=35,
+            config=MctsConfig(
+                simulations=1,
+                top_k=4,
+                max_depth=1,
+                max_tuning_actions=1,
+                force_first_tune_prob=1.0,
+            ),
+            device="cpu",
+            input_view="base",
+        )
+        samples = [sample for record in records for sample in record.samples]
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            logger = JsonlLogger(Path(tmpdir) / "events.jsonl", TerminalProgress(False, 1))
+            optimizer = torch.optim.AdamW(model.parameters(), lr=1.0e-3)
+
+            train_samples(
+                model,
+                optimizer,
+                samples,
+                torch.device("cpu"),
+                batch_size=4,
+                epochs=1,
+                phase="test",
+                iteration=1,
+                logger=logger,
+                progress=TerminalProgress(False, 1),
+                validation_fraction=0.5,
+            )
+
+            event = json.loads((Path(tmpdir) / "events.jsonl").read_text().splitlines()[-1])
+            self.assertGreater(event["validation_samples"], 0)
+            self.assertIn("validation_loss", event)
+            self.assertTrue(np.isfinite(event["validation_loss"]))
 
     def test_batched_model_selfplay_generates_samples(self) -> None:
         model = PolicyValueNet(hidden_size=32)

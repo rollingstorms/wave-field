@@ -53,11 +53,15 @@ class MctsConfig:
     simulations: int = 32
     c_puct: float = 1.5
     top_k: int = 16
+    min_tune_candidates: int = 1
+    min_move_candidates: int = 1
     max_depth: int = 16
     max_tuning_actions: int = 3
     policy_temperature: float = 1.0
     dirichlet_alpha: float = 0.0
     exploration_fraction: float = 0.0
+    force_first_tune_prob: float = 0.0
+    force_tune_prob: float = 0.0
 
 
 @dataclass
@@ -199,13 +203,30 @@ def _expand(
         history_plies,
         config.policy_temperature,
     )
-    scored: List[Tuple[float, SearchAction]] = []
-    for action in tune_actions:
-        scored.append((float(tune_priors[tuning_action_index(action)]), action))
-    for action in move_actions:
-        scored.append((float(move_priors[action_index(action)]), action))
-    scored.sort(key=lambda item: item[0], reverse=True)
-    scored = scored[:max(1, config.top_k)]
+    tune_scored: List[Tuple[float, SearchAction]] = [
+        (float(tune_priors[tuning_action_index(action)]), action)
+        for action in tune_actions
+    ]
+    move_scored: List[Tuple[float, SearchAction]] = [
+        (float(move_priors[action_index(action)]), action)
+        for action in move_actions
+    ]
+    tune_scored.sort(key=lambda item: item[0], reverse=True)
+    move_scored.sort(key=lambda item: item[0], reverse=True)
+
+    forced: Dict[str, Tuple[float, SearchAction]] = {}
+    for prior, action in tune_scored[:max(0, config.min_tune_candidates)]:
+        forced[_action_key(action)] = (prior, action)
+    for prior, action in move_scored[:max(0, config.min_move_candidates)]:
+        forced[_action_key(action)] = (prior, action)
+
+    scored = sorted([*tune_scored, *move_scored], key=lambda item: item[0], reverse=True)
+    selected: Dict[str, Tuple[float, SearchAction]] = dict(forced)
+    for prior, action in scored:
+        if len(selected) >= max(1, config.top_k):
+            break
+        selected.setdefault(_action_key(action), (prior, action))
+    scored = sorted(selected.values(), key=lambda item: item[0], reverse=True)
 
     total_prior = sum(max(0.0, prior) for prior, _action in scored)
     if total_prior <= 0:
@@ -339,6 +360,20 @@ def select_mcts_action(
     )
 
 
+def _force_tune_result(result: MctsResult) -> MctsResult:
+    tune_rows = [row for row in result.policy if _is_tune(row["action"])]
+    if not tune_rows:
+        return result
+    best = max(tune_rows, key=lambda row: (row["visits"], row["prior"], row["value"]))
+    return MctsResult(
+        action=best["action"],
+        visits=int(best["visits"]),
+        value=float(best["value"]),
+        root_value=result.root_value,
+        policy=tune_rows,
+    )
+
+
 def sample_from_mcts_result(
     state: Dict[str, Any],
     engine: RustEngine,
@@ -414,6 +449,7 @@ def mcts_selfplay_records(
     initial_states: Sequence[Dict[str, Any]] | None = None,
 ) -> List[GameRecord]:
     records: List[GameRecord] = []
+    rng = np.random.default_rng(seed)
     model.eval()
     for game_index in range(games):
         state = (
@@ -450,6 +486,15 @@ def mcts_selfplay_records(
                     history_plies=history_plies,
                     tune_count=tune_count,
                 )
+                tune_actions = legal_tuning_actions(state) if tune_count < config.max_tuning_actions else []
+                force_tune = False
+                if tune_actions:
+                    if tune_count == 0 and config.force_first_tune_prob > 0:
+                        force_tune = rng.random() < config.force_first_tune_prob
+                    if not force_tune and config.force_tune_prob > 0:
+                        force_tune = rng.random() < config.force_tune_prob
+                if force_tune:
+                    result = _force_tune_result(result)
                 samples.append(
                     sample_from_mcts_result(
                         state,
