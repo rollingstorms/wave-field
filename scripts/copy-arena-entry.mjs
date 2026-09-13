@@ -16,3 +16,5 @@ await mkdir("dist/easy-test", { recursive: true });
 await copyFile("dist/index.html", "dist/easy-test/index.html");
 await mkdir("dist/low-rescue-test", { recursive: true });
 await copyFile("dist/index.html", "dist/low-rescue-test/index.html");
+await mkdir("dist/wavefielder", { recursive: true });
+await copyFile("dist/index.html", "dist/wavefielder/index.html");
