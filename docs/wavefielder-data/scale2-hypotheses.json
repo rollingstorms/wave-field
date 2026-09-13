@@ -1,0 +1,1977 @@
+{
+  "generatedAt": "2026-09-13T19:41:48.724Z",
+  "note": "Experimental same-polarity Wavefielder resonance analysis. It mirrors current production kernels and does not alter game rules.",
+  "options": {
+    "placementRadius": 3,
+    "signatureRadius": 3,
+    "maxPieces": 4,
+    "beamWidth": 55,
+    "randomSamples": 100,
+    "topPerTarget": 4,
+    "seed": 20260914,
+    "includeBase": false,
+    "includeScale": true,
+    "includeDiagnostic": false
+  },
+  "topByTarget": {
+    "Round Hat": [],
+    "Tower": [],
+    "Triangle Hat": [],
+    "Big Hat": []
+  },
+  "resonanceMatrix": [],
+  "paretoCandidates": [],
+  "graph": [],
+  "bootstrapSets": [
+    {
+      "seed": "2 B",
+      "reachable": [
+        "Big Hat"
+      ],
+      "unreachable": [
+        "Round Hat",
+        "Tower",
+        "Triangle Hat"
+      ]
+    },
+    {
+      "seed": "1 A + 1 B",
+      "reachable": [
+        "Triangle Hat",
+        "Big Hat"
+      ],
+      "unreachable": [
+        "Round Hat",
+        "Tower"
+      ]
+    },
+    {
+      "seed": "2 A",
+      "reachable": [
+        "Triangle Hat"
+      ],
+      "unreachable": [
+        "Round Hat",
+        "Tower",
+        "Big Hat"
+      ]
+    },
+    {
+      "seed": "1 T + 1 B",
+      "reachable": [
+        "Tower",
+        "Big Hat"
+      ],
+      "unreachable": [
+        "Round Hat",
+        "Triangle Hat"
+      ]
+    },
+    {
+      "seed": "1 T + 1 A",
+      "reachable": [
+        "Tower",
+        "Triangle Hat"
+      ],
+      "unreachable": [
+        "Round Hat",
+        "Big Hat"
+      ]
+    },
+    {
+      "seed": "2 T",
+      "reachable": [
+        "Tower"
+      ],
+      "unreachable": [
+        "Round Hat",
+        "Triangle Hat",
+        "Big Hat"
+      ]
+    },
+    {
+      "seed": "1 R + 1 B",
+      "reachable": [
+        "Round Hat",
+        "Big Hat"
+      ],
+      "unreachable": [
+        "Tower",
+        "Triangle Hat"
+      ]
+    },
+    {
+      "seed": "1 R + 1 A",
+      "reachable": [
+        "Round Hat",
+        "Triangle Hat"
+      ],
+      "unreachable": [
+        "Tower",
+        "Big Hat"
+      ]
+    },
+    {
+      "seed": "1 R + 1 T",
+      "reachable": [
+        "Round Hat",
+        "Tower"
+      ],
+      "unreachable": [
+        "Triangle Hat",
+        "Big Hat"
+      ]
+    },
+    {
+      "seed": "2 R",
+      "reachable": [
+        "Round Hat"
+      ],
+      "unreachable": [
+        "Tower",
+        "Triangle Hat",
+        "Big Hat"
+      ]
+    },
+    {
+      "seed": "3 B",
+      "reachable": [
+        "Big Hat"
+      ],
+      "unreachable": [
+        "Round Hat",
+        "Tower",
+        "Triangle Hat"
+      ]
+    },
+    {
+      "seed": "1 A + 2 B",
+      "reachable": [
+        "Triangle Hat",
+        "Big Hat"
+      ],
+      "unreachable": [
+        "Round Hat",
+        "Tower"
+      ]
+    },
+    {
+      "seed": "2 A + 1 B",
+      "reachable": [
+        "Triangle Hat",
+        "Big Hat"
+      ],
+      "unreachable": [
+        "Round Hat",
+        "Tower"
+      ]
+    },
+    {
+      "seed": "3 A",
+      "reachable": [
+        "Triangle Hat"
+      ],
+      "unreachable": [
+        "Round Hat",
+        "Tower",
+        "Big Hat"
+      ]
+    },
+    {
+      "seed": "1 T + 2 B",
+      "reachable": [
+        "Tower",
+        "Big Hat"
+      ],
+      "unreachable": [
+        "Round Hat",
+        "Triangle Hat"
+      ]
+    },
+    {
+      "seed": "1 T + 1 A + 1 B",
+      "reachable": [
+        "Tower",
+        "Triangle Hat",
+        "Big Hat"
+      ],
+      "unreachable": [
+        "Round Hat"
+      ]
+    },
+    {
+      "seed": "1 T + 2 A",
+      "reachable": [
+        "Tower",
+        "Triangle Hat"
+      ],
+      "unreachable": [
+        "Round Hat",
+        "Big Hat"
+      ]
+    },
+    {
+      "seed": "2 T + 1 B",
+      "reachable": [
+        "Tower",
+        "Big Hat"
+      ],
+      "unreachable": [
+        "Round Hat",
+        "Triangle Hat"
+      ]
+    },
+    {
+      "seed": "2 T + 1 A",
+      "reachable": [
+        "Tower",
+        "Triangle Hat"
+      ],
+      "unreachable": [
+        "Round Hat",
+        "Big Hat"
+      ]
+    },
+    {
+      "seed": "3 T",
+      "reachable": [
+        "Tower"
+      ],
+      "unreachable": [
+        "Round Hat",
+        "Triangle Hat",
+        "Big Hat"
+      ]
+    },
+    {
+      "seed": "1 R + 2 B",
+      "reachable": [
+        "Round Hat",
+        "Big Hat"
+      ],
+      "unreachable": [
+        "Tower",
+        "Triangle Hat"
+      ]
+    },
+    {
+      "seed": "1 R + 1 A + 1 B",
+      "reachable": [
+        "Round Hat",
+        "Triangle Hat",
+        "Big Hat"
+      ],
+      "unreachable": [
+        "Tower"
+      ]
+    },
+    {
+      "seed": "1 R + 2 A",
+      "reachable": [
+        "Round Hat",
+        "Triangle Hat"
+      ],
+      "unreachable": [
+        "Tower",
+        "Big Hat"
+      ]
+    },
+    {
+      "seed": "1 R + 1 T + 1 B",
+      "reachable": [
+        "Round Hat",
+        "Tower",
+        "Big Hat"
+      ],
+      "unreachable": [
+        "Triangle Hat"
+      ]
+    },
+    {
+      "seed": "1 R + 1 T + 1 A",
+      "reachable": [
+        "Round Hat",
+        "Tower",
+        "Triangle Hat"
+      ],
+      "unreachable": [
+        "Big Hat"
+      ]
+    },
+    {
+      "seed": "1 R + 2 T",
+      "reachable": [
+        "Round Hat",
+        "Tower"
+      ],
+      "unreachable": [
+        "Triangle Hat",
+        "Big Hat"
+      ]
+    },
+    {
+      "seed": "2 R + 1 B",
+      "reachable": [
+        "Round Hat",
+        "Big Hat"
+      ],
+      "unreachable": [
+        "Tower",
+        "Triangle Hat"
+      ]
+    },
+    {
+      "seed": "2 R + 1 A",
+      "reachable": [
+        "Round Hat",
+        "Triangle Hat"
+      ],
+      "unreachable": [
+        "Tower",
+        "Big Hat"
+      ]
+    },
+    {
+      "seed": "2 R + 1 T",
+      "reachable": [
+        "Round Hat",
+        "Tower"
+      ],
+      "unreachable": [
+        "Triangle Hat",
+        "Big Hat"
+      ]
+    },
+    {
+      "seed": "3 R",
+      "reachable": [
+        "Round Hat"
+      ],
+      "unreachable": [
+        "Tower",
+        "Triangle Hat",
+        "Big Hat"
+      ]
+    },
+    {
+      "seed": "4 B",
+      "reachable": [
+        "Big Hat"
+      ],
+      "unreachable": [
+        "Round Hat",
+        "Tower",
+        "Triangle Hat"
+      ]
+    },
+    {
+      "seed": "1 A + 3 B",
+      "reachable": [
+        "Triangle Hat",
+        "Big Hat"
+      ],
+      "unreachable": [
+        "Round Hat",
+        "Tower"
+      ]
+    },
+    {
+      "seed": "2 A + 2 B",
+      "reachable": [
+        "Triangle Hat",
+        "Big Hat"
+      ],
+      "unreachable": [
+        "Round Hat",
+        "Tower"
+      ]
+    },
+    {
+      "seed": "3 A + 1 B",
+      "reachable": [
+        "Triangle Hat",
+        "Big Hat"
+      ],
+      "unreachable": [
+        "Round Hat",
+        "Tower"
+      ]
+    },
+    {
+      "seed": "4 A",
+      "reachable": [
+        "Triangle Hat"
+      ],
+      "unreachable": [
+        "Round Hat",
+        "Tower",
+        "Big Hat"
+      ]
+    },
+    {
+      "seed": "1 T + 3 B",
+      "reachable": [
+        "Tower",
+        "Big Hat"
+      ],
+      "unreachable": [
+        "Round Hat",
+        "Triangle Hat"
+      ]
+    },
+    {
+      "seed": "1 T + 1 A + 2 B",
+      "reachable": [
+        "Tower",
+        "Triangle Hat",
+        "Big Hat"
+      ],
+      "unreachable": [
+        "Round Hat"
+      ]
+    },
+    {
+      "seed": "1 T + 2 A + 1 B",
+      "reachable": [
+        "Tower",
+        "Triangle Hat",
+        "Big Hat"
+      ],
+      "unreachable": [
+        "Round Hat"
+      ]
+    },
+    {
+      "seed": "1 T + 3 A",
+      "reachable": [
+        "Tower",
+        "Triangle Hat"
+      ],
+      "unreachable": [
+        "Round Hat",
+        "Big Hat"
+      ]
+    },
+    {
+      "seed": "2 T + 2 B",
+      "reachable": [
+        "Tower",
+        "Big Hat"
+      ],
+      "unreachable": [
+        "Round Hat",
+        "Triangle Hat"
+      ]
+    },
+    {
+      "seed": "2 T + 1 A + 1 B",
+      "reachable": [
+        "Tower",
+        "Triangle Hat",
+        "Big Hat"
+      ],
+      "unreachable": [
+        "Round Hat"
+      ]
+    },
+    {
+      "seed": "2 T + 2 A",
+      "reachable": [
+        "Tower",
+        "Triangle Hat"
+      ],
+      "unreachable": [
+        "Round Hat",
+        "Big Hat"
+      ]
+    },
+    {
+      "seed": "3 T + 1 B",
+      "reachable": [
+        "Tower",
+        "Big Hat"
+      ],
+      "unreachable": [
+        "Round Hat",
+        "Triangle Hat"
+      ]
+    },
+    {
+      "seed": "3 T + 1 A",
+      "reachable": [
+        "Tower",
+        "Triangle Hat"
+      ],
+      "unreachable": [
+        "Round Hat",
+        "Big Hat"
+      ]
+    },
+    {
+      "seed": "4 T",
+      "reachable": [
+        "Tower"
+      ],
+      "unreachable": [
+        "Round Hat",
+        "Triangle Hat",
+        "Big Hat"
+      ]
+    },
+    {
+      "seed": "1 R + 3 B",
+      "reachable": [
+        "Round Hat",
+        "Big Hat"
+      ],
+      "unreachable": [
+        "Tower",
+        "Triangle Hat"
+      ]
+    },
+    {
+      "seed": "1 R + 1 A + 2 B",
+      "reachable": [
+        "Round Hat",
+        "Triangle Hat",
+        "Big Hat"
+      ],
+      "unreachable": [
+        "Tower"
+      ]
+    },
+    {
+      "seed": "1 R + 2 A + 1 B",
+      "reachable": [
+        "Round Hat",
+        "Triangle Hat",
+        "Big Hat"
+      ],
+      "unreachable": [
+        "Tower"
+      ]
+    },
+    {
+      "seed": "1 R + 3 A",
+      "reachable": [
+        "Round Hat",
+        "Triangle Hat"
+      ],
+      "unreachable": [
+        "Tower",
+        "Big Hat"
+      ]
+    },
+    {
+      "seed": "1 R + 1 T + 2 B",
+      "reachable": [
+        "Round Hat",
+        "Tower",
+        "Big Hat"
+      ],
+      "unreachable": [
+        "Triangle Hat"
+      ]
+    },
+    {
+      "seed": "1 R + 1 T + 1 A + 1 B",
+      "reachable": [
+        "Round Hat",
+        "Tower",
+        "Triangle Hat",
+        "Big Hat"
+      ],
+      "unreachable": []
+    },
+    {
+      "seed": "1 R + 1 T + 2 A",
+      "reachable": [
+        "Round Hat",
+        "Tower",
+        "Triangle Hat"
+      ],
+      "unreachable": [
+        "Big Hat"
+      ]
+    },
+    {
+      "seed": "1 R + 2 T + 1 B",
+      "reachable": [
+        "Round Hat",
+        "Tower",
+        "Big Hat"
+      ],
+      "unreachable": [
+        "Triangle Hat"
+      ]
+    },
+    {
+      "seed": "1 R + 2 T + 1 A",
+      "reachable": [
+        "Round Hat",
+        "Tower",
+        "Triangle Hat"
+      ],
+      "unreachable": [
+        "Big Hat"
+      ]
+    },
+    {
+      "seed": "1 R + 3 T",
+      "reachable": [
+        "Round Hat",
+        "Tower"
+      ],
+      "unreachable": [
+        "Triangle Hat",
+        "Big Hat"
+      ]
+    },
+    {
+      "seed": "2 R + 2 B",
+      "reachable": [
+        "Round Hat",
+        "Big Hat"
+      ],
+      "unreachable": [
+        "Tower",
+        "Triangle Hat"
+      ]
+    },
+    {
+      "seed": "2 R + 1 A + 1 B",
+      "reachable": [
+        "Round Hat",
+        "Triangle Hat",
+        "Big Hat"
+      ],
+      "unreachable": [
+        "Tower"
+      ]
+    },
+    {
+      "seed": "2 R + 2 A",
+      "reachable": [
+        "Round Hat",
+        "Triangle Hat"
+      ],
+      "unreachable": [
+        "Tower",
+        "Big Hat"
+      ]
+    },
+    {
+      "seed": "2 R + 1 T + 1 B",
+      "reachable": [
+        "Round Hat",
+        "Tower",
+        "Big Hat"
+      ],
+      "unreachable": [
+        "Triangle Hat"
+      ]
+    },
+    {
+      "seed": "2 R + 1 T + 1 A",
+      "reachable": [
+        "Round Hat",
+        "Tower",
+        "Triangle Hat"
+      ],
+      "unreachable": [
+        "Big Hat"
+      ]
+    },
+    {
+      "seed": "2 R + 2 T",
+      "reachable": [
+        "Round Hat",
+        "Tower"
+      ],
+      "unreachable": [
+        "Triangle Hat",
+        "Big Hat"
+      ]
+    },
+    {
+      "seed": "3 R + 1 B",
+      "reachable": [
+        "Round Hat",
+        "Big Hat"
+      ],
+      "unreachable": [
+        "Tower",
+        "Triangle Hat"
+      ]
+    },
+    {
+      "seed": "3 R + 1 A",
+      "reachable": [
+        "Round Hat",
+        "Triangle Hat"
+      ],
+      "unreachable": [
+        "Tower",
+        "Big Hat"
+      ]
+    },
+    {
+      "seed": "3 R + 1 T",
+      "reachable": [
+        "Round Hat",
+        "Tower"
+      ],
+      "unreachable": [
+        "Triangle Hat",
+        "Big Hat"
+      ]
+    },
+    {
+      "seed": "4 R",
+      "reachable": [
+        "Round Hat"
+      ],
+      "unreachable": [
+        "Tower",
+        "Triangle Hat",
+        "Big Hat"
+      ]
+    }
+  ],
+  "diagnosticSignatures": [],
+  "scaleIIHypotheses": [
+    {
+      "mode": "dilate-fixed",
+      "byTarget": [
+        {
+          "sources": "1 R + 2 B",
+          "target": "Round Hat",
+          "scaleMode": "dilate-fixed",
+          "pieces": 3,
+          "metrics": {
+            "cosine": 0.5651,
+            "scaledError": 0.825,
+            "rawError": 1.6584,
+            "signAgreement": 0.5139,
+            "magnitudeRatio": 2.0038,
+            "optimalScaleAlpha": 0.282,
+            "score": 0.5742
+          },
+          "randomPercentileAtLeast": 0.99,
+          "random": {
+            "p50": 0.1771,
+            "p90": 0.3001,
+            "p95": 0.3176,
+            "p99": 0.3835
+          },
+          "localExtremum": {
+            "centerValue": -1.0625,
+            "localAbsMax": true,
+            "localMax": false,
+            "localMin": true
+          },
+          "robustness": {
+            "minPerturbedCosine": 0.4502,
+            "meanPerturbedCosine": 0.4908,
+            "samples": 7
+          },
+          "symmetryScore": 0.6667,
+          "config": [
+            {
+              "piece": "Round Hat",
+              "type": "pawn",
+              "x": -1,
+              "y": -4
+            },
+            {
+              "piece": "Big Hat",
+              "type": "king",
+              "x": 0,
+              "y": 4
+            },
+            {
+              "piece": "Big Hat",
+              "type": "king",
+              "x": 0,
+              "y": -4
+            }
+          ],
+          "diagram": " .  .  .  R  B  .  .  .  .\n .  .  .  .  .  .  .  .  .\n .  .  .  .  .  .  .  .  .\n .  .  .  .  .  .  .  .  .\n .  .  .  .  *  .  .  .  .\n .  .  .  .  .  .  .  .  .\n .  .  .  .  .  .  .  .  .\n .  .  .  .  .  .  .  .  .\n .  .  .  .  B  .  .  .  ."
+        },
+        {
+          "sources": "1 R + 1 T + 2 B",
+          "target": "Tower",
+          "scaleMode": "dilate-fixed",
+          "pieces": 4,
+          "metrics": {
+            "cosine": 0.765,
+            "scaledError": 0.644,
+            "rawError": 1.2363,
+            "signAgreement": 0.8333,
+            "magnitudeRatio": 1.8203,
+            "optimalScaleAlpha": 0.4203,
+            "score": 0.8431
+          },
+          "randomPercentileAtLeast": 0.99,
+          "random": {
+            "p50": 0.4676,
+            "p90": 0.5582,
+            "p95": 0.5978,
+            "p99": 0.6475
+          },
+          "localExtremum": {
+            "centerValue": 7.5,
+            "localAbsMax": true,
+            "localMax": true,
+            "localMin": false
+          },
+          "robustness": {
+            "minPerturbedCosine": 0.5649,
+            "meanPerturbedCosine": 0.6937,
+            "samples": 12
+          },
+          "symmetryScore": 0.5,
+          "config": [
+            {
+              "piece": "Round Hat",
+              "type": "pawn",
+              "x": 1,
+              "y": 1
+            },
+            {
+              "piece": "Tower",
+              "type": "rook",
+              "x": -2,
+              "y": -2
+            },
+            {
+              "piece": "Big Hat",
+              "type": "king",
+              "x": -1,
+              "y": 0
+            },
+            {
+              "piece": "Big Hat",
+              "type": "king",
+              "x": 1,
+              "y": 0
+            }
+          ],
+          "diagram": " T  .  .  .  .\n .  .  .  .  .\n .  B  *  B  .\n .  .  .  R  .\n .  .  .  .  ."
+        },
+        {
+          "sources": "2 R + 2 B",
+          "target": "Triangle Hat",
+          "scaleMode": "dilate-fixed",
+          "pieces": 4,
+          "metrics": {
+            "cosine": 0.6861,
+            "scaledError": 0.7275,
+            "rawError": 1.0868,
+            "signAgreement": 0.975,
+            "magnitudeRatio": 1.4935,
+            "optimalScaleAlpha": 0.4594,
+            "score": 0.8135
+          },
+          "randomPercentileAtLeast": 0.99,
+          "random": {
+            "p50": 0.3439,
+            "p90": 0.4361,
+            "p95": 0.4835,
+            "p99": 0.5855
+          },
+          "localExtremum": {
+            "centerValue": -0.75,
+            "localAbsMax": false,
+            "localMax": false,
+            "localMin": true
+          },
+          "robustness": {
+            "minPerturbedCosine": 0.5992,
+            "meanPerturbedCosine": 0.6246,
+            "samples": 12
+          },
+          "symmetryScore": 0.5,
+          "config": [
+            {
+              "piece": "Round Hat",
+              "type": "pawn",
+              "x": -2,
+              "y": -1
+            },
+            {
+              "piece": "Round Hat",
+              "type": "pawn",
+              "x": -3,
+              "y": -1
+            },
+            {
+              "piece": "Big Hat",
+              "type": "king",
+              "x": 0,
+              "y": 4
+            },
+            {
+              "piece": "Big Hat",
+              "type": "king",
+              "x": 0,
+              "y": -4
+            }
+          ],
+          "diagram": " .  .  .  .  B  .  .  .  .\n .  .  .  .  .  .  .  .  .\n .  .  .  .  .  .  .  .  .\n .  R  R  .  .  .  .  .  .\n .  .  .  .  *  .  .  .  .\n .  .  .  .  .  .  .  .  .\n .  .  .  .  .  .  .  .  .\n .  .  .  .  .  .  .  .  .\n .  .  .  .  B  .  .  .  ."
+        },
+        {
+          "sources": "3 T + 1 B",
+          "target": "Big Hat",
+          "scaleMode": "dilate-fixed",
+          "pieces": 4,
+          "metrics": {
+            "cosine": 0.5094,
+            "scaledError": 0.8605,
+            "rawError": 0.9621,
+            "signAgreement": 0.8611,
+            "magnitudeRatio": 0.9397,
+            "optimalScaleAlpha": 0.5421,
+            "score": 0.6569
+          },
+          "randomPercentileAtLeast": 0.99,
+          "random": {
+            "p50": 0.1642,
+            "p90": 0.2874,
+            "p95": 0.3041,
+            "p99": 0.3495
+          },
+          "localExtremum": {
+            "centerValue": 2.5,
+            "localAbsMax": false,
+            "localMax": false,
+            "localMin": false
+          },
+          "robustness": {
+            "minPerturbedCosine": 0.4354,
+            "meanPerturbedCosine": 0.4714,
+            "samples": 14
+          },
+          "symmetryScore": 0.75,
+          "config": [
+            {
+              "piece": "Tower",
+              "type": "rook",
+              "x": -3,
+              "y": 2
+            },
+            {
+              "piece": "Tower",
+              "type": "rook",
+              "x": 3,
+              "y": 2
+            },
+            {
+              "piece": "Tower",
+              "type": "rook",
+              "x": 3,
+              "y": 3
+            },
+            {
+              "piece": "Big Hat",
+              "type": "king",
+              "x": 0,
+              "y": -2
+            }
+          ],
+          "diagram": " .  .  .  .  .  .  .\n .  .  .  B  .  .  .\n .  .  .  .  .  .  .\n .  .  .  *  .  .  .\n .  .  .  .  .  .  .\n T  .  .  .  .  .  T\n .  .  .  .  .  .  T"
+        }
+      ]
+    },
+    {
+      "mode": "dilate-half",
+      "byTarget": [
+        {
+          "sources": "2 R + 2 B",
+          "target": "Round Hat",
+          "scaleMode": "dilate-half",
+          "pieces": 4,
+          "metrics": {
+            "cosine": 0.57,
+            "scaledError": 0.8217,
+            "rawError": 3.684,
+            "signAgreement": 0.5139,
+            "magnitudeRatio": 4.1612,
+            "optimalScaleAlpha": 0.137,
+            "score": 0.4914
+          },
+          "randomPercentileAtLeast": 0.99,
+          "random": {
+            "p50": 0.1767,
+            "p90": 0.2731,
+            "p95": 0.3484,
+            "p99": 0.4685
+          },
+          "localExtremum": {
+            "centerValue": -0.8125,
+            "localAbsMax": true,
+            "localMax": false,
+            "localMin": true
+          },
+          "robustness": {
+            "minPerturbedCosine": 0.4629,
+            "meanPerturbedCosine": 0.5092,
+            "samples": 9
+          },
+          "symmetryScore": 0.5,
+          "config": [
+            {
+              "piece": "Round Hat",
+              "type": "pawn",
+              "x": -1,
+              "y": -4
+            },
+            {
+              "piece": "Round Hat",
+              "type": "pawn",
+              "x": -4,
+              "y": -4
+            },
+            {
+              "piece": "Big Hat",
+              "type": "king",
+              "x": 0,
+              "y": 4
+            },
+            {
+              "piece": "Big Hat",
+              "type": "king",
+              "x": 0,
+              "y": -4
+            }
+          ],
+          "diagram": " R  .  .  R  B  .  .  .  .\n .  .  .  .  .  .  .  .  .\n .  .  .  .  .  .  .  .  .\n .  .  .  .  .  .  .  .  .\n .  .  .  .  *  .  .  .  .\n .  .  .  .  .  .  .  .  .\n .  .  .  .  .  .  .  .  .\n .  .  .  .  .  .  .  .  .\n .  .  .  .  B  .  .  .  ."
+        },
+        {
+          "sources": "4 R",
+          "target": "Tower",
+          "scaleMode": "dilate-half",
+          "pieces": 4,
+          "metrics": {
+            "cosine": 0.7144,
+            "scaledError": 0.6998,
+            "rawError": 0.8044,
+            "signAgreement": 0.7333,
+            "magnitudeRatio": 1.1111,
+            "optimalScaleAlpha": 0.6429,
+            "score": 0.8337
+          },
+          "randomPercentileAtLeast": 0.99,
+          "random": {
+            "p50": 0.4113,
+            "p90": 0.522,
+            "p95": 0.5575,
+            "p99": 0.6362
+          },
+          "localExtremum": {
+            "centerValue": 3.4375,
+            "localAbsMax": true,
+            "localMax": true,
+            "localMin": false
+          },
+          "robustness": {
+            "minPerturbedCosine": 0.4621,
+            "meanPerturbedCosine": 0.5312,
+            "samples": 12
+          },
+          "symmetryScore": 0.5,
+          "config": [
+            {
+              "piece": "Round Hat",
+              "type": "pawn",
+              "x": -1,
+              "y": -1
+            },
+            {
+              "piece": "Round Hat",
+              "type": "pawn",
+              "x": 0,
+              "y": -1
+            },
+            {
+              "piece": "Round Hat",
+              "type": "pawn",
+              "x": 1,
+              "y": 1
+            },
+            {
+              "piece": "Round Hat",
+              "type": "pawn",
+              "x": 1,
+              "y": 4
+            }
+          ],
+          "diagram": " .  .  .  .  .  .  .  .  .\n .  .  .  .  .  .  .  .  .\n .  .  .  .  .  .  .  .  .\n .  .  .  R  R  .  .  .  .\n .  .  .  .  *  .  .  .  .\n .  .  .  .  .  R  .  .  .\n .  .  .  .  .  .  .  .  .\n .  .  .  .  .  .  .  .  .\n .  .  .  .  .  R  .  .  ."
+        },
+        {
+          "sources": "2 R + 2 B",
+          "target": "Triangle Hat",
+          "scaleMode": "dilate-half",
+          "pieces": 4,
+          "metrics": {
+            "cosine": 0.6861,
+            "scaledError": 0.7275,
+            "rawError": 2.4133,
+            "signAgreement": 0.975,
+            "magnitudeRatio": 2.9871,
+            "optimalScaleAlpha": 0.2297,
+            "score": 0.7303
+          },
+          "randomPercentileAtLeast": 0.99,
+          "random": {
+            "p50": 0.351,
+            "p90": 0.462,
+            "p95": 0.4729,
+            "p99": 0.5932
+          },
+          "localExtremum": {
+            "centerValue": -0.75,
+            "localAbsMax": false,
+            "localMax": false,
+            "localMin": true
+          },
+          "robustness": {
+            "minPerturbedCosine": 0.5992,
+            "meanPerturbedCosine": 0.6246,
+            "samples": 12
+          },
+          "symmetryScore": 0.5,
+          "config": [
+            {
+              "piece": "Round Hat",
+              "type": "pawn",
+              "x": -2,
+              "y": -1
+            },
+            {
+              "piece": "Round Hat",
+              "type": "pawn",
+              "x": -3,
+              "y": -1
+            },
+            {
+              "piece": "Big Hat",
+              "type": "king",
+              "x": 0,
+              "y": 4
+            },
+            {
+              "piece": "Big Hat",
+              "type": "king",
+              "x": 0,
+              "y": -4
+            }
+          ],
+          "diagram": " .  .  .  .  B  .  .  .  .\n .  .  .  .  .  .  .  .  .\n .  .  .  .  .  .  .  .  .\n .  R  R  .  .  .  .  .  .\n .  .  .  .  *  .  .  .  .\n .  .  .  .  .  .  .  .  .\n .  .  .  .  .  .  .  .  .\n .  .  .  .  .  .  .  .  .\n .  .  .  .  B  .  .  .  ."
+        },
+        {
+          "sources": "4 T",
+          "target": "Big Hat",
+          "scaleMode": "dilate-half",
+          "pieces": 4,
+          "metrics": {
+            "cosine": 0.5682,
+            "scaledError": 0.8229,
+            "rawError": 1.1172,
+            "signAgreement": 0.6944,
+            "magnitudeRatio": 1.3238,
+            "optimalScaleAlpha": 0.4292,
+            "score": 0.6595
+          },
+          "randomPercentileAtLeast": 0.99,
+          "random": {
+            "p50": 0.19,
+            "p90": 0.3028,
+            "p95": 0.369,
+            "p99": 0.3861
+          },
+          "localExtremum": {
+            "centerValue": 2,
+            "localAbsMax": true,
+            "localMax": true,
+            "localMin": false
+          },
+          "robustness": {
+            "minPerturbedCosine": 0.4509,
+            "meanPerturbedCosine": 0.5169,
+            "samples": 16
+          },
+          "symmetryScore": 1,
+          "config": [
+            {
+              "piece": "Tower",
+              "type": "rook",
+              "x": -3,
+              "y": 2
+            },
+            {
+              "piece": "Tower",
+              "type": "rook",
+              "x": 3,
+              "y": -2
+            },
+            {
+              "piece": "Tower",
+              "type": "rook",
+              "x": -3,
+              "y": -3
+            },
+            {
+              "piece": "Tower",
+              "type": "rook",
+              "x": 3,
+              "y": 3
+            }
+          ],
+          "diagram": " T  .  .  .  .  .  .\n .  .  .  .  .  .  T\n .  .  .  .  .  .  .\n .  .  .  *  .  .  .\n .  .  .  .  .  .  .\n T  .  .  .  .  .  .\n .  .  .  .  .  .  T"
+        }
+      ]
+    },
+    {
+      "mode": "support-expanded",
+      "byTarget": [
+        {
+          "sources": "3 T + 1 B",
+          "target": "Round Hat",
+          "scaleMode": "support-expanded",
+          "pieces": 4,
+          "metrics": {
+            "cosine": 0.5557,
+            "scaledError": 0.8314,
+            "rawError": 1.5211,
+            "signAgreement": 0.6234,
+            "magnitudeRatio": 1.8295,
+            "optimalScaleAlpha": 0.3037,
+            "score": 0.5954
+          },
+          "randomPercentileAtLeast": 0.99,
+          "random": {
+            "p50": 0.2855,
+            "p90": 0.3455,
+            "p95": 0.3842,
+            "p99": 0.4465
+          },
+          "localExtremum": {
+            "centerValue": -0.5,
+            "localAbsMax": false,
+            "localMax": false,
+            "localMin": true
+          },
+          "robustness": {
+            "minPerturbedCosine": 0.3441,
+            "meanPerturbedCosine": 0.4979,
+            "samples": 11
+          },
+          "symmetryScore": 0.75,
+          "config": [
+            {
+              "piece": "Tower",
+              "type": "rook",
+              "x": 4,
+              "y": -1
+            },
+            {
+              "piece": "Tower",
+              "type": "rook",
+              "x": -1,
+              "y": 4
+            },
+            {
+              "piece": "Tower",
+              "type": "rook",
+              "x": 4,
+              "y": 4
+            },
+            {
+              "piece": "Big Hat",
+              "type": "king",
+              "x": -1,
+              "y": -4
+            }
+          ],
+          "diagram": " .  .  .  B  .  .  .  .  .\n .  .  .  .  .  .  .  .  .\n .  .  .  .  .  .  .  .  .\n .  .  .  .  .  .  .  .  T\n .  .  .  .  *  .  .  .  .\n .  .  .  .  .  .  .  .  .\n .  .  .  .  .  .  .  .  .\n .  .  .  .  .  .  .  .  .\n .  .  .  T  .  .  .  .  T"
+        },
+        {
+          "sources": "1 R + 1 T + 2 B",
+          "target": "Tower",
+          "scaleMode": "support-expanded",
+          "pieces": 4,
+          "metrics": {
+            "cosine": 0.8143,
+            "scaledError": 0.5804,
+            "rawError": 1.1374,
+            "signAgreement": 0.7538,
+            "magnitudeRatio": 1.7925,
+            "optimalScaleAlpha": 0.4543,
+            "score": 0.88
+          },
+          "randomPercentileAtLeast": 0.99,
+          "random": {
+            "p50": 0.4231,
+            "p90": 0.58,
+            "p95": 0.6178,
+            "p99": 0.7393
+          },
+          "localExtremum": {
+            "centerValue": 4.75,
+            "localAbsMax": false,
+            "localMax": false,
+            "localMin": false
+          },
+          "robustness": {
+            "minPerturbedCosine": 0.6587,
+            "meanPerturbedCosine": 0.7585,
+            "samples": 12
+          },
+          "symmetryScore": 0.5,
+          "config": [
+            {
+              "piece": "Round Hat",
+              "type": "pawn",
+              "x": 0,
+              "y": -1
+            },
+            {
+              "piece": "Tower",
+              "type": "rook",
+              "x": 1,
+              "y": 1
+            },
+            {
+              "piece": "Big Hat",
+              "type": "king",
+              "x": -1,
+              "y": -1
+            },
+            {
+              "piece": "Big Hat",
+              "type": "king",
+              "x": -4,
+              "y": 0
+            }
+          ],
+          "diagram": " .  .  .  .  .  .  .  .  .\n .  .  .  .  .  .  .  .  .\n .  .  .  .  .  .  .  .  .\n .  .  .  B  R  .  .  .  .\n B  .  .  .  *  .  .  .  .\n .  .  .  .  .  T  .  .  .\n .  .  .  .  .  .  .  .  .\n .  .  .  .  .  .  .  .  .\n .  .  .  .  .  .  .  .  ."
+        },
+        {
+          "sources": "4 B",
+          "target": "Triangle Hat",
+          "scaleMode": "support-expanded",
+          "pieces": 4,
+          "metrics": {
+            "cosine": 0.7453,
+            "scaledError": 0.6667,
+            "rawError": 1.6934,
+            "signAgreement": 0.925,
+            "magnitudeRatio": 2.3019,
+            "optimalScaleAlpha": 0.3238,
+            "score": 0.8117
+          },
+          "randomPercentileAtLeast": 0.99,
+          "random": {
+            "p50": 0.4233,
+            "p90": 0.5265,
+            "p95": 0.5592,
+            "p99": 0.6267
+          },
+          "localExtremum": {
+            "centerValue": -4.5,
+            "localAbsMax": false,
+            "localMax": false,
+            "localMin": true
+          },
+          "robustness": {
+            "minPerturbedCosine": 0.6485,
+            "meanPerturbedCosine": 0.691,
+            "samples": 13
+          },
+          "symmetryScore": 0.5,
+          "config": [
+            {
+              "piece": "Big Hat",
+              "type": "king",
+              "x": 0,
+              "y": -1
+            },
+            {
+              "piece": "Big Hat",
+              "type": "king",
+              "x": 1,
+              "y": 4
+            },
+            {
+              "piece": "Big Hat",
+              "type": "king",
+              "x": -1,
+              "y": -4
+            },
+            {
+              "piece": "Big Hat",
+              "type": "king",
+              "x": -1,
+              "y": 3
+            }
+          ],
+          "diagram": " .  .  .  B  .  .  .  .  .\n .  .  .  .  .  .  .  .  .\n .  .  .  .  .  .  .  .  .\n .  .  .  .  B  .  .  .  .\n .  .  .  .  *  .  .  .  .\n .  .  .  .  .  .  .  .  .\n .  .  .  .  .  .  .  .  .\n .  .  .  B  .  .  .  .  .\n .  .  .  .  .  B  .  .  ."
+        },
+        {
+          "sources": "2 A + 2 B",
+          "target": "Big Hat",
+          "scaleMode": "support-expanded",
+          "pieces": 4,
+          "metrics": {
+            "cosine": 0.5963,
+            "scaledError": 0.8028,
+            "rawError": 0.8905,
+            "signAgreement": 0.9221,
+            "magnitudeRatio": 0.9817,
+            "optimalScaleAlpha": 0.6074,
+            "score": 0.76
+          },
+          "randomPercentileAtLeast": 0.99,
+          "random": {
+            "p50": 0.297,
+            "p90": 0.421,
+            "p95": 0.4429,
+            "p99": 0.4866
+          },
+          "localExtremum": {
+            "centerValue": 1.875,
+            "localAbsMax": false,
+            "localMax": false,
+            "localMin": false
+          },
+          "robustness": {
+            "minPerturbedCosine": 0.4645,
+            "meanPerturbedCosine": 0.557,
+            "samples": 11
+          },
+          "symmetryScore": 0.25,
+          "config": [
+            {
+              "piece": "Triangle Hat",
+              "type": "spy",
+              "x": 4,
+              "y": 0
+            },
+            {
+              "piece": "Triangle Hat",
+              "type": "spy",
+              "x": 4,
+              "y": -1
+            },
+            {
+              "piece": "Big Hat",
+              "type": "king",
+              "x": -1,
+              "y": 1
+            },
+            {
+              "piece": "Big Hat",
+              "type": "king",
+              "x": -1,
+              "y": -4
+            }
+          ],
+          "diagram": " .  .  .  B  .  .  .  .  .\n .  .  .  .  .  .  .  .  .\n .  .  .  .  .  .  .  .  .\n .  .  .  .  .  .  .  .  A\n .  .  .  .  *  .  .  .  A\n .  .  .  B  .  .  .  .  .\n .  .  .  .  .  .  .  .  .\n .  .  .  .  .  .  .  .  .\n .  .  .  .  .  .  .  .  ."
+        }
+      ]
+    },
+    {
+      "mode": "bilinear-half",
+      "byTarget": [
+        {
+          "sources": "2 R + 2 B",
+          "target": "Round Hat",
+          "scaleMode": "bilinear-half",
+          "pieces": 4,
+          "metrics": {
+            "cosine": 0.6851,
+            "scaledError": 0.7285,
+            "rawError": 6.2951,
+            "signAgreement": 0.8125,
+            "magnitudeRatio": 6.9378,
+            "optimalScaleAlpha": 0.0987,
+            "score": 0.5989
+          },
+          "randomPercentileAtLeast": 0.99,
+          "random": {
+            "p50": 0.3709,
+            "p90": 0.4652,
+            "p95": 0.4996,
+            "p99": 0.5587
+          },
+          "localExtremum": {
+            "centerValue": -4.3125,
+            "localAbsMax": true,
+            "localMax": false,
+            "localMin": true
+          },
+          "robustness": {
+            "minPerturbedCosine": 0.5661,
+            "meanPerturbedCosine": 0.6185,
+            "samples": 8
+          },
+          "symmetryScore": 0.5,
+          "config": [
+            {
+              "piece": "Round Hat",
+              "type": "pawn",
+              "x": -1,
+              "y": -4
+            },
+            {
+              "piece": "Round Hat",
+              "type": "pawn",
+              "x": -2,
+              "y": -4
+            },
+            {
+              "piece": "Big Hat",
+              "type": "king",
+              "x": 0,
+              "y": 1
+            },
+            {
+              "piece": "Big Hat",
+              "type": "king",
+              "x": 0,
+              "y": -4
+            }
+          ],
+          "diagram": " .  .  R  R  B  .  .  .  .\n .  .  .  .  .  .  .  .  .\n .  .  .  .  .  .  .  .  .\n .  .  .  .  .  .  .  .  .\n .  .  .  .  *  .  .  .  .\n .  .  .  .  B  .  .  .  .\n .  .  .  .  .  .  .  .  .\n .  .  .  .  .  .  .  .  .\n .  .  .  .  .  .  .  .  ."
+        },
+        {
+          "sources": "4 R",
+          "target": "Tower",
+          "scaleMode": "bilinear-half",
+          "pieces": 4,
+          "metrics": {
+            "cosine": 0.8217,
+            "scaledError": 0.5699,
+            "rawError": 0.9322,
+            "signAgreement": 0.7895,
+            "magnitudeRatio": 1.5595,
+            "optimalScaleAlpha": 0.5269,
+            "score": 0.9105
+          },
+          "randomPercentileAtLeast": 0.99,
+          "random": {
+            "p50": 0.4742,
+            "p90": 0.5861,
+            "p95": 0.6371,
+            "p99": 0.7235
+          },
+          "localExtremum": {
+            "centerValue": 3,
+            "localAbsMax": true,
+            "localMax": true,
+            "localMin": false
+          },
+          "robustness": {
+            "minPerturbedCosine": 0.5814,
+            "meanPerturbedCosine": 0.6197,
+            "samples": 10
+          },
+          "symmetryScore": 0.5,
+          "config": [
+            {
+              "piece": "Round Hat",
+              "type": "pawn",
+              "x": 0,
+              "y": -1
+            },
+            {
+              "piece": "Round Hat",
+              "type": "pawn",
+              "x": -1,
+              "y": -1
+            },
+            {
+              "piece": "Round Hat",
+              "type": "pawn",
+              "x": 1,
+              "y": 1
+            },
+            {
+              "piece": "Round Hat",
+              "type": "pawn",
+              "x": 1,
+              "y": 0
+            }
+          ],
+          "diagram": " .  .  .  .  .\n .  R  R  .  .\n .  .  *  R  .\n .  .  .  R  .\n .  .  .  .  ."
+        },
+        {
+          "sources": "4 R",
+          "target": "Triangle Hat",
+          "scaleMode": "bilinear-half",
+          "pieces": 4,
+          "metrics": {
+            "cosine": 0.7027,
+            "scaledError": 0.7115,
+            "rawError": 1.157,
+            "signAgreement": 0.9706,
+            "magnitudeRatio": 1.6151,
+            "optimalScaleAlpha": 0.4351,
+            "score": 0.8199
+          },
+          "randomPercentileAtLeast": 0.99,
+          "random": {
+            "p50": 0.492,
+            "p90": 0.5678,
+            "p95": 0.6012,
+            "p99": 0.6359
+          },
+          "localExtremum": {
+            "centerValue": 3.4375,
+            "localAbsMax": true,
+            "localMax": true,
+            "localMin": false
+          },
+          "robustness": {
+            "minPerturbedCosine": 0.4681,
+            "meanPerturbedCosine": 0.5384,
+            "samples": 12
+          },
+          "symmetryScore": 0.5,
+          "config": [
+            {
+              "piece": "Round Hat",
+              "type": "pawn",
+              "x": 0,
+              "y": -1
+            },
+            {
+              "piece": "Round Hat",
+              "type": "pawn",
+              "x": -1,
+              "y": 1
+            },
+            {
+              "piece": "Round Hat",
+              "type": "pawn",
+              "x": -1,
+              "y": 4
+            },
+            {
+              "piece": "Round Hat",
+              "type": "pawn",
+              "x": 1,
+              "y": -1
+            }
+          ],
+          "diagram": " .  .  .  .  .  .  .  .  .\n .  .  .  .  .  .  .  .  .\n .  .  .  .  .  .  .  .  .\n .  .  .  .  R  R  .  .  .\n .  .  .  .  *  .  .  .  .\n .  .  .  R  .  .  .  .  .\n .  .  .  .  .  .  .  .  .\n .  .  .  .  .  .  .  .  .\n .  .  .  R  .  .  .  .  ."
+        },
+        {
+          "sources": "4 A",
+          "target": "Big Hat",
+          "scaleMode": "bilinear-half",
+          "pieces": 4,
+          "metrics": {
+            "cosine": 0.6624,
+            "scaledError": 0.7491,
+            "rawError": 0.8453,
+            "signAgreement": 0.8611,
+            "magnitudeRatio": 1.0539,
+            "optimalScaleAlpha": 0.6285,
+            "score": 0.8111
+          },
+          "randomPercentileAtLeast": 0.99,
+          "random": {
+            "p50": 0.4066,
+            "p90": 0.4964,
+            "p95": 0.5233,
+            "p99": 0.5633
+          },
+          "localExtremum": {
+            "centerValue": 0.75,
+            "localAbsMax": false,
+            "localMax": false,
+            "localMin": true
+          },
+          "robustness": {
+            "minPerturbedCosine": 0.5456,
+            "meanPerturbedCosine": 0.5596,
+            "samples": 8
+          },
+          "symmetryScore": 1,
+          "config": [
+            {
+              "piece": "Triangle Hat",
+              "type": "spy",
+              "x": -4,
+              "y": 0
+            },
+            {
+              "piece": "Triangle Hat",
+              "type": "spy",
+              "x": -4,
+              "y": -1
+            },
+            {
+              "piece": "Triangle Hat",
+              "type": "spy",
+              "x": 4,
+              "y": 0
+            },
+            {
+              "piece": "Triangle Hat",
+              "type": "spy",
+              "x": 4,
+              "y": -1
+            }
+          ],
+          "diagram": " .  .  .  .  .  .  .  .  .\n .  .  .  .  .  .  .  .  .\n .  .  .  .  .  .  .  .  .\n A  .  .  .  .  .  .  .  A\n A  .  .  .  *  .  .  .  A\n .  .  .  .  .  .  .  .  .\n .  .  .  .  .  .  .  .  .\n .  .  .  .  .  .  .  .  .\n .  .  .  .  .  .  .  .  ."
+        }
+      ]
+    },
+    {
+      "mode": "footprint-2x2",
+      "byTarget": [
+        {
+          "sources": "4 R",
+          "target": "Round Hat",
+          "scaleMode": "footprint-2x2",
+          "pieces": 4,
+          "metrics": {
+            "cosine": 0.9009,
+            "scaledError": 0.4341,
+            "rawError": 3.2154,
+            "signAgreement": 1,
+            "magnitudeRatio": 4.0869,
+            "optimalScaleAlpha": 0.2204,
+            "score": 0.9119
+          },
+          "randomPercentileAtLeast": 0.99,
+          "random": {
+            "p50": 0.5698,
+            "p90": 0.6757,
+            "p95": 0.7036,
+            "p99": 0.7658
+          },
+          "localExtremum": {
+            "centerValue": 3,
+            "localAbsMax": true,
+            "localMax": true,
+            "localMin": false
+          },
+          "robustness": {
+            "minPerturbedCosine": 0.6704,
+            "meanPerturbedCosine": 0.693,
+            "samples": 10
+          },
+          "symmetryScore": 0.5,
+          "config": [
+            {
+              "piece": "Round Hat",
+              "type": "pawn",
+              "x": 0,
+              "y": -1
+            },
+            {
+              "piece": "Round Hat",
+              "type": "pawn",
+              "x": -1,
+              "y": -1
+            },
+            {
+              "piece": "Round Hat",
+              "type": "pawn",
+              "x": 1,
+              "y": 1
+            },
+            {
+              "piece": "Round Hat",
+              "type": "pawn",
+              "x": 1,
+              "y": 0
+            }
+          ],
+          "diagram": " .  .  .  .  .\n .  R  R  .  .\n .  .  *  R  .\n .  .  .  R  .\n .  .  .  .  ."
+        },
+        {
+          "sources": "3 T + 1 A",
+          "target": "Tower",
+          "scaleMode": "footprint-2x2",
+          "pieces": 4,
+          "metrics": {
+            "cosine": 0.8754,
+            "scaledError": 0.4835,
+            "rawError": 3.2321,
+            "signAgreement": 0.9241,
+            "magnitudeRatio": 4.0711,
+            "optimalScaleAlpha": 0.215,
+            "score": 0.8732
+          },
+          "randomPercentileAtLeast": 0.99,
+          "random": {
+            "p50": 0.5112,
+            "p90": 0.6072,
+            "p95": 0.6258,
+            "p99": 0.6458
+          },
+          "localExtremum": {
+            "centerValue": 9,
+            "localAbsMax": true,
+            "localMax": true,
+            "localMin": false
+          },
+          "robustness": {
+            "minPerturbedCosine": 0.7486,
+            "meanPerturbedCosine": 0.7885,
+            "samples": 9
+          },
+          "symmetryScore": 0.75,
+          "config": [
+            {
+              "piece": "Tower",
+              "type": "rook",
+              "x": 0,
+              "y": 1
+            },
+            {
+              "piece": "Tower",
+              "type": "rook",
+              "x": 1,
+              "y": 0
+            },
+            {
+              "piece": "Tower",
+              "type": "rook",
+              "x": -1,
+              "y": 0
+            },
+            {
+              "piece": "Triangle Hat",
+              "type": "spy",
+              "x": -1,
+              "y": 1
+            }
+          ],
+          "diagram": " .  .  .  .  .\n .  .  .  .  .\n .  T  *  T  .\n .  A  T  .  .\n .  .  .  .  ."
+        },
+        {
+          "sources": "4 R",
+          "target": "Triangle Hat",
+          "scaleMode": "footprint-2x2",
+          "pieces": 4,
+          "metrics": {
+            "cosine": 0.8951,
+            "scaledError": 0.4458,
+            "rawError": 1.1944,
+            "signAgreement": 1,
+            "magnitudeRatio": 2.0032,
+            "optimalScaleAlpha": 0.4468,
+            "score": 0.9917
+          },
+          "randomPercentileAtLeast": 0.99,
+          "random": {
+            "p50": 0.5633,
+            "p90": 0.662,
+            "p95": 0.6811,
+            "p99": 0.7629
+          },
+          "localExtremum": {
+            "centerValue": 3,
+            "localAbsMax": true,
+            "localMax": true,
+            "localMin": false
+          },
+          "robustness": {
+            "minPerturbedCosine": 0.6786,
+            "meanPerturbedCosine": 0.6917,
+            "samples": 10
+          },
+          "symmetryScore": 0.5,
+          "config": [
+            {
+              "piece": "Round Hat",
+              "type": "pawn",
+              "x": 0,
+              "y": -1
+            },
+            {
+              "piece": "Round Hat",
+              "type": "pawn",
+              "x": -1,
+              "y": -1
+            },
+            {
+              "piece": "Round Hat",
+              "type": "pawn",
+              "x": 1,
+              "y": 1
+            },
+            {
+              "piece": "Round Hat",
+              "type": "pawn",
+              "x": 1,
+              "y": 0
+            }
+          ],
+          "diagram": " .  .  .  .  .\n .  R  R  .  .\n .  .  *  R  .\n .  .  .  R  .\n .  .  .  .  ."
+        },
+        {
+          "sources": "1 R + 2 B",
+          "target": "Big Hat",
+          "scaleMode": "footprint-2x2",
+          "pieces": 3,
+          "metrics": {
+            "cosine": 0.9559,
+            "scaledError": 0.2938,
+            "rawError": 1.5261,
+            "signAgreement": 0.8462,
+            "magnitudeRatio": 2.4534,
+            "optimalScaleAlpha": 0.3896,
+            "score": 1.0005
+          },
+          "randomPercentileAtLeast": 0.99,
+          "random": {
+            "p50": 0.4722,
+            "p90": 0.6821,
+            "p95": 0.7105,
+            "p99": 0.7589
+          },
+          "localExtremum": {
+            "centerValue": -7,
+            "localAbsMax": true,
+            "localMax": false,
+            "localMin": true
+          },
+          "robustness": {
+            "minPerturbedCosine": 0.8374,
+            "meanPerturbedCosine": 0.8831,
+            "samples": 10
+          },
+          "symmetryScore": 1,
+          "config": [
+            {
+              "piece": "Round Hat",
+              "type": "pawn",
+              "x": -2,
+              "y": 0
+            },
+            {
+              "piece": "Big Hat",
+              "type": "king",
+              "x": 0,
+              "y": -1
+            },
+            {
+              "piece": "Big Hat",
+              "type": "king",
+              "x": 0,
+              "y": 1
+            }
+          ],
+          "diagram": " .  .  .  .  .\n .  .  B  .  .\n R  .  *  .  .\n .  .  B  .  .\n .  .  .  .  ."
+        }
+      ]
+    }
+  ]
+}

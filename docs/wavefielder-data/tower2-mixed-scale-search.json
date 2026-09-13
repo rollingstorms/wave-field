@@ -1,0 +1,2276 @@
+{
+  "note": "Focused Tower II mixed-scale search. Triangle is diamond-only; Tower II target uses support-expanded scaling. Sources include Round II plus Level-I pieces, with at most two Tower I.",
+  "target": "Tower II",
+  "scaling": "support-expanded",
+  "candidates": [],
+  "nearMisses": [
+    {
+      "label": "1 A1 + 1 B1 + 1 R1 + 2 R2 + 1 T1",
+      "metrics": {
+        "cosine": 0.8223,
+        "signAgreement": 0.7692,
+        "magnitudeRatio": 1.9813,
+        "rawError": 1.2912,
+        "scaledError": 0.5691
+      },
+      "selectivity": {
+        "rank": 2,
+        "margin": -0.042,
+        "ranked": [
+          {
+            "target": "Triangle Hat",
+            "cosine": 0.8643
+          },
+          {
+            "target": "Tower",
+            "cosine": 0.8223
+          },
+          {
+            "target": "Round Hat",
+            "cosine": 0.598
+          },
+          {
+            "target": "Big Hat",
+            "cosine": 0.4247
+          }
+        ]
+      },
+      "config": [
+        {
+          "piece": "Big Hat",
+          "type": "king",
+          "level": 1,
+          "x": -1,
+          "y": 0
+        },
+        {
+          "piece": "Round Hat",
+          "type": "pawn",
+          "level": 2,
+          "x": 2,
+          "y": 2
+        },
+        {
+          "piece": "Round Hat",
+          "type": "pawn",
+          "level": 1,
+          "x": -1,
+          "y": -1
+        },
+        {
+          "piece": "Round Hat",
+          "type": "pawn",
+          "level": 2,
+          "x": -3,
+          "y": 0
+        },
+        {
+          "piece": "Triangle Hat",
+          "type": "spy",
+          "level": 1,
+          "x": 1,
+          "y": 1
+        },
+        {
+          "piece": "Tower",
+          "type": "rook",
+          "level": 1,
+          "x": -2,
+          "y": -2
+        }
+      ],
+      "diagram": " .  .  .  .  .  .  .  .  .\n .  .  .  .  .  .  .  .  .\n .  . T1  .  .  .  .  .  .\n .  .  . R1  .  .  .  .  .\n . R2  . B1  *  .  .  .  .\n .  .  .  .  . A1  .  .  .\n .  .  .  .  .  . R2  .  .\n .  .  .  .  .  .  .  .  .\n .  .  .  .  .  .  .  .  ."
+    },
+    {
+      "label": "1 B1 + 1 R1 + 2 R2 + 1 T1",
+      "metrics": {
+        "cosine": 0.8044,
+        "signAgreement": 0.7538,
+        "magnitudeRatio": 1.7393,
+        "rawError": 1.1076,
+        "scaledError": 0.594
+      },
+      "selectivity": {
+        "rank": 2,
+        "margin": -0.0388,
+        "ranked": [
+          {
+            "target": "Triangle Hat",
+            "cosine": 0.8432
+          },
+          {
+            "target": "Tower",
+            "cosine": 0.8044
+          },
+          {
+            "target": "Round Hat",
+            "cosine": 0.6522
+          },
+          {
+            "target": "Big Hat",
+            "cosine": 0.4887
+          }
+        ]
+      },
+      "config": [
+        {
+          "piece": "Big Hat",
+          "type": "king",
+          "level": 1,
+          "x": -1,
+          "y": -1
+        },
+        {
+          "piece": "Round Hat",
+          "type": "pawn",
+          "level": 1,
+          "x": 0,
+          "y": -1
+        },
+        {
+          "piece": "Round Hat",
+          "type": "pawn",
+          "level": 2,
+          "x": -3,
+          "y": 0
+        },
+        {
+          "piece": "Tower",
+          "type": "rook",
+          "level": 1,
+          "x": 1,
+          "y": 1
+        },
+        {
+          "piece": "Round Hat",
+          "type": "pawn",
+          "level": 2,
+          "x": 2,
+          "y": 2
+        }
+      ],
+      "diagram": " .  .  .  .  .  .  .  .  .\n .  .  .  .  .  .  .  .  .\n .  .  .  .  .  .  .  .  .\n .  .  . B1 R1  .  .  .  .\n . R2  .  .  *  .  .  .  .\n .  .  .  .  . T1  .  .  .\n .  .  .  .  .  . R2  .  .\n .  .  .  .  .  .  .  .  .\n .  .  .  .  .  .  .  .  ."
+    },
+    {
+      "label": "3 A1 + 1 B1 + 1 R2 + 1 T1",
+      "metrics": {
+        "cosine": 0.826,
+        "signAgreement": 0.8,
+        "magnitudeRatio": 2.1955,
+        "rawError": 1.481,
+        "scaledError": 0.5637
+      },
+      "selectivity": {
+        "rank": 2,
+        "margin": -0.0583,
+        "ranked": [
+          {
+            "target": "Triangle Hat",
+            "cosine": 0.8843
+          },
+          {
+            "target": "Tower",
+            "cosine": 0.826
+          },
+          {
+            "target": "Round Hat",
+            "cosine": 0.5285
+          },
+          {
+            "target": "Big Hat",
+            "cosine": 0.3787
+          }
+        ]
+      },
+      "config": [
+        {
+          "piece": "Big Hat",
+          "type": "king",
+          "level": 1,
+          "x": -1,
+          "y": 0
+        },
+        {
+          "piece": "Round Hat",
+          "type": "pawn",
+          "level": 2,
+          "x": 2,
+          "y": 2
+        },
+        {
+          "piece": "Tower",
+          "type": "rook",
+          "level": 1,
+          "x": -2,
+          "y": -2
+        },
+        {
+          "piece": "Triangle Hat",
+          "type": "spy",
+          "level": 1,
+          "x": 1,
+          "y": 1
+        },
+        {
+          "piece": "Triangle Hat",
+          "type": "spy",
+          "level": 1,
+          "x": -2,
+          "y": 1
+        },
+        {
+          "piece": "Triangle Hat",
+          "type": "spy",
+          "level": 1,
+          "x": 1,
+          "y": -2
+        }
+      ],
+      "diagram": " .  .  .  .  .  .  .  .  .\n .  .  .  .  .  .  .  .  .\n .  . T1  .  . A1  .  .  .\n .  .  .  .  .  .  .  .  .\n .  .  . B1  *  .  .  .  .\n .  . A1  .  . A1  .  .  .\n .  .  .  .  .  . R2  .  .\n .  .  .  .  .  .  .  .  .\n .  .  .  .  .  .  .  .  ."
+    },
+    {
+      "label": "3 A1 + 1 B1 + 1 R2 + 1 T1",
+      "metrics": {
+        "cosine": 0.8258,
+        "signAgreement": 0.8,
+        "magnitudeRatio": 2.1312,
+        "rawError": 1.4219,
+        "scaledError": 0.5639
+      },
+      "selectivity": {
+        "rank": 2,
+        "margin": -0.0683,
+        "ranked": [
+          {
+            "target": "Triangle Hat",
+            "cosine": 0.8942
+          },
+          {
+            "target": "Tower",
+            "cosine": 0.8258
+          },
+          {
+            "target": "Round Hat",
+            "cosine": 0.5694
+          },
+          {
+            "target": "Big Hat",
+            "cosine": 0.3636
+          }
+        ]
+      },
+      "config": [
+        {
+          "piece": "Big Hat",
+          "type": "king",
+          "level": 1,
+          "x": -1,
+          "y": 0
+        },
+        {
+          "piece": "Round Hat",
+          "type": "pawn",
+          "level": 2,
+          "x": 2,
+          "y": 2
+        },
+        {
+          "piece": "Triangle Hat",
+          "type": "spy",
+          "level": 1,
+          "x": -1,
+          "y": -3
+        },
+        {
+          "piece": "Triangle Hat",
+          "type": "spy",
+          "level": 1,
+          "x": 1,
+          "y": 1
+        },
+        {
+          "piece": "Triangle Hat",
+          "type": "spy",
+          "level": 1,
+          "x": -2,
+          "y": 1
+        },
+        {
+          "piece": "Tower",
+          "type": "rook",
+          "level": 1,
+          "x": -2,
+          "y": -2
+        }
+      ],
+      "diagram": " .  .  .  .  .  .  .  .  .\n .  .  . A1  .  .  .  .  .\n .  . T1  .  .  .  .  .  .\n .  .  .  .  .  .  .  .  .\n .  .  . B1  *  .  .  .  .\n .  . A1  .  . A1  .  .  .\n .  .  .  .  .  . R2  .  .\n .  .  .  .  .  .  .  .  .\n .  .  .  .  .  .  .  .  ."
+    },
+    {
+      "label": "1 A1 + 1 B1 + 1 R1 + 1 R2 + 2 T1",
+      "metrics": {
+        "cosine": 0.8165,
+        "signAgreement": 0.7846,
+        "magnitudeRatio": 2.039,
+        "rawError": 1.3519,
+        "scaledError": 0.5773
+      },
+      "selectivity": {
+        "rank": 2,
+        "margin": -0.0486,
+        "ranked": [
+          {
+            "target": "Triangle Hat",
+            "cosine": 0.8651
+          },
+          {
+            "target": "Tower",
+            "cosine": 0.8165
+          },
+          {
+            "target": "Round Hat",
+            "cosine": 0.5807
+          },
+          {
+            "target": "Big Hat",
+            "cosine": 0.438
+          }
+        ]
+      },
+      "config": [
+        {
+          "piece": "Big Hat",
+          "type": "king",
+          "level": 1,
+          "x": -1,
+          "y": 0
+        },
+        {
+          "piece": "Round Hat",
+          "type": "pawn",
+          "level": 2,
+          "x": 2,
+          "y": 2
+        },
+        {
+          "piece": "Round Hat",
+          "type": "pawn",
+          "level": 1,
+          "x": -1,
+          "y": -1
+        },
+        {
+          "piece": "Triangle Hat",
+          "type": "spy",
+          "level": 1,
+          "x": 1,
+          "y": 1
+        },
+        {
+          "piece": "Tower",
+          "type": "rook",
+          "level": 1,
+          "x": -2,
+          "y": -2
+        },
+        {
+          "piece": "Tower",
+          "type": "rook",
+          "level": 1,
+          "x": 1,
+          "y": -2
+        }
+      ],
+      "diagram": " .  .  .  .  .  .  .  .  .\n .  .  .  .  .  .  .  .  .\n .  . T1  .  . T1  .  .  .\n .  .  . R1  .  .  .  .  .\n .  .  . B1  *  .  .  .  .\n .  .  .  .  . A1  .  .  .\n .  .  .  .  .  . R2  .  .\n .  .  .  .  .  .  .  .  .\n .  .  .  .  .  .  .  .  ."
+    },
+    {
+      "label": "2 A1 + 1 B1 + 1 R1 + 1 R2 + 1 T1",
+      "metrics": {
+        "cosine": 0.8161,
+        "signAgreement": 0.8,
+        "magnitudeRatio": 2.0891,
+        "rawError": 1.3981,
+        "scaledError": 0.5779
+      },
+      "selectivity": {
+        "rank": 2,
+        "margin": -0.0511,
+        "ranked": [
+          {
+            "target": "Triangle Hat",
+            "cosine": 0.8672
+          },
+          {
+            "target": "Tower",
+            "cosine": 0.8161
+          },
+          {
+            "target": "Round Hat",
+            "cosine": 0.5536
+          },
+          {
+            "target": "Big Hat",
+            "cosine": 0.4068
+          }
+        ]
+      },
+      "config": [
+        {
+          "piece": "Big Hat",
+          "type": "king",
+          "level": 1,
+          "x": -1,
+          "y": 0
+        },
+        {
+          "piece": "Round Hat",
+          "type": "pawn",
+          "level": 2,
+          "x": 2,
+          "y": 2
+        },
+        {
+          "piece": "Round Hat",
+          "type": "pawn",
+          "level": 1,
+          "x": -1,
+          "y": -1
+        },
+        {
+          "piece": "Triangle Hat",
+          "type": "spy",
+          "level": 1,
+          "x": 1,
+          "y": 1
+        },
+        {
+          "piece": "Tower",
+          "type": "rook",
+          "level": 1,
+          "x": -2,
+          "y": -2
+        },
+        {
+          "piece": "Triangle Hat",
+          "type": "spy",
+          "level": 1,
+          "x": -2,
+          "y": 1
+        }
+      ],
+      "diagram": " .  .  .  .  .  .  .  .  .\n .  .  .  .  .  .  .  .  .\n .  . T1  .  .  .  .  .  .\n .  .  . R1  .  .  .  .  .\n .  .  . B1  *  .  .  .  .\n .  . A1  .  . A1  .  .  .\n .  .  .  .  .  . R2  .  .\n .  .  .  .  .  .  .  .  .\n .  .  .  .  .  .  .  .  ."
+    },
+    {
+      "label": "1 A1 + 1 B1 + 1 R1 + 2 R2 + 1 T1",
+      "metrics": {
+        "cosine": 0.8245,
+        "signAgreement": 0.7385,
+        "magnitudeRatio": 1.9921,
+        "rawError": 1.2974,
+        "scaledError": 0.5658
+      },
+      "selectivity": {
+        "rank": 2,
+        "margin": -0.0501,
+        "ranked": [
+          {
+            "target": "Triangle Hat",
+            "cosine": 0.8747
+          },
+          {
+            "target": "Tower",
+            "cosine": 0.8245
+          },
+          {
+            "target": "Round Hat",
+            "cosine": 0.6065
+          },
+          {
+            "target": "Big Hat",
+            "cosine": 0.4412
+          }
+        ]
+      },
+      "config": [
+        {
+          "piece": "Big Hat",
+          "type": "king",
+          "level": 1,
+          "x": -1,
+          "y": -1
+        },
+        {
+          "piece": "Round Hat",
+          "type": "pawn",
+          "level": 1,
+          "x": 0,
+          "y": -1
+        },
+        {
+          "piece": "Round Hat",
+          "type": "pawn",
+          "level": 2,
+          "x": -3,
+          "y": 0
+        },
+        {
+          "piece": "Tower",
+          "type": "rook",
+          "level": 1,
+          "x": 1,
+          "y": 1
+        },
+        {
+          "piece": "Round Hat",
+          "type": "pawn",
+          "level": 2,
+          "x": 2,
+          "y": 2
+        },
+        {
+          "piece": "Triangle Hat",
+          "type": "spy",
+          "level": 1,
+          "x": -2,
+          "y": 1
+        }
+      ],
+      "diagram": " .  .  .  .  .  .  .  .  .\n .  .  .  .  .  .  .  .  .\n .  .  .  .  .  .  .  .  .\n .  .  . B1 R1  .  .  .  .\n . R2  .  .  *  .  .  .  .\n .  . A1  .  . T1  .  .  .\n .  .  .  .  .  . R2  .  .\n .  .  .  .  .  .  .  .  .\n .  .  .  .  .  .  .  .  ."
+    },
+    {
+      "label": "2 A1 + 1 B1 + 1 R1 + 1 R2 + 1 T1",
+      "metrics": {
+        "cosine": 0.8163,
+        "signAgreement": 0.8,
+        "magnitudeRatio": 2.1006,
+        "rawError": 1.4083,
+        "scaledError": 0.5777
+      },
+      "selectivity": {
+        "rank": 2,
+        "margin": -0.0525,
+        "ranked": [
+          {
+            "target": "Triangle Hat",
+            "cosine": 0.8688
+          },
+          {
+            "target": "Tower",
+            "cosine": 0.8163
+          },
+          {
+            "target": "Round Hat",
+            "cosine": 0.552
+          },
+          {
+            "target": "Big Hat",
+            "cosine": 0.4133
+          }
+        ]
+      },
+      "config": [
+        {
+          "piece": "Big Hat",
+          "type": "king",
+          "level": 1,
+          "x": -1,
+          "y": 0
+        },
+        {
+          "piece": "Round Hat",
+          "type": "pawn",
+          "level": 2,
+          "x": 2,
+          "y": 2
+        },
+        {
+          "piece": "Round Hat",
+          "type": "pawn",
+          "level": 1,
+          "x": -1,
+          "y": -1
+        },
+        {
+          "piece": "Triangle Hat",
+          "type": "spy",
+          "level": 1,
+          "x": 1,
+          "y": 1
+        },
+        {
+          "piece": "Triangle Hat",
+          "type": "spy",
+          "level": 1,
+          "x": -2,
+          "y": -2
+        },
+        {
+          "piece": "Tower",
+          "type": "rook",
+          "level": 1,
+          "x": 1,
+          "y": -2
+        }
+      ],
+      "diagram": " .  .  .  .  .  .  .  .  .\n .  .  .  .  .  .  .  .  .\n .  . A1  .  . T1  .  .  .\n .  .  . R1  .  .  .  .  .\n .  .  . B1  *  .  .  .  .\n .  .  .  .  . A1  .  .  .\n .  .  .  .  .  . R2  .  .\n .  .  .  .  .  .  .  .  .\n .  .  .  .  .  .  .  .  ."
+    },
+    {
+      "label": "1 A1 + 1 B1 + 1 R1 + 1 R2 + 1 T1",
+      "metrics": {
+        "cosine": 0.7989,
+        "signAgreement": 0.7846,
+        "magnitudeRatio": 1.8294,
+        "rawError": 1.1932,
+        "scaledError": 0.6014
+      },
+      "selectivity": {
+        "rank": 2,
+        "margin": -0.0406,
+        "ranked": [
+          {
+            "target": "Triangle Hat",
+            "cosine": 0.8396
+          },
+          {
+            "target": "Tower",
+            "cosine": 0.7989
+          },
+          {
+            "target": "Round Hat",
+            "cosine": 0.5919
+          },
+          {
+            "target": "Big Hat",
+            "cosine": 0.4488
+          }
+        ]
+      },
+      "config": [
+        {
+          "piece": "Big Hat",
+          "type": "king",
+          "level": 1,
+          "x": -1,
+          "y": 0
+        },
+        {
+          "piece": "Round Hat",
+          "type": "pawn",
+          "level": 2,
+          "x": 2,
+          "y": 2
+        },
+        {
+          "piece": "Round Hat",
+          "type": "pawn",
+          "level": 1,
+          "x": -1,
+          "y": -1
+        },
+        {
+          "piece": "Triangle Hat",
+          "type": "spy",
+          "level": 1,
+          "x": 1,
+          "y": 1
+        },
+        {
+          "piece": "Tower",
+          "type": "rook",
+          "level": 1,
+          "x": -2,
+          "y": -2
+        }
+      ],
+      "diagram": " .  .  .  .  .  .  .  .  .\n .  .  .  .  .  .  .  .  .\n .  . T1  .  .  .  .  .  .\n .  .  . R1  .  .  .  .  .\n .  .  . B1  *  .  .  .  .\n .  .  .  .  . A1  .  .  .\n .  .  .  .  .  . R2  .  .\n .  .  .  .  .  .  .  .  .\n .  .  .  .  .  .  .  .  ."
+    },
+    {
+      "label": "1 B1 + 1 R1 + 2 R2 + 1 T1",
+      "metrics": {
+        "cosine": 0.8015,
+        "signAgreement": 0.7385,
+        "magnitudeRatio": 1.7513,
+        "rawError": 1.1224,
+        "scaledError": 0.598
+      },
+      "selectivity": {
+        "rank": 2,
+        "margin": -0.0314,
+        "ranked": [
+          {
+            "target": "Triangle Hat",
+            "cosine": 0.8329
+          },
+          {
+            "target": "Tower",
+            "cosine": 0.8015
+          },
+          {
+            "target": "Round Hat",
+            "cosine": 0.6478
+          },
+          {
+            "target": "Big Hat",
+            "cosine": 0.4833
+          }
+        ]
+      },
+      "config": [
+        {
+          "piece": "Big Hat",
+          "type": "king",
+          "level": 1,
+          "x": -1,
+          "y": 0
+        },
+        {
+          "piece": "Round Hat",
+          "type": "pawn",
+          "level": 2,
+          "x": 2,
+          "y": 2
+        },
+        {
+          "piece": "Round Hat",
+          "type": "pawn",
+          "level": 1,
+          "x": -1,
+          "y": -1
+        },
+        {
+          "piece": "Round Hat",
+          "type": "pawn",
+          "level": 2,
+          "x": -3,
+          "y": 0
+        },
+        {
+          "piece": "Tower",
+          "type": "rook",
+          "level": 1,
+          "x": 1,
+          "y": 1
+        }
+      ],
+      "diagram": " .  .  .  .  .  .  .  .  .\n .  .  .  .  .  .  .  .  .\n .  .  .  .  .  .  .  .  .\n .  .  . R1  .  .  .  .  .\n . R2  . B1  *  .  .  .  .\n .  .  .  .  . T1  .  .  .\n .  .  .  .  .  . R2  .  .\n .  .  .  .  .  .  .  .  .\n .  .  .  .  .  .  .  .  ."
+    },
+    {
+      "label": "1 A1 + 1 B1 + 1 R1 + 2 R2 + 1 T1",
+      "metrics": {
+        "cosine": 0.8265,
+        "signAgreement": 0.7231,
+        "magnitudeRatio": 1.9615,
+        "rawError": 1.267,
+        "scaledError": 0.563
+      },
+      "selectivity": {
+        "rank": 2,
+        "margin": -0.0534,
+        "ranked": [
+          {
+            "target": "Triangle Hat",
+            "cosine": 0.8798
+          },
+          {
+            "target": "Tower",
+            "cosine": 0.8265
+          },
+          {
+            "target": "Round Hat",
+            "cosine": 0.5941
+          },
+          {
+            "target": "Big Hat",
+            "cosine": 0.4224
+          }
+        ]
+      },
+      "config": [
+        {
+          "piece": "Big Hat",
+          "type": "king",
+          "level": 1,
+          "x": -1,
+          "y": -1
+        },
+        {
+          "piece": "Round Hat",
+          "type": "pawn",
+          "level": 1,
+          "x": 0,
+          "y": -1
+        },
+        {
+          "piece": "Round Hat",
+          "type": "pawn",
+          "level": 2,
+          "x": -3,
+          "y": 0
+        },
+        {
+          "piece": "Tower",
+          "type": "rook",
+          "level": 1,
+          "x": 1,
+          "y": 1
+        },
+        {
+          "piece": "Triangle Hat",
+          "type": "spy",
+          "level": 1,
+          "x": -2,
+          "y": 1
+        },
+        {
+          "piece": "Round Hat",
+          "type": "pawn",
+          "level": 2,
+          "x": -2,
+          "y": 2
+        }
+      ],
+      "diagram": " .  .  .  .  .  .  .  .  .\n .  .  .  .  .  .  .  .  .\n .  .  .  .  .  .  .  .  .\n .  .  . B1 R1  .  .  .  .\n . R2  .  .  *  .  .  .  .\n .  . A1  .  . T1  .  .  .\n .  . R2  .  .  .  .  .  .\n .  .  .  .  .  .  .  .  .\n .  .  .  .  .  .  .  .  ."
+    },
+    {
+      "label": "1 A1 + 1 B1 + 1 R1 + 2 R2 + 1 T1",
+      "metrics": {
+        "cosine": 0.8045,
+        "signAgreement": 0.7846,
+        "magnitudeRatio": 1.9286,
+        "rawError": 1.2713,
+        "scaledError": 0.5939
+      },
+      "selectivity": {
+        "rank": 2,
+        "margin": -0.0406,
+        "ranked": [
+          {
+            "target": "Triangle Hat",
+            "cosine": 0.8451
+          },
+          {
+            "target": "Tower",
+            "cosine": 0.8045
+          },
+          {
+            "target": "Round Hat",
+            "cosine": 0.6029
+          },
+          {
+            "target": "Big Hat",
+            "cosine": 0.4394
+          }
+        ]
+      },
+      "config": [
+        {
+          "piece": "Big Hat",
+          "type": "king",
+          "level": 1,
+          "x": -1,
+          "y": 0
+        },
+        {
+          "piece": "Round Hat",
+          "type": "pawn",
+          "level": 2,
+          "x": 2,
+          "y": 2
+        },
+        {
+          "piece": "Tower",
+          "type": "rook",
+          "level": 1,
+          "x": -2,
+          "y": -2
+        },
+        {
+          "piece": "Triangle Hat",
+          "type": "spy",
+          "level": 1,
+          "x": 1,
+          "y": 1
+        },
+        {
+          "piece": "Round Hat",
+          "type": "pawn",
+          "level": 2,
+          "x": -3,
+          "y": 0
+        },
+        {
+          "piece": "Round Hat",
+          "type": "pawn",
+          "level": 1,
+          "x": -3,
+          "y": 3
+        }
+      ],
+      "diagram": " .  .  .  .  .  .  .  .  .\n .  .  .  .  .  .  .  .  .\n .  . T1  .  .  .  .  .  .\n .  .  .  .  .  .  .  .  .\n . R2  . B1  *  .  .  .  .\n .  .  .  .  . A1  .  .  .\n .  .  .  .  .  . R2  .  .\n . R1  .  .  .  .  .  .  .\n .  .  .  .  .  .  .  .  ."
+    },
+    {
+      "label": "2 A1 + 1 B1 + 1 R2 + 2 T1",
+      "metrics": {
+        "cosine": 0.818,
+        "signAgreement": 0.8,
+        "magnitudeRatio": 2.1517,
+        "rawError": 1.4524,
+        "scaledError": 0.5752
+      },
+      "selectivity": {
+        "rank": 2,
+        "margin": -0.0584,
+        "ranked": [
+          {
+            "target": "Triangle Hat",
+            "cosine": 0.8765
+          },
+          {
+            "target": "Tower",
+            "cosine": 0.818
+          },
+          {
+            "target": "Round Hat",
+            "cosine": 0.5416
+          },
+          {
+            "target": "Big Hat",
+            "cosine": 0.3974
+          }
+        ]
+      },
+      "config": [
+        {
+          "piece": "Big Hat",
+          "type": "king",
+          "level": 1,
+          "x": -1,
+          "y": 0
+        },
+        {
+          "piece": "Round Hat",
+          "type": "pawn",
+          "level": 2,
+          "x": 2,
+          "y": -2
+        },
+        {
+          "piece": "Tower",
+          "type": "rook",
+          "level": 1,
+          "x": -2,
+          "y": -2
+        },
+        {
+          "piece": "Triangle Hat",
+          "type": "spy",
+          "level": 1,
+          "x": 1,
+          "y": -2
+        },
+        {
+          "piece": "Tower",
+          "type": "rook",
+          "level": 1,
+          "x": 1,
+          "y": 1
+        },
+        {
+          "piece": "Triangle Hat",
+          "type": "spy",
+          "level": 1,
+          "x": -2,
+          "y": 1
+        }
+      ],
+      "diagram": " .  .  .  .  .  .  .  .  .\n .  .  .  .  .  .  .  .  .\n .  . T1  .  . A1 R2  .  .\n .  .  .  .  .  .  .  .  .\n .  .  . B1  *  .  .  .  .\n .  . A1  .  . T1  .  .  .\n .  .  .  .  .  .  .  .  .\n .  .  .  .  .  .  .  .  .\n .  .  .  .  .  .  .  .  ."
+    },
+    {
+      "label": "1 A1 + 1 B1 + 1 R1 + 2 R2 + 1 T1",
+      "metrics": {
+        "cosine": 0.8168,
+        "signAgreement": 0.7538,
+        "magnitudeRatio": 1.9848,
+        "rawError": 1.3028,
+        "scaledError": 0.577
+      },
+      "selectivity": {
+        "rank": 2,
+        "margin": -0.05,
+        "ranked": [
+          {
+            "target": "Triangle Hat",
+            "cosine": 0.8667
+          },
+          {
+            "target": "Tower",
+            "cosine": 0.8168
+          },
+          {
+            "target": "Round Hat",
+            "cosine": 0.6174
+          },
+          {
+            "target": "Big Hat",
+            "cosine": 0.4124
+          }
+        ]
+      },
+      "config": [
+        {
+          "piece": "Big Hat",
+          "type": "king",
+          "level": 1,
+          "x": -1,
+          "y": -1
+        },
+        {
+          "piece": "Round Hat",
+          "type": "pawn",
+          "level": 1,
+          "x": 0,
+          "y": -1
+        },
+        {
+          "piece": "Round Hat",
+          "type": "pawn",
+          "level": 2,
+          "x": -3,
+          "y": 0
+        },
+        {
+          "piece": "Tower",
+          "type": "rook",
+          "level": 1,
+          "x": 1,
+          "y": 1
+        },
+        {
+          "piece": "Round Hat",
+          "type": "pawn",
+          "level": 2,
+          "x": 2,
+          "y": 2
+        },
+        {
+          "piece": "Triangle Hat",
+          "type": "spy",
+          "level": 1,
+          "x": -1,
+          "y": 1
+        }
+      ],
+      "diagram": " .  .  .  .  .  .  .  .  .\n .  .  .  .  .  .  .  .  .\n .  .  .  .  .  .  .  .  .\n .  .  . B1 R1  .  .  .  .\n . R2  .  .  *  .  .  .  .\n .  .  . A1  . T1  .  .  .\n .  .  .  .  .  . R2  .  .\n .  .  .  .  .  .  .  .  .\n .  .  .  .  .  .  .  .  ."
+    },
+    {
+      "label": "1 B1 + 1 R1 + 2 R2 + 1 T1",
+      "metrics": {
+        "cosine": 0.7892,
+        "signAgreement": 0.7846,
+        "magnitudeRatio": 1.7261,
+        "rawError": 1.1204,
+        "scaledError": 0.6142
+      },
+      "selectivity": {
+        "rank": 2,
+        "margin": -0.0424,
+        "ranked": [
+          {
+            "target": "Triangle Hat",
+            "cosine": 0.8316
+          },
+          {
+            "target": "Tower",
+            "cosine": 0.7892
+          },
+          {
+            "target": "Round Hat",
+            "cosine": 0.6463
+          },
+          {
+            "target": "Big Hat",
+            "cosine": 0.4815
+          }
+        ]
+      },
+      "config": [
+        {
+          "piece": "Big Hat",
+          "type": "king",
+          "level": 1,
+          "x": -1,
+          "y": -1
+        },
+        {
+          "piece": "Round Hat",
+          "type": "pawn",
+          "level": 2,
+          "x": 2,
+          "y": 2
+        },
+        {
+          "piece": "Round Hat",
+          "type": "pawn",
+          "level": 2,
+          "x": -3,
+          "y": 0
+        },
+        {
+          "piece": "Tower",
+          "type": "rook",
+          "level": 1,
+          "x": 1,
+          "y": 1
+        },
+        {
+          "piece": "Round Hat",
+          "type": "pawn",
+          "level": 1,
+          "x": -2,
+          "y": -1
+        }
+      ],
+      "diagram": " .  .  .  .  .  .  .  .  .\n .  .  .  .  .  .  .  .  .\n .  .  .  .  .  .  .  .  .\n .  . R1 B1  .  .  .  .  .\n . R2  .  .  *  .  .  .  .\n .  .  .  .  . T1  .  .  .\n .  .  .  .  .  . R2  .  .\n .  .  .  .  .  .  .  .  .\n .  .  .  .  .  .  .  .  ."
+    },
+    {
+      "label": "1 B1 + 1 R1 + 2 R2 + 1 T1",
+      "metrics": {
+        "cosine": 0.8035,
+        "signAgreement": 0.7231,
+        "magnitudeRatio": 1.7147,
+        "rawError": 1.0884,
+        "scaledError": 0.5953
+      },
+      "selectivity": {
+        "rank": 2,
+        "margin": -0.0421,
+        "ranked": [
+          {
+            "target": "Triangle Hat",
+            "cosine": 0.8456
+          },
+          {
+            "target": "Tower",
+            "cosine": 0.8035
+          },
+          {
+            "target": "Round Hat",
+            "cosine": 0.6365
+          },
+          {
+            "target": "Big Hat",
+            "cosine": 0.4751
+          }
+        ]
+      },
+      "config": [
+        {
+          "piece": "Big Hat",
+          "type": "king",
+          "level": 1,
+          "x": -1,
+          "y": -1
+        },
+        {
+          "piece": "Round Hat",
+          "type": "pawn",
+          "level": 1,
+          "x": 0,
+          "y": -1
+        },
+        {
+          "piece": "Round Hat",
+          "type": "pawn",
+          "level": 2,
+          "x": -3,
+          "y": 0
+        },
+        {
+          "piece": "Tower",
+          "type": "rook",
+          "level": 1,
+          "x": 1,
+          "y": 1
+        },
+        {
+          "piece": "Round Hat",
+          "type": "pawn",
+          "level": 2,
+          "x": 2,
+          "y": -2
+        }
+      ],
+      "diagram": " .  .  .  .  .  .  .  .  .\n .  .  .  .  .  .  .  .  .\n .  .  .  .  .  . R2  .  .\n .  .  . B1 R1  .  .  .  .\n . R2  .  .  *  .  .  .  .\n .  .  .  .  . T1  .  .  .\n .  .  .  .  .  .  .  .  .\n .  .  .  .  .  .  .  .  .\n .  .  .  .  .  .  .  .  ."
+    },
+    {
+      "label": "1 A1 + 1 B1 + 2 R1 + 1 R2 + 1 T1",
+      "metrics": {
+        "cosine": 0.8096,
+        "signAgreement": 0.7692,
+        "magnitudeRatio": 1.971,
+        "rawError": 1.3014,
+        "scaledError": 0.5871
+      },
+      "selectivity": {
+        "rank": 2,
+        "margin": -0.0464,
+        "ranked": [
+          {
+            "target": "Triangle Hat",
+            "cosine": 0.8559
+          },
+          {
+            "target": "Tower",
+            "cosine": 0.8096
+          },
+          {
+            "target": "Round Hat",
+            "cosine": 0.5849
+          },
+          {
+            "target": "Big Hat",
+            "cosine": 0.4417
+          }
+        ]
+      },
+      "config": [
+        {
+          "piece": "Big Hat",
+          "type": "king",
+          "level": 1,
+          "x": -1,
+          "y": 0
+        },
+        {
+          "piece": "Round Hat",
+          "type": "pawn",
+          "level": 2,
+          "x": 2,
+          "y": 2
+        },
+        {
+          "piece": "Round Hat",
+          "type": "pawn",
+          "level": 1,
+          "x": -1,
+          "y": -1
+        },
+        {
+          "piece": "Triangle Hat",
+          "type": "spy",
+          "level": 1,
+          "x": 1,
+          "y": 1
+        },
+        {
+          "piece": "Tower",
+          "type": "rook",
+          "level": 1,
+          "x": -2,
+          "y": -2
+        },
+        {
+          "piece": "Round Hat",
+          "type": "pawn",
+          "level": 1,
+          "x": 0,
+          "y": -1
+        }
+      ],
+      "diagram": " .  .  .  .  .  .  .  .  .\n .  .  .  .  .  .  .  .  .\n .  . T1  .  .  .  .  .  .\n .  .  . R1 R1  .  .  .  .\n .  .  . B1  *  .  .  .  .\n .  .  .  .  . A1  .  .  .\n .  .  .  .  .  . R2  .  .\n .  .  .  .  .  .  .  .  .\n .  .  .  .  .  .  .  .  ."
+    },
+    {
+      "label": "1 B1 + 1 R1 + 2 R2 + 2 T1",
+      "metrics": {
+        "cosine": 0.8151,
+        "signAgreement": 0.7385,
+        "magnitudeRatio": 1.9716,
+        "rawError": 1.2935,
+        "scaledError": 0.5794
+      },
+      "selectivity": {
+        "rank": 2,
+        "margin": -0.0404,
+        "ranked": [
+          {
+            "target": "Triangle Hat",
+            "cosine": 0.8555
+          },
+          {
+            "target": "Tower",
+            "cosine": 0.8151
+          },
+          {
+            "target": "Round Hat",
+            "cosine": 0.6268
+          },
+          {
+            "target": "Big Hat",
+            "cosine": 0.4659
+          }
+        ]
+      },
+      "config": [
+        {
+          "piece": "Big Hat",
+          "type": "king",
+          "level": 1,
+          "x": -1,
+          "y": 0
+        },
+        {
+          "piece": "Round Hat",
+          "type": "pawn",
+          "level": 2,
+          "x": 2,
+          "y": 2
+        },
+        {
+          "piece": "Round Hat",
+          "type": "pawn",
+          "level": 1,
+          "x": -1,
+          "y": -1
+        },
+        {
+          "piece": "Round Hat",
+          "type": "pawn",
+          "level": 2,
+          "x": -3,
+          "y": 0
+        },
+        {
+          "piece": "Tower",
+          "type": "rook",
+          "level": 1,
+          "x": 1,
+          "y": 1
+        },
+        {
+          "piece": "Tower",
+          "type": "rook",
+          "level": 1,
+          "x": 1,
+          "y": -2
+        }
+      ],
+      "diagram": " .  .  .  .  .  .  .  .  .\n .  .  .  .  .  .  .  .  .\n .  .  .  .  . T1  .  .  .\n .  .  . R1  .  .  .  .  .\n . R2  . B1  *  .  .  .  .\n .  .  .  .  . T1  .  .  .\n .  .  .  .  .  . R2  .  .\n .  .  .  .  .  .  .  .  .\n .  .  .  .  .  .  .  .  ."
+    },
+    {
+      "label": "2 A1 + 1 B1 + 1 R1 + 1 R2 + 1 T1",
+      "metrics": {
+        "cosine": 0.8144,
+        "signAgreement": 0.7846,
+        "magnitudeRatio": 2.0935,
+        "rawError": 1.4045,
+        "scaledError": 0.5803
+      },
+      "selectivity": {
+        "rank": 2,
+        "margin": -0.051,
+        "ranked": [
+          {
+            "target": "Triangle Hat",
+            "cosine": 0.8654
+          },
+          {
+            "target": "Tower",
+            "cosine": 0.8144
+          },
+          {
+            "target": "Round Hat",
+            "cosine": 0.5525
+          },
+          {
+            "target": "Big Hat",
+            "cosine": 0.406
+          }
+        ]
+      },
+      "config": [
+        {
+          "piece": "Big Hat",
+          "type": "king",
+          "level": 1,
+          "x": -1,
+          "y": 0
+        },
+        {
+          "piece": "Round Hat",
+          "type": "pawn",
+          "level": 2,
+          "x": 2,
+          "y": 2
+        },
+        {
+          "piece": "Round Hat",
+          "type": "pawn",
+          "level": 1,
+          "x": -1,
+          "y": -1
+        },
+        {
+          "piece": "Triangle Hat",
+          "type": "spy",
+          "level": 1,
+          "x": 1,
+          "y": 1
+        },
+        {
+          "piece": "Tower",
+          "type": "rook",
+          "level": 1,
+          "x": -2,
+          "y": -2
+        },
+        {
+          "piece": "Triangle Hat",
+          "type": "spy",
+          "level": 1,
+          "x": 1,
+          "y": -2
+        }
+      ],
+      "diagram": " .  .  .  .  .  .  .  .  .\n .  .  .  .  .  .  .  .  .\n .  . T1  .  . A1  .  .  .\n .  .  . R1  .  .  .  .  .\n .  .  . B1  *  .  .  .  .\n .  .  .  .  . A1  .  .  .\n .  .  .  .  .  . R2  .  .\n .  .  .  .  .  .  .  .  .\n .  .  .  .  .  .  .  .  ."
+    },
+    {
+      "label": "2 A1 + 1 B1 + 1 R1 + 1 R2 + 1 T1",
+      "metrics": {
+        "cosine": 0.8101,
+        "signAgreement": 0.8,
+        "magnitudeRatio": 2.0604,
+        "rawError": 1.3809,
+        "scaledError": 0.5863
+      },
+      "selectivity": {
+        "rank": 2,
+        "margin": -0.0554,
+        "ranked": [
+          {
+            "target": "Triangle Hat",
+            "cosine": 0.8655
+          },
+          {
+            "target": "Tower",
+            "cosine": 0.8101
+          },
+          {
+            "target": "Round Hat",
+            "cosine": 0.5545
+          },
+          {
+            "target": "Big Hat",
+            "cosine": 0.4118
+          }
+        ]
+      },
+      "config": [
+        {
+          "piece": "Big Hat",
+          "type": "king",
+          "level": 1,
+          "x": -1,
+          "y": 0
+        },
+        {
+          "piece": "Round Hat",
+          "type": "pawn",
+          "level": 2,
+          "x": 2,
+          "y": 2
+        },
+        {
+          "piece": "Tower",
+          "type": "rook",
+          "level": 1,
+          "x": -2,
+          "y": -2
+        },
+        {
+          "piece": "Triangle Hat",
+          "type": "spy",
+          "level": 1,
+          "x": 1,
+          "y": 1
+        },
+        {
+          "piece": "Triangle Hat",
+          "type": "spy",
+          "level": 1,
+          "x": -2,
+          "y": 1
+        },
+        {
+          "piece": "Round Hat",
+          "type": "pawn",
+          "level": 1,
+          "x": 1,
+          "y": -1
+        }
+      ],
+      "diagram": " .  .  .  .  .  .  .  .  .\n .  .  .  .  .  .  .  .  .\n .  . T1  .  .  .  .  .  .\n .  .  .  .  . R1  .  .  .\n .  .  . B1  *  .  .  .  .\n .  . A1  .  . A1  .  .  .\n .  .  .  .  .  . R2  .  .\n .  .  .  .  .  .  .  .  .\n .  .  .  .  .  .  .  .  ."
+    },
+    {
+      "label": "2 A1 + 1 B1 + 1 R2 + 2 T1",
+      "metrics": {
+        "cosine": 0.8168,
+        "signAgreement": 0.8,
+        "magnitudeRatio": 2.1811,
+        "rawError": 1.4814,
+        "scaledError": 0.577
+      },
+      "selectivity": {
+        "rank": 2,
+        "margin": -0.0554,
+        "ranked": [
+          {
+            "target": "Triangle Hat",
+            "cosine": 0.8722
+          },
+          {
+            "target": "Tower",
+            "cosine": 0.8168
+          },
+          {
+            "target": "Round Hat",
+            "cosine": 0.554
+          },
+          {
+            "target": "Big Hat",
+            "cosine": 0.4082
+          }
+        ]
+      },
+      "config": [
+        {
+          "piece": "Big Hat",
+          "type": "king",
+          "level": 1,
+          "x": -1,
+          "y": 0
+        },
+        {
+          "piece": "Round Hat",
+          "type": "pawn",
+          "level": 2,
+          "x": 2,
+          "y": 2
+        },
+        {
+          "piece": "Tower",
+          "type": "rook",
+          "level": 1,
+          "x": -2,
+          "y": -2
+        },
+        {
+          "piece": "Triangle Hat",
+          "type": "spy",
+          "level": 1,
+          "x": -2,
+          "y": 1
+        },
+        {
+          "piece": "Triangle Hat",
+          "type": "spy",
+          "level": 1,
+          "x": 1,
+          "y": -2
+        },
+        {
+          "piece": "Tower",
+          "type": "rook",
+          "level": 1,
+          "x": 1,
+          "y": 1
+        }
+      ],
+      "diagram": " .  .  .  .  .  .  .  .  .\n .  .  .  .  .  .  .  .  .\n .  . T1  .  . A1  .  .  .\n .  .  .  .  .  .  .  .  .\n .  .  . B1  *  .  .  .  .\n .  . A1  .  . T1  .  .  .\n .  .  .  .  .  . R2  .  .\n .  .  .  .  .  .  .  .  .\n .  .  .  .  .  .  .  .  ."
+    },
+    {
+      "label": "3 A1 + 1 B1 + 1 R2 + 1 T1",
+      "metrics": {
+        "cosine": 0.815,
+        "signAgreement": 0.8154,
+        "magnitudeRatio": 2.1989,
+        "rawError": 1.5004,
+        "scaledError": 0.5795
+      },
+      "selectivity": {
+        "rank": 2,
+        "margin": -0.0592,
+        "ranked": [
+          {
+            "target": "Triangle Hat",
+            "cosine": 0.8741
+          },
+          {
+            "target": "Tower",
+            "cosine": 0.815
+          },
+          {
+            "target": "Round Hat",
+            "cosine": 0.5355
+          },
+          {
+            "target": "Big Hat",
+            "cosine": 0.3506
+          }
+        ]
+      },
+      "config": [
+        {
+          "piece": "Big Hat",
+          "type": "king",
+          "level": 1,
+          "x": -1,
+          "y": 0
+        },
+        {
+          "piece": "Round Hat",
+          "type": "pawn",
+          "level": 2,
+          "x": 2,
+          "y": 2
+        },
+        {
+          "piece": "Tower",
+          "type": "rook",
+          "level": 1,
+          "x": -2,
+          "y": -2
+        },
+        {
+          "piece": "Triangle Hat",
+          "type": "spy",
+          "level": 1,
+          "x": 1,
+          "y": 1
+        },
+        {
+          "piece": "Triangle Hat",
+          "type": "spy",
+          "level": 1,
+          "x": -2,
+          "y": 1
+        },
+        {
+          "piece": "Triangle Hat",
+          "type": "spy",
+          "level": 1,
+          "x": 0,
+          "y": -2
+        }
+      ],
+      "diagram": " .  .  .  .  .  .  .  .  .\n .  .  .  .  .  .  .  .  .\n .  . T1  . A1  .  .  .  .\n .  .  .  .  .  .  .  .  .\n .  .  . B1  *  .  .  .  .\n .  . A1  .  . A1  .  .  .\n .  .  .  .  .  . R2  .  .\n .  .  .  .  .  .  .  .  .\n .  .  .  .  .  .  .  .  ."
+    },
+    {
+      "label": "1 B1 + 2 R1 + 2 R2 + 1 T1",
+      "metrics": {
+        "cosine": 0.8002,
+        "signAgreement": 0.7692,
+        "magnitudeRatio": 1.8124,
+        "rawError": 1.1766,
+        "scaledError": 0.5998
+      },
+      "selectivity": {
+        "rank": 2,
+        "margin": -0.0505,
+        "ranked": [
+          {
+            "target": "Triangle Hat",
+            "cosine": 0.8506
+          },
+          {
+            "target": "Tower",
+            "cosine": 0.8002
+          },
+          {
+            "target": "Round Hat",
+            "cosine": 0.629
+          },
+          {
+            "target": "Big Hat",
+            "cosine": 0.4646
+          }
+        ]
+      },
+      "config": [
+        {
+          "piece": "Big Hat",
+          "type": "king",
+          "level": 1,
+          "x": -1,
+          "y": -1
+        },
+        {
+          "piece": "Round Hat",
+          "type": "pawn",
+          "level": 1,
+          "x": 0,
+          "y": -1
+        },
+        {
+          "piece": "Round Hat",
+          "type": "pawn",
+          "level": 2,
+          "x": -3,
+          "y": 0
+        },
+        {
+          "piece": "Tower",
+          "type": "rook",
+          "level": 1,
+          "x": 1,
+          "y": 1
+        },
+        {
+          "piece": "Round Hat",
+          "type": "pawn",
+          "level": 2,
+          "x": 2,
+          "y": -2
+        },
+        {
+          "piece": "Round Hat",
+          "type": "pawn",
+          "level": 1,
+          "x": -2,
+          "y": 3
+        }
+      ],
+      "diagram": " .  .  .  .  .  .  .  .  .\n .  .  .  .  .  .  .  .  .\n .  .  .  .  .  . R2  .  .\n .  .  . B1 R1  .  .  .  .\n . R2  .  .  *  .  .  .  .\n .  .  .  .  . T1  .  .  .\n .  .  .  .  .  .  .  .  .\n .  . R1  .  .  .  .  .  .\n .  .  .  .  .  .  .  .  ."
+    },
+    {
+      "label": "3 A1 + 1 B1 + 1 R2 + 1 T1",
+      "metrics": {
+        "cosine": 0.8187,
+        "signAgreement": 0.8,
+        "magnitudeRatio": 2.189,
+        "rawError": 1.4858,
+        "scaledError": 0.5743
+      },
+      "selectivity": {
+        "rank": 2,
+        "margin": -0.0607,
+        "ranked": [
+          {
+            "target": "Triangle Hat",
+            "cosine": 0.8794
+          },
+          {
+            "target": "Tower",
+            "cosine": 0.8187
+          },
+          {
+            "target": "Round Hat",
+            "cosine": 0.5104
+          },
+          {
+            "target": "Big Hat",
+            "cosine": 0.3637
+          }
+        ]
+      },
+      "config": [
+        {
+          "piece": "Big Hat",
+          "type": "king",
+          "level": 1,
+          "x": -1,
+          "y": 0
+        },
+        {
+          "piece": "Round Hat",
+          "type": "pawn",
+          "level": 2,
+          "x": 2,
+          "y": -2
+        },
+        {
+          "piece": "Tower",
+          "type": "rook",
+          "level": 1,
+          "x": -2,
+          "y": -2
+        },
+        {
+          "piece": "Triangle Hat",
+          "type": "spy",
+          "level": 1,
+          "x": 1,
+          "y": -2
+        },
+        {
+          "piece": "Triangle Hat",
+          "type": "spy",
+          "level": 1,
+          "x": -2,
+          "y": 1
+        },
+        {
+          "piece": "Triangle Hat",
+          "type": "spy",
+          "level": 1,
+          "x": 1,
+          "y": 1
+        }
+      ],
+      "diagram": " .  .  .  .  .  .  .  .  .\n .  .  .  .  .  .  .  .  .\n .  . T1  .  . A1 R2  .  .\n .  .  .  .  .  .  .  .  .\n .  .  . B1  *  .  .  .  .\n .  . A1  .  . A1  .  .  .\n .  .  .  .  .  .  .  .  .\n .  .  .  .  .  .  .  .  .\n .  .  .  .  .  .  .  .  ."
+    },
+    {
+      "label": "1 B1 + 1 R1 + 2 R2 + 2 T1",
+      "metrics": {
+        "cosine": 0.8099,
+        "signAgreement": 0.7538,
+        "magnitudeRatio": 1.9721,
+        "rawError": 1.3018,
+        "scaledError": 0.5865
+      },
+      "selectivity": {
+        "rank": 2,
+        "margin": -0.0386,
+        "ranked": [
+          {
+            "target": "Triangle Hat",
+            "cosine": 0.8485
+          },
+          {
+            "target": "Tower",
+            "cosine": 0.8099
+          },
+          {
+            "target": "Round Hat",
+            "cosine": 0.6251
+          },
+          {
+            "target": "Big Hat",
+            "cosine": 0.4565
+          }
+        ]
+      },
+      "config": [
+        {
+          "piece": "Big Hat",
+          "type": "king",
+          "level": 1,
+          "x": -1,
+          "y": 0
+        },
+        {
+          "piece": "Round Hat",
+          "type": "pawn",
+          "level": 2,
+          "x": 2,
+          "y": 2
+        },
+        {
+          "piece": "Round Hat",
+          "type": "pawn",
+          "level": 1,
+          "x": -1,
+          "y": -1
+        },
+        {
+          "piece": "Round Hat",
+          "type": "pawn",
+          "level": 2,
+          "x": -3,
+          "y": 0
+        },
+        {
+          "piece": "Tower",
+          "type": "rook",
+          "level": 1,
+          "x": 1,
+          "y": 1
+        },
+        {
+          "piece": "Tower",
+          "type": "rook",
+          "level": 1,
+          "x": -2,
+          "y": -2
+        }
+      ],
+      "diagram": " .  .  .  .  .  .  .  .  .\n .  .  .  .  .  .  .  .  .\n .  . T1  .  .  .  .  .  .\n .  .  . R1  .  .  .  .  .\n . R2  . B1  *  .  .  .  .\n .  .  .  .  . T1  .  .  .\n .  .  .  .  .  . R2  .  .\n .  .  .  .  .  .  .  .  .\n .  .  .  .  .  .  .  .  ."
+    },
+    {
+      "label": "2 A1 + 1 B1 + 1 R2 + 2 T1",
+      "metrics": {
+        "cosine": 0.8158,
+        "signAgreement": 0.8,
+        "magnitudeRatio": 2.1737,
+        "rawError": 1.476,
+        "scaledError": 0.5783
+      },
+      "selectivity": {
+        "rank": 2,
+        "margin": -0.0553,
+        "ranked": [
+          {
+            "target": "Triangle Hat",
+            "cosine": 0.8711
+          },
+          {
+            "target": "Tower",
+            "cosine": 0.8158
+          },
+          {
+            "target": "Round Hat",
+            "cosine": 0.5464
+          },
+          {
+            "target": "Big Hat",
+            "cosine": 0.4023
+          }
+        ]
+      },
+      "config": [
+        {
+          "piece": "Big Hat",
+          "type": "king",
+          "level": 1,
+          "x": -1,
+          "y": 0
+        },
+        {
+          "piece": "Round Hat",
+          "type": "pawn",
+          "level": 2,
+          "x": 2,
+          "y": 2
+        },
+        {
+          "piece": "Tower",
+          "type": "rook",
+          "level": 1,
+          "x": -2,
+          "y": -2
+        },
+        {
+          "piece": "Triangle Hat",
+          "type": "spy",
+          "level": 1,
+          "x": 1,
+          "y": 1
+        },
+        {
+          "piece": "Triangle Hat",
+          "type": "spy",
+          "level": 1,
+          "x": -2,
+          "y": 1
+        },
+        {
+          "piece": "Tower",
+          "type": "rook",
+          "level": 1,
+          "x": 1,
+          "y": -2
+        }
+      ],
+      "diagram": " .  .  .  .  .  .  .  .  .\n .  .  .  .  .  .  .  .  .\n .  . T1  .  . T1  .  .  .\n .  .  .  .  .  .  .  .  .\n .  .  . B1  *  .  .  .  .\n .  . A1  .  . A1  .  .  .\n .  .  .  .  .  . R2  .  .\n .  .  .  .  .  .  .  .  .\n .  .  .  .  .  .  .  .  ."
+    },
+    {
+      "label": "1 B1 + 1 R1 + 2 R2 + 1 T1",
+      "metrics": {
+        "cosine": 0.7967,
+        "signAgreement": 0.7385,
+        "magnitudeRatio": 1.735,
+        "rawError": 1.116,
+        "scaledError": 0.6043
+      },
+      "selectivity": {
+        "rank": 2,
+        "margin": -0.0345,
+        "ranked": [
+          {
+            "target": "Triangle Hat",
+            "cosine": 0.8312
+          },
+          {
+            "target": "Tower",
+            "cosine": 0.7967
+          },
+          {
+            "target": "Round Hat",
+            "cosine": 0.6292
+          },
+          {
+            "target": "Big Hat",
+            "cosine": 0.4676
+          }
+        ]
+      },
+      "config": [
+        {
+          "piece": "Big Hat",
+          "type": "king",
+          "level": 1,
+          "x": -1,
+          "y": 0
+        },
+        {
+          "piece": "Round Hat",
+          "type": "pawn",
+          "level": 2,
+          "x": 2,
+          "y": -2
+        },
+        {
+          "piece": "Round Hat",
+          "type": "pawn",
+          "level": 1,
+          "x": -1,
+          "y": -1
+        },
+        {
+          "piece": "Round Hat",
+          "type": "pawn",
+          "level": 2,
+          "x": -3,
+          "y": 0
+        },
+        {
+          "piece": "Tower",
+          "type": "rook",
+          "level": 1,
+          "x": 1,
+          "y": 1
+        }
+      ],
+      "diagram": " .  .  .  .  .  .  .  .  .\n .  .  .  .  .  .  .  .  .\n .  .  .  .  .  . R2  .  .\n .  .  . R1  .  .  .  .  .\n . R2  . B1  *  .  .  .  .\n .  .  .  .  . T1  .  .  .\n .  .  .  .  .  .  .  .  .\n .  .  .  .  .  .  .  .  .\n .  .  .  .  .  .  .  .  ."
+    },
+    {
+      "label": "1 B1 + 1 R1 + 2 R2 + 2 T1",
+      "metrics": {
+        "cosine": 0.8137,
+        "signAgreement": 0.7385,
+        "magnitudeRatio": 1.9487,
+        "rawError": 1.2753,
+        "scaledError": 0.5813
+      },
+      "selectivity": {
+        "rank": 2,
+        "margin": -0.0434,
+        "ranked": [
+          {
+            "target": "Triangle Hat",
+            "cosine": 0.857
+          },
+          {
+            "target": "Tower",
+            "cosine": 0.8137
+          },
+          {
+            "target": "Round Hat",
+            "cosine": 0.6121
+          },
+          {
+            "target": "Big Hat",
+            "cosine": 0.4533
+          }
+        ]
+      },
+      "config": [
+        {
+          "piece": "Big Hat",
+          "type": "king",
+          "level": 1,
+          "x": -1,
+          "y": 0
+        },
+        {
+          "piece": "Round Hat",
+          "type": "pawn",
+          "level": 2,
+          "x": 2,
+          "y": -2
+        },
+        {
+          "piece": "Round Hat",
+          "type": "pawn",
+          "level": 1,
+          "x": -1,
+          "y": -1
+        },
+        {
+          "piece": "Round Hat",
+          "type": "pawn",
+          "level": 2,
+          "x": -3,
+          "y": 0
+        },
+        {
+          "piece": "Tower",
+          "type": "rook",
+          "level": 1,
+          "x": 1,
+          "y": 1
+        },
+        {
+          "piece": "Tower",
+          "type": "rook",
+          "level": 1,
+          "x": 1,
+          "y": -2
+        }
+      ],
+      "diagram": " .  .  .  .  .  .  .  .  .\n .  .  .  .  .  .  .  .  .\n .  .  .  .  . T1 R2  .  .\n .  .  . R1  .  .  .  .  .\n . R2  . B1  *  .  .  .  .\n .  .  .  .  . T1  .  .  .\n .  .  .  .  .  .  .  .  .\n .  .  .  .  .  .  .  .  .\n .  .  .  .  .  .  .  .  ."
+    },
+    {
+      "label": "1 B1 + 2 R1 + 2 R2 + 1 T1",
+      "metrics": {
+        "cosine": 0.8019,
+        "signAgreement": 0.7538,
+        "magnitudeRatio": 1.8406,
+        "rawError": 1.1983,
+        "scaledError": 0.5974
+      },
+      "selectivity": {
+        "rank": 2,
+        "margin": -0.0404,
+        "ranked": [
+          {
+            "target": "Triangle Hat",
+            "cosine": 0.8423
+          },
+          {
+            "target": "Tower",
+            "cosine": 0.8019
+          },
+          {
+            "target": "Round Hat",
+            "cosine": 0.6427
+          },
+          {
+            "target": "Big Hat",
+            "cosine": 0.4971
+          }
+        ]
+      },
+      "config": [
+        {
+          "piece": "Big Hat",
+          "type": "king",
+          "level": 1,
+          "x": -1,
+          "y": 0
+        },
+        {
+          "piece": "Round Hat",
+          "type": "pawn",
+          "level": 2,
+          "x": 2,
+          "y": 2
+        },
+        {
+          "piece": "Round Hat",
+          "type": "pawn",
+          "level": 1,
+          "x": -1,
+          "y": -1
+        },
+        {
+          "piece": "Round Hat",
+          "type": "pawn",
+          "level": 2,
+          "x": -3,
+          "y": 0
+        },
+        {
+          "piece": "Tower",
+          "type": "rook",
+          "level": 1,
+          "x": 1,
+          "y": 1
+        },
+        {
+          "piece": "Round Hat",
+          "type": "pawn",
+          "level": 1,
+          "x": 3,
+          "y": -2
+        }
+      ],
+      "diagram": " .  .  .  .  .  .  .  .  .\n .  .  .  .  .  .  .  .  .\n .  .  .  .  .  .  . R1  .\n .  .  . R1  .  .  .  .  .\n . R2  . B1  *  .  .  .  .\n .  .  .  .  . T1  .  .  .\n .  .  .  .  .  . R2  .  .\n .  .  .  .  .  .  .  .  .\n .  .  .  .  .  .  .  .  ."
+    },
+    {
+      "label": "1 A1 + 1 B1 + 1 R1 + 2 R2 + 1 T1",
+      "metrics": {
+        "cosine": 0.8138,
+        "signAgreement": 0.7538,
+        "magnitudeRatio": 1.9977,
+        "rawError": 1.3189,
+        "scaledError": 0.5812
+      },
+      "selectivity": {
+        "rank": 2,
+        "margin": -0.0462,
+        "ranked": [
+          {
+            "target": "Triangle Hat",
+            "cosine": 0.86
+          },
+          {
+            "target": "Tower",
+            "cosine": 0.8138
+          },
+          {
+            "target": "Round Hat",
+            "cosine": 0.5834
+          },
+          {
+            "target": "Big Hat",
+            "cosine": 0.413
+          }
+        ]
+      },
+      "config": [
+        {
+          "piece": "Big Hat",
+          "type": "king",
+          "level": 1,
+          "x": -1,
+          "y": 0
+        },
+        {
+          "piece": "Round Hat",
+          "type": "pawn",
+          "level": 2,
+          "x": -3,
+          "y": 0
+        },
+        {
+          "piece": "Round Hat",
+          "type": "pawn",
+          "level": 1,
+          "x": -1,
+          "y": -1
+        },
+        {
+          "piece": "Round Hat",
+          "type": "pawn",
+          "level": 2,
+          "x": -2,
+          "y": 2
+        },
+        {
+          "piece": "Tower",
+          "type": "rook",
+          "level": 1,
+          "x": 1,
+          "y": 1
+        },
+        {
+          "piece": "Triangle Hat",
+          "type": "spy",
+          "level": 1,
+          "x": -2,
+          "y": 1
+        }
+      ],
+      "diagram": " .  .  .  .  .  .  .  .  .\n .  .  .  .  .  .  .  .  .\n .  .  .  .  .  .  .  .  .\n .  .  . R1  .  .  .  .  .\n . R2  . B1  *  .  .  .  .\n .  . A1  .  . T1  .  .  .\n .  . R2  .  .  .  .  .  .\n .  .  .  .  .  .  .  .  .\n .  .  .  .  .  .  .  .  ."
+    }
+  ]
+}

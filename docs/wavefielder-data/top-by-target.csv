@@ -1,0 +1,325 @@
+target,rank,sources,pieces,cosine,sign_agreement,magnitude_ratio,random_percentile_at_least,robust_min_cosine,local_abs_max,config_json,diagram
+"Round Hat","1","2 R","2","0.8991","1","1.5312","0.99","0.2592","false","[{""piece"":""Round Hat"",""type"":""pawn"",""x"":0,""y"":-2},{""piece"":""Round Hat"",""type"":""pawn"",""x"":0,""y"":2}]"," .  .  R  .  .
+ .  .  .  .  .
+ .  .  *  .  .
+ .  .  .  .  .
+ .  .  R  .  ."
+"Round Hat","2","3 R","3","0.8861","1","1.4962","0.99","0.2175","false","[{""piece"":""Round Hat"",""type"":""pawn"",""x"":0,""y"":-2},{""piece"":""Round Hat"",""type"":""pawn"",""x"":-3,""y"":3},{""piece"":""Round Hat"",""type"":""pawn"",""x"":3,""y"":3}]"," .  .  .  .  .  .  .
+ .  .  .  R  .  .  .
+ .  .  .  .  .  .  .
+ .  .  .  *  .  .  .
+ .  .  .  .  .  .  .
+ .  .  .  .  .  .  .
+ R  .  .  .  .  .  R"
+"Round Hat","3","4 R","4","0.9334","1","2.5076","0.99","0.7159","false","[{""piece"":""Round Hat"",""type"":""pawn"",""x"":0,""y"":-2},{""piece"":""Round Hat"",""type"":""pawn"",""x"":0,""y"":2},{""piece"":""Round Hat"",""type"":""pawn"",""x"":-1,""y"":-3},{""piece"":""Round Hat"",""type"":""pawn"",""x"":1,""y"":3}]"," .  .  R  .  .  .  .
+ .  .  .  R  .  .  .
+ .  .  .  .  .  .  .
+ .  .  .  *  .  .  .
+ .  .  .  .  .  .  .
+ .  .  .  R  .  .  .
+ .  .  .  .  R  .  ."
+"Round Hat","4","2 R + 1 A","3","0.8802","1","1.6645","0.99","0.2918","false","[{""piece"":""Round Hat"",""type"":""pawn"",""x"":0,""y"":-2},{""piece"":""Round Hat"",""type"":""pawn"",""x"":-3,""y"":3},{""piece"":""Triangle Hat"",""type"":""spy"",""x"":3,""y"":3}]"," .  .  .  .  .  .  .
+ .  .  .  R  .  .  .
+ .  .  .  .  .  .  .
+ .  .  .  *  .  .  .
+ .  .  .  .  .  .  .
+ .  .  .  .  .  .  .
+ R  .  .  .  .  .  A"
+"Round Hat","5","1 R + 1 A","2","0.887","1","1.8862","0.99","0.2446","false","[{""piece"":""Round Hat"",""type"":""pawn"",""x"":0,""y"":-2},{""piece"":""Triangle Hat"",""type"":""spy"",""x"":0,""y"":2}]"," .  .  R  .  .
+ .  .  .  .  .
+ .  .  *  .  .
+ .  .  .  .  .
+ .  .  A  .  ."
+"Round Hat","6","3 R + 1 A","4","0.9076","1","2.3251","0.99","0.6191","false","[{""piece"":""Round Hat"",""type"":""pawn"",""x"":0,""y"":-2},{""piece"":""Round Hat"",""type"":""pawn"",""x"":-1,""y"":3},{""piece"":""Round Hat"",""type"":""pawn"",""x"":-1,""y"":-3},{""piece"":""Triangle Hat"",""type"":""spy"",""x"":3,""y"":3}]"," .  .  R  .  .  .  .
+ .  .  .  R  .  .  .
+ .  .  .  .  .  .  .
+ .  .  .  *  .  .  .
+ .  .  .  .  .  .  .
+ .  .  .  .  .  .  .
+ .  .  R  .  .  .  A"
+"Round Hat","7","5 R","5","0.9301","1","2.8591","0.99","0.7493","false","[{""piece"":""Round Hat"",""type"":""pawn"",""x"":0,""y"":-2},{""piece"":""Round Hat"",""type"":""pawn"",""x"":0,""y"":2},{""piece"":""Round Hat"",""type"":""pawn"",""x"":-1,""y"":-3},{""piece"":""Round Hat"",""type"":""pawn"",""x"":-1,""y"":3},{""piece"":""Round Hat"",""type"":""pawn"",""x"":3,""y"":-3}]"," .  .  R  .  .  .  R
+ .  .  .  R  .  .  .
+ .  .  .  .  .  .  .
+ .  .  .  *  .  .  .
+ .  .  .  .  .  .  .
+ .  .  .  R  .  .  .
+ .  .  R  .  .  .  ."
+"Round Hat","8","1 R + 2 A","3","0.876","1","1.8315","0.99","0.349","false","[{""piece"":""Round Hat"",""type"":""pawn"",""x"":0,""y"":-2},{""piece"":""Triangle Hat"",""type"":""spy"",""x"":-3,""y"":3},{""piece"":""Triangle Hat"",""type"":""spy"",""x"":3,""y"":3}]"," .  .  .  .  .  .  .
+ .  .  .  R  .  .  .
+ .  .  .  .  .  .  .
+ .  .  .  *  .  .  .
+ .  .  .  .  .  .  .
+ .  .  .  .  .  .  .
+ A  .  .  .  .  .  A"
+"Round Hat","9","6 R","6","0.9444","1","3.4989","0.99","0.8469","false","[{""piece"":""Round Hat"",""type"":""pawn"",""x"":0,""y"":-2},{""piece"":""Round Hat"",""type"":""pawn"",""x"":0,""y"":2},{""piece"":""Round Hat"",""type"":""pawn"",""x"":-1,""y"":-3},{""piece"":""Round Hat"",""type"":""pawn"",""x"":1,""y"":3},{""piece"":""Round Hat"",""type"":""pawn"",""x"":1,""y"":-3},{""piece"":""Round Hat"",""type"":""pawn"",""x"":-1,""y"":3}]"," .  .  R  .  R  .  .
+ .  .  .  R  .  .  .
+ .  .  .  .  .  .  .
+ .  .  .  *  .  .  .
+ .  .  .  .  .  .  .
+ .  .  .  R  .  .  .
+ .  .  R  .  R  .  ."
+"Round Hat","10","4 R + 1 A","5","0.9195","1","2.8661","0.99","0.7241","false","[{""piece"":""Round Hat"",""type"":""pawn"",""x"":0,""y"":-2},{""piece"":""Round Hat"",""type"":""pawn"",""x"":0,""y"":2},{""piece"":""Round Hat"",""type"":""pawn"",""x"":-1,""y"":-3},{""piece"":""Round Hat"",""type"":""pawn"",""x"":-3,""y"":3},{""piece"":""Triangle Hat"",""type"":""spy"",""x"":3,""y"":3}]"," .  .  R  .  .  .  .
+ .  .  .  R  .  .  .
+ .  .  .  .  .  .  .
+ .  .  .  *  .  .  .
+ .  .  .  .  .  .  .
+ .  .  .  R  .  .  .
+ R  .  .  .  .  .  A"
+"Round Hat","11","2 R + 2 A","4","0.9231","1","2.9828","0.99","0.7219","false","[{""piece"":""Round Hat"",""type"":""pawn"",""x"":0,""y"":-2},{""piece"":""Round Hat"",""type"":""pawn"",""x"":0,""y"":2},{""piece"":""Triangle Hat"",""type"":""spy"",""x"":-1,""y"":-3},{""piece"":""Triangle Hat"",""type"":""spy"",""x"":-1,""y"":3}]"," .  .  A  .  .  .  .
+ .  .  .  R  .  .  .
+ .  .  .  .  .  .  .
+ .  .  .  *  .  .  .
+ .  .  .  .  .  .  .
+ .  .  .  R  .  .  .
+ .  .  A  .  .  .  ."
+"Round Hat","12","5 R + 1 A","6","0.935","1","3.5086","0.99","0.8203","false","[{""piece"":""Round Hat"",""type"":""pawn"",""x"":0,""y"":-2},{""piece"":""Round Hat"",""type"":""pawn"",""x"":0,""y"":2},{""piece"":""Round Hat"",""type"":""pawn"",""x"":-1,""y"":-3},{""piece"":""Round Hat"",""type"":""pawn"",""x"":1,""y"":3},{""piece"":""Round Hat"",""type"":""pawn"",""x"":1,""y"":-3},{""piece"":""Triangle Hat"",""type"":""spy"",""x"":-3,""y"":3}]"," .  .  R  .  R  .  .
+ .  .  .  R  .  .  .
+ .  .  .  .  .  .  .
+ .  .  .  *  .  .  .
+ .  .  .  .  .  .  .
+ .  .  .  R  .  .  .
+ A  .  .  .  R  .  ."
+"Tower","1","3 R + 3 T","6","0.7729","0.8864","1.652","0.99","0.5872","false","[{""piece"":""Round Hat"",""type"":""pawn"",""x"":-2,""y"":0},{""piece"":""Round Hat"",""type"":""pawn"",""x"":0,""y"":2},{""piece"":""Round Hat"",""type"":""pawn"",""x"":-1,""y"":2},{""piece"":""Tower"",""type"":""rook"",""x"":3,""y"":-3},{""piece"":""Tower"",""type"":""rook"",""x"":-3,""y"":-3},{""piece"":""Tower"",""type"":""rook"",""x"":3,""y"":3}]"," T  .  .  .  .  .  T
+ .  .  .  .  .  .  .
+ .  .  .  .  .  .  .
+ .  R  .  *  .  .  .
+ .  .  .  .  .  .  .
+ .  .  R  R  .  .  .
+ .  .  .  .  .  .  T"
+"Tower","2","2 R + 4 T","6","0.7655","0.9773","1.9002","0.99","0.6865","true","[{""piece"":""Round Hat"",""type"":""pawn"",""x"":0,""y"":-2},{""piece"":""Round Hat"",""type"":""pawn"",""x"":0,""y"":2},{""piece"":""Tower"",""type"":""rook"",""x"":-3,""y"":-3},{""piece"":""Tower"",""type"":""rook"",""x"":3,""y"":3},{""piece"":""Tower"",""type"":""rook"",""x"":3,""y"":-3},{""piece"":""Tower"",""type"":""rook"",""x"":-3,""y"":3}]"," T  .  .  .  .  .  T
+ .  .  .  R  .  .  .
+ .  .  .  .  .  .  .
+ .  .  .  *  .  .  .
+ .  .  .  .  .  .  .
+ .  .  .  R  .  .  .
+ T  .  .  .  .  .  T"
+"Tower","3","3 R + 2 T","5","0.7475","0.8636","1.4232","0.99","0.5168","false","[{""piece"":""Round Hat"",""type"":""pawn"",""x"":-2,""y"":0},{""piece"":""Round Hat"",""type"":""pawn"",""x"":0,""y"":2},{""piece"":""Round Hat"",""type"":""pawn"",""x"":-1,""y"":2},{""piece"":""Tower"",""type"":""rook"",""x"":3,""y"":-3},{""piece"":""Tower"",""type"":""rook"",""x"":-3,""y"":-3}]"," T  .  .  .  .  .  T
+ .  .  .  .  .  .  .
+ .  .  .  .  .  .  .
+ .  R  .  *  .  .  .
+ .  .  .  .  .  .  .
+ .  .  R  R  .  .  .
+ .  .  .  .  .  .  ."
+"Tower","4","1 R + 4 T","5","0.7381","0.9773","1.5679","0.99","0.5796","false","[{""piece"":""Round Hat"",""type"":""pawn"",""x"":-2,""y"":0},{""piece"":""Tower"",""type"":""rook"",""x"":3,""y"":-3},{""piece"":""Tower"",""type"":""rook"",""x"":3,""y"":3},{""piece"":""Tower"",""type"":""rook"",""x"":-3,""y"":-3},{""piece"":""Tower"",""type"":""rook"",""x"":-3,""y"":3}]"," T  .  .  .  .  .  T
+ .  .  .  .  .  .  .
+ .  .  .  .  .  .  .
+ .  R  .  *  .  .  .
+ .  .  .  .  .  .  .
+ .  .  .  .  .  .  .
+ T  .  .  .  .  .  T"
+"Tower","5","4 R + 2 T","6","0.7644","0.9091","1.7671","0.99","0.6476","false","[{""piece"":""Round Hat"",""type"":""pawn"",""x"":-2,""y"":0},{""piece"":""Round Hat"",""type"":""pawn"",""x"":2,""y"":0},{""piece"":""Round Hat"",""type"":""pawn"",""x"":1,""y"":2},{""piece"":""Round Hat"",""type"":""pawn"",""x"":0,""y"":2},{""piece"":""Tower"",""type"":""rook"",""x"":-3,""y"":-3},{""piece"":""Tower"",""type"":""rook"",""x"":3,""y"":-3}]"," T  .  .  .  .  .  T
+ .  .  .  .  .  .  .
+ .  .  .  .  .  .  .
+ .  R  .  *  .  R  .
+ .  .  .  .  .  .  .
+ .  .  .  R  R  .  .
+ .  .  .  .  .  .  ."
+"Tower","6","1 R + 4 T + 1 A","6","0.7734","0.9773","2.1147","0.99","0.6691","false","[{""piece"":""Round Hat"",""type"":""pawn"",""x"":0,""y"":2},{""piece"":""Tower"",""type"":""rook"",""x"":-3,""y"":-3},{""piece"":""Tower"",""type"":""rook"",""x"":3,""y"":-3},{""piece"":""Tower"",""type"":""rook"",""x"":-3,""y"":3},{""piece"":""Tower"",""type"":""rook"",""x"":3,""y"":3},{""piece"":""Triangle Hat"",""type"":""spy"",""x"":0,""y"":-2}]"," T  .  .  .  .  .  T
+ .  .  .  A  .  .  .
+ .  .  .  .  .  .  .
+ .  .  .  *  .  .  .
+ .  .  .  .  .  .  .
+ .  .  .  R  .  .  .
+ T  .  .  .  .  .  T"
+"Tower","7","3 R + 2 T + 1 A","6","0.7654","0.8636","1.6822","0.99","0.61","false","[{""piece"":""Round Hat"",""type"":""pawn"",""x"":-2,""y"":0},{""piece"":""Round Hat"",""type"":""pawn"",""x"":0,""y"":2},{""piece"":""Round Hat"",""type"":""pawn"",""x"":-1,""y"":2},{""piece"":""Tower"",""type"":""rook"",""x"":-3,""y"":-3},{""piece"":""Tower"",""type"":""rook"",""x"":3,""y"":3},{""piece"":""Triangle Hat"",""type"":""spy"",""x"":3,""y"":-3}]"," T  .  .  .  .  .  A
+ .  .  .  .  .  .  .
+ .  .  .  .  .  .  .
+ .  R  .  *  .  .  .
+ .  .  .  .  .  .  .
+ .  .  R  R  .  .  .
+ .  .  .  .  .  .  T"
+"Tower","8","4 T + 1 A","5","0.7493","0.9773","1.7887","0.99","0.575","false","[{""piece"":""Tower"",""type"":""rook"",""x"":-3,""y"":-3},{""piece"":""Tower"",""type"":""rook"",""x"":3,""y"":3},{""piece"":""Tower"",""type"":""rook"",""x"":3,""y"":-3},{""piece"":""Tower"",""type"":""rook"",""x"":-3,""y"":3},{""piece"":""Triangle Hat"",""type"":""spy"",""x"":-2,""y"":0}]"," T  .  .  .  .  .  T
+ .  .  .  .  .  .  .
+ .  .  .  .  .  .  .
+ .  A  .  *  .  .  .
+ .  .  .  .  .  .  .
+ .  .  .  .  .  .  .
+ T  .  .  .  .  .  T"
+"Tower","9","4 T + 2 A","6","0.7795","0.9773","2.3303","0.99","0.6874","false","[{""piece"":""Tower"",""type"":""rook"",""x"":-3,""y"":-3},{""piece"":""Tower"",""type"":""rook"",""x"":3,""y"":3},{""piece"":""Tower"",""type"":""rook"",""x"":3,""y"":-3},{""piece"":""Tower"",""type"":""rook"",""x"":-3,""y"":3},{""piece"":""Triangle Hat"",""type"":""spy"",""x"":0,""y"":-2},{""piece"":""Triangle Hat"",""type"":""spy"",""x"":0,""y"":2}]"," T  .  .  .  .  .  T
+ .  .  .  A  .  .  .
+ .  .  .  .  .  .  .
+ .  .  .  *  .  .  .
+ .  .  .  .  .  .  .
+ .  .  .  A  .  .  .
+ T  .  .  .  .  .  T"
+"Tower","10","3 T + 1 A","4","0.731","0.9318","1.5423","0.99","0.5064","false","[{""piece"":""Tower"",""type"":""rook"",""x"":-3,""y"":-3},{""piece"":""Tower"",""type"":""rook"",""x"":3,""y"":3},{""piece"":""Tower"",""type"":""rook"",""x"":3,""y"":-3},{""piece"":""Triangle Hat"",""type"":""spy"",""x"":-2,""y"":0}]"," T  .  .  .  .  .  T
+ .  .  .  .  .  .  .
+ .  .  .  .  .  .  .
+ .  A  .  *  .  .  .
+ .  .  .  .  .  .  .
+ .  .  .  .  .  .  .
+ .  .  .  .  .  .  T"
+"Tower","11","2 R + 3 T + 1 A","6","0.7716","0.8409","1.8918","0.99","0.5822","false","[{""piece"":""Round Hat"",""type"":""pawn"",""x"":0,""y"":2},{""piece"":""Round Hat"",""type"":""pawn"",""x"":-1,""y"":2},{""piece"":""Tower"",""type"":""rook"",""x"":-3,""y"":-3},{""piece"":""Tower"",""type"":""rook"",""x"":3,""y"":-3},{""piece"":""Tower"",""type"":""rook"",""x"":3,""y"":3},{""piece"":""Triangle Hat"",""type"":""spy"",""x"":-2,""y"":0}]"," T  .  .  .  .  .  T
+ .  .  .  .  .  .  .
+ .  .  .  .  .  .  .
+ .  A  .  *  .  .  .
+ .  .  .  .  .  .  .
+ .  .  R  R  .  .  .
+ .  .  .  .  .  .  T"
+"Tower","12","1 R + 3 T + 1 A","5","0.7339","0.9318","1.5915","0.99","0.6114","false","[{""piece"":""Round Hat"",""type"":""pawn"",""x"":-2,""y"":0},{""piece"":""Tower"",""type"":""rook"",""x"":3,""y"":3},{""piece"":""Tower"",""type"":""rook"",""x"":-3,""y"":-3},{""piece"":""Tower"",""type"":""rook"",""x"":-3,""y"":3},{""piece"":""Triangle Hat"",""type"":""spy"",""x"":3,""y"":-3}]"," T  .  .  .  .  .  A
+ .  .  .  .  .  .  .
+ .  .  .  .  .  .  .
+ .  R  .  *  .  .  .
+ .  .  .  .  .  .  .
+ .  .  .  .  .  .  .
+ T  .  .  .  .  .  T"
+"Triangle Hat","1","4 R","4","0.8937","1","1.2865","0.99","0.4788","false","[{""piece"":""Round Hat"",""type"":""pawn"",""x"":0,""y"":-2},{""piece"":""Round Hat"",""type"":""pawn"",""x"":0,""y"":2},{""piece"":""Round Hat"",""type"":""pawn"",""x"":-1,""y"":-3},{""piece"":""Round Hat"",""type"":""pawn"",""x"":0,""y"":-3}]"," .  .  R  R  .  .  .
+ .  .  .  R  .  .  .
+ .  .  .  .  .  .  .
+ .  .  .  *  .  .  .
+ .  .  .  .  .  .  .
+ .  .  .  R  .  .  .
+ .  .  .  .  .  .  ."
+"Triangle Hat","2","5 R","5","0.919","1","1.6003","0.99","0.6738","false","[{""piece"":""Round Hat"",""type"":""pawn"",""x"":0,""y"":-2},{""piece"":""Round Hat"",""type"":""pawn"",""x"":0,""y"":2},{""piece"":""Round Hat"",""type"":""pawn"",""x"":-1,""y"":-3},{""piece"":""Round Hat"",""type"":""pawn"",""x"":-3,""y"":0},{""piece"":""Round Hat"",""type"":""pawn"",""x"":-1,""y"":3}]"," .  .  R  .  .  .  .
+ .  .  .  R  .  .  .
+ .  .  .  .  .  .  .
+ R  .  .  *  .  .  .
+ .  .  .  .  .  .  .
+ .  .  .  R  .  .  .
+ .  .  R  .  .  .  ."
+"Triangle Hat","3","2 R","2","0.8683","1","1.0522","0.99","0.4034","false","[{""piece"":""Round Hat"",""type"":""pawn"",""x"":0,""y"":-2},{""piece"":""Round Hat"",""type"":""pawn"",""x"":0,""y"":2}]"," .  .  R  .  .
+ .  .  .  .  .
+ .  .  *  .  .
+ .  .  .  .  .
+ .  .  R  .  ."
+"Triangle Hat","4","1 R + 1 A","2","0.8906","1","1.2962","0.99","0.4201","false","[{""piece"":""Round Hat"",""type"":""pawn"",""x"":0,""y"":-2},{""piece"":""Triangle Hat"",""type"":""spy"",""x"":0,""y"":2}]"," .  .  R  .  .
+ .  .  .  .  .
+ .  .  *  .  .
+ .  .  .  .  .
+ .  .  A  .  ."
+"Triangle Hat","5","6 R","6","0.9108","1","1.5511","0.99","0.589","false","[{""piece"":""Round Hat"",""type"":""pawn"",""x"":0,""y"":-2},{""piece"":""Round Hat"",""type"":""pawn"",""x"":0,""y"":2},{""piece"":""Round Hat"",""type"":""pawn"",""x"":-1,""y"":-3},{""piece"":""Round Hat"",""type"":""pawn"",""x"":-2,""y"":-3},{""piece"":""Round Hat"",""type"":""pawn"",""x"":1,""y"":3},{""piece"":""Round Hat"",""type"":""pawn"",""x"":2,""y"":3}]"," .  R  R  .  .  .  .
+ .  .  .  R  .  .  .
+ .  .  .  .  .  .  .
+ .  .  .  *  .  .  .
+ .  .  .  .  .  .  .
+ .  .  .  R  .  .  .
+ .  .  .  .  R  R  ."
+"Triangle Hat","6","2 A","2","0.9093","1","1.5342","0.99","0.5196","false","[{""piece"":""Triangle Hat"",""type"":""spy"",""x"":0,""y"":-2},{""piece"":""Triangle Hat"",""type"":""spy"",""x"":0,""y"":2}]"," .  .  A  .  .
+ .  .  .  .  .
+ .  .  *  .  .
+ .  .  .  .  .
+ .  .  A  .  ."
+"Triangle Hat","7","3 R","3","0.857","1","1.0282","0.99","0.3666","false","[{""piece"":""Round Hat"",""type"":""pawn"",""x"":0,""y"":-2},{""piece"":""Round Hat"",""type"":""pawn"",""x"":-3,""y"":3},{""piece"":""Round Hat"",""type"":""pawn"",""x"":3,""y"":3}]"," .  .  .  .  .  .  .
+ .  .  .  R  .  .  .
+ .  .  .  .  .  .  .
+ .  .  .  *  .  .  .
+ .  .  .  .  .  .  .
+ .  .  .  .  .  .  .
+ R  .  .  .  .  .  R"
+"Triangle Hat","8","2 R + 1 A","3","0.8685","1","1.1438","0.99","0.4378","false","[{""piece"":""Round Hat"",""type"":""pawn"",""x"":0,""y"":-2},{""piece"":""Round Hat"",""type"":""pawn"",""x"":-3,""y"":3},{""piece"":""Triangle Hat"",""type"":""spy"",""x"":3,""y"":3}]"," .  .  .  .  .  .  .
+ .  .  .  R  .  .  .
+ .  .  .  .  .  .  .
+ .  .  .  *  .  .  .
+ .  .  .  .  .  .  .
+ .  .  .  .  .  .  .
+ R  .  .  .  .  .  A"
+"Triangle Hat","9","1 R + 2 A","3","0.8907","1","1.3856","0.99","0.4475","false","[{""piece"":""Round Hat"",""type"":""pawn"",""x"":-3,""y"":-3},{""piece"":""Triangle Hat"",""type"":""spy"",""x"":2,""y"":0},{""piece"":""Triangle Hat"",""type"":""spy"",""x"":-3,""y"":3}]"," R  .  .  .  .  .  .
+ .  .  .  .  .  .  .
+ .  .  .  .  .  .  .
+ .  .  .  *  .  A  .
+ .  .  .  .  .  .  .
+ .  .  .  .  .  .  .
+ A  .  .  .  .  .  ."
+"Triangle Hat","10","3 A","3","0.8991","1","1.4976","0.99","0.4925","false","[{""piece"":""Triangle Hat"",""type"":""spy"",""x"":0,""y"":-2},{""piece"":""Triangle Hat"",""type"":""spy"",""x"":-3,""y"":3},{""piece"":""Triangle Hat"",""type"":""spy"",""x"":3,""y"":3}]"," .  .  .  .  .  .  .
+ .  .  .  A  .  .  .
+ .  .  .  .  .  .  .
+ .  .  .  *  .  .  .
+ .  .  .  .  .  .  .
+ .  .  .  .  .  .  .
+ A  .  .  .  .  .  A"
+"Triangle Hat","11","4 R + 1 A","5","0.9224","1","1.8701","0.99","0.6722","false","[{""piece"":""Round Hat"",""type"":""pawn"",""x"":0,""y"":-2},{""piece"":""Round Hat"",""type"":""pawn"",""x"":-1,""y"":3},{""piece"":""Round Hat"",""type"":""pawn"",""x"":-1,""y"":-3},{""piece"":""Round Hat"",""type"":""pawn"",""x"":-3,""y"":-2},{""piece"":""Triangle Hat"",""type"":""spy"",""x"":0,""y"":2}]"," .  .  R  .  .  .  .
+ R  .  .  R  .  .  .
+ .  .  .  .  .  .  .
+ .  .  .  *  .  .  .
+ .  .  .  .  .  .  .
+ .  .  .  A  .  .  .
+ .  .  R  .  .  .  ."
+"Triangle Hat","12","3 R + 1 A","4","0.9203","1","1.9519","0.99","0.7569","false","[{""piece"":""Round Hat"",""type"":""pawn"",""x"":0,""y"":-2},{""piece"":""Round Hat"",""type"":""pawn"",""x"":-1,""y"":3},{""piece"":""Round Hat"",""type"":""pawn"",""x"":1,""y"":-3},{""piece"":""Triangle Hat"",""type"":""spy"",""x"":0,""y"":2}]"," .  .  .  .  R  .  .
+ .  .  .  R  .  .  .
+ .  .  .  .  .  .  .
+ .  .  .  *  .  .  .
+ .  .  .  .  .  .  .
+ .  .  .  A  .  .  .
+ .  .  R  .  .  .  ."
+"Big Hat","1","1 R + 4 T + 1 B","6","0.8793","0.9792","1.515","0.99","0.7336","true","[{""piece"":""Round Hat"",""type"":""pawn"",""x"":1,""y"":-1},{""piece"":""Tower"",""type"":""rook"",""x"":-3,""y"":-1},{""piece"":""Tower"",""type"":""rook"",""x"":0,""y"":-1},{""piece"":""Tower"",""type"":""rook"",""x"":3,""y"":-1},{""piece"":""Tower"",""type"":""rook"",""x"":-3,""y"":-2},{""piece"":""Big Hat"",""type"":""king"",""x"":0,""y"":2}]"," .  .  .  .  .  .  .
+ T  .  .  .  .  .  .
+ T  .  .  T  R  .  T
+ .  .  .  *  .  .  .
+ .  .  .  .  .  .  .
+ .  .  .  B  .  .  .
+ .  .  .  .  .  .  ."
+"Big Hat","2","4 T + 1 B","5","0.8637","0.9792","1.3907","0.99","0.6852","false","[{""piece"":""Tower"",""type"":""rook"",""x"":-3,""y"":-1},{""piece"":""Tower"",""type"":""rook"",""x"":3,""y"":-1},{""piece"":""Tower"",""type"":""rook"",""x"":0,""y"":-1},{""piece"":""Tower"",""type"":""rook"",""x"":-3,""y"":-2},{""piece"":""Big Hat"",""type"":""king"",""x"":0,""y"":2}]"," .  .  .  .  .  .  .
+ T  .  .  .  .  .  .
+ T  .  .  T  .  .  T
+ .  .  .  *  .  .  .
+ .  .  .  .  .  .  .
+ .  .  .  B  .  .  .
+ .  .  .  .  .  .  ."
+"Big Hat","3","3 T + 1 A + 1 B","5","0.861","0.9792","1.3795","0.99","0.6977","true","[{""piece"":""Tower"",""type"":""rook"",""x"":-3,""y"":-1},{""piece"":""Tower"",""type"":""rook"",""x"":3,""y"":-1},{""piece"":""Tower"",""type"":""rook"",""x"":0,""y"":-1},{""piece"":""Triangle Hat"",""type"":""spy"",""x"":-3,""y"":-3},{""piece"":""Big Hat"",""type"":""king"",""x"":0,""y"":2}]"," A  .  .  .  .  .  .
+ .  .  .  .  .  .  .
+ T  .  .  T  .  .  T
+ .  .  .  *  .  .  .
+ .  .  .  .  .  .  .
+ .  .  .  B  .  .  .
+ .  .  .  .  .  .  ."
+"Big Hat","4","4 R + 2 B","6","0.892","0.9583","1.7458","0.99","0.7773","true","[{""piece"":""Round Hat"",""type"":""pawn"",""x"":-1,""y"":-1},{""piece"":""Round Hat"",""type"":""pawn"",""x"":-3,""y"":0},{""piece"":""Round Hat"",""type"":""pawn"",""x"":1,""y"":1},{""piece"":""Round Hat"",""type"":""pawn"",""x"":3,""y"":0},{""piece"":""Big Hat"",""type"":""king"",""x"":0,""y"":-2},{""piece"":""Big Hat"",""type"":""king"",""x"":0,""y"":2}]"," .  .  .  .  .  .  .
+ .  .  .  B  .  .  .
+ .  .  R  .  .  .  .
+ R  .  .  *  .  .  R
+ .  .  .  .  R  .  .
+ .  .  .  B  .  .  .
+ .  .  .  .  .  .  ."
+"Big Hat","5","3 R + 1 A + 2 B","6","0.8939","0.9583","1.8276","0.99","0.7835","true","[{""piece"":""Round Hat"",""type"":""pawn"",""x"":-1,""y"":-1},{""piece"":""Round Hat"",""type"":""pawn"",""x"":-3,""y"":0},{""piece"":""Round Hat"",""type"":""pawn"",""x"":1,""y"":1},{""piece"":""Triangle Hat"",""type"":""spy"",""x"":3,""y"":0},{""piece"":""Big Hat"",""type"":""king"",""x"":0,""y"":-2},{""piece"":""Big Hat"",""type"":""king"",""x"":0,""y"":2}]"," .  .  .  .  .  .  .
+ .  .  .  B  .  .  .
+ .  .  R  .  .  .  .
+ R  .  .  *  .  .  A
+ .  .  .  .  R  .  .
+ .  .  .  B  .  .  .
+ .  .  .  .  .  .  ."
+"Big Hat","6","4 R + 1 T + 1 B","6","0.8687","0.9583","1.4877","0.99","0.6988","false","[{""piece"":""Round Hat"",""type"":""pawn"",""x"":1,""y"":-1},{""piece"":""Round Hat"",""type"":""pawn"",""x"":0,""y"":-1},{""piece"":""Round Hat"",""type"":""pawn"",""x"":-1,""y"":1},{""piece"":""Round Hat"",""type"":""pawn"",""x"":0,""y"":-2},{""piece"":""Tower"",""type"":""rook"",""x"":-3,""y"":-2},{""piece"":""Big Hat"",""type"":""king"",""x"":0,""y"":1}]"," .  .  .  .  .  .  .
+ T  .  .  R  .  .  .
+ .  .  .  R  R  .  .
+ .  .  .  *  .  .  .
+ .  .  R  B  .  .  .
+ .  .  .  .  .  .  .
+ .  .  .  .  .  .  ."
+"Big Hat","7","4 R + 1 B","5","0.8553","0.9792","1.3843","0.99","0.7752","false","[{""piece"":""Round Hat"",""type"":""pawn"",""x"":-1,""y"":-1},{""piece"":""Round Hat"",""type"":""pawn"",""x"":0,""y"":-1},{""piece"":""Round Hat"",""type"":""pawn"",""x"":1,""y"":1},{""piece"":""Round Hat"",""type"":""pawn"",""x"":-1,""y"":1},{""piece"":""Big Hat"",""type"":""king"",""x"":0,""y"":1}]"," .  .  .  .  .
+ .  R  R  .  .
+ .  .  *  .  .
+ .  R  B  R  .
+ .  .  .  .  ."
+"Big Hat","8","3 T + 1 B","4","0.8453","0.9792","1.2747","0.99","0.6593","false","[{""piece"":""Tower"",""type"":""rook"",""x"":-3,""y"":-1},{""piece"":""Tower"",""type"":""rook"",""x"":3,""y"":-1},{""piece"":""Tower"",""type"":""rook"",""x"":0,""y"":-1},{""piece"":""Big Hat"",""type"":""king"",""x"":0,""y"":2}]"," .  .  .  .  .  .  .
+ .  .  .  .  .  .  .
+ T  .  .  T  .  .  T
+ .  .  .  *  .  .  .
+ .  .  .  .  .  .  .
+ .  .  .  B  .  .  .
+ .  .  .  .  .  .  ."
+"Big Hat","9","1 R + 3 T + 1 B","5","0.857","0.9792","1.4069","0.99","0.7116","true","[{""piece"":""Round Hat"",""type"":""pawn"",""x"":-1,""y"":1},{""piece"":""Tower"",""type"":""rook"",""x"":3,""y"":1},{""piece"":""Tower"",""type"":""rook"",""x"":0,""y"":1},{""piece"":""Tower"",""type"":""rook"",""x"":-3,""y"":1},{""piece"":""Big Hat"",""type"":""king"",""x"":0,""y"":-2}]"," .  .  .  .  .  .  .
+ .  .  .  B  .  .  .
+ .  .  .  .  .  .  .
+ .  .  .  *  .  .  .
+ T  .  R  T  .  .  T
+ .  .  .  .  .  .  .
+ .  .  .  .  .  .  ."
+"Big Hat","10","3 R + 3 T","6","0.8157","0.9792","1.0063","0.99","0.683","true","[{""piece"":""Round Hat"",""type"":""pawn"",""x"":-1,""y"":-1},{""piece"":""Round Hat"",""type"":""pawn"",""x"":0,""y"":-1},{""piece"":""Round Hat"",""type"":""pawn"",""x"":1,""y"":-1},{""piece"":""Tower"",""type"":""rook"",""x"":3,""y"":1},{""piece"":""Tower"",""type"":""rook"",""x"":-3,""y"":1},{""piece"":""Tower"",""type"":""rook"",""x"":0,""y"":1}]"," .  .  .  .  .  .  .
+ .  .  .  .  .  .  .
+ .  .  R  R  R  .  .
+ .  .  .  *  .  .  .
+ T  .  .  T  .  .  T
+ .  .  .  .  .  .  .
+ .  .  .  .  .  .  ."
+"Big Hat","11","5 T + 1 B","6","0.8721","0.9792","1.6212","0.99","0.7328","false","[{""piece"":""Tower"",""type"":""rook"",""x"":-3,""y"":-1},{""piece"":""Tower"",""type"":""rook"",""x"":3,""y"":-1},{""piece"":""Tower"",""type"":""rook"",""x"":0,""y"":-1},{""piece"":""Tower"",""type"":""rook"",""x"":2,""y"":0},{""piece"":""Tower"",""type"":""rook"",""x"":-3,""y"":-2},{""piece"":""Big Hat"",""type"":""king"",""x"":0,""y"":2}]"," .  .  .  .  .  .  .
+ T  .  .  .  .  .  .
+ T  .  .  T  .  .  T
+ .  .  .  *  .  T  .
+ .  .  .  .  .  .  .
+ .  .  .  B  .  .  .
+ .  .  .  .  .  .  ."
+"Big Hat","12","2 R + 3 T + 1 B","6","0.8771","0.9583","1.6575","0.99","0.7452","false","[{""piece"":""Round Hat"",""type"":""pawn"",""x"":1,""y"":-1},{""piece"":""Round Hat"",""type"":""pawn"",""x"":-1,""y"":1},{""piece"":""Tower"",""type"":""rook"",""x"":0,""y"":1},{""piece"":""Tower"",""type"":""rook"",""x"":3,""y"":1},{""piece"":""Tower"",""type"":""rook"",""x"":-3,""y"":1},{""piece"":""Big Hat"",""type"":""king"",""x"":0,""y"":-1}]"," .  .  .  .  .  .  .
+ .  .  .  .  .  .  .
+ .  .  .  B  R  .  .
+ .  .  .  *  .  .  .
+ T  .  R  T  .  .  T
+ .  .  .  .  .  .  .
+ .  .  .  .  .  .  ."

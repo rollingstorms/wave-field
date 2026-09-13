@@ -10,6 +10,8 @@
     "dev": "npm run engine:build && vite --host 127.0.0.1",
     "arena": "npm run engine:build && vite --host 127.0.0.1 --mode arena",
     "analyze:mechanics": "node scripts/analyze-mechanics.mjs",
+    "analyze:wavefielder": "node scripts/wavefielder-signature-search.mjs",
+    "analyze:wavefielder:resonance": "node scripts/wavefielder-resonance-analysis.mjs",
     "analyze:heuristic": "node scripts/eval-heuristic-configs.mjs",
     "selfplay:mine": "node scripts/selfplay-position-miner.mjs",
     "selfplay:analyze": "node scripts/analyze-selfplay.mjs",

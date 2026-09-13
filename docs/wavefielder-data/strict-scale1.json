@@ -1,0 +1,1987 @@
+{
+  "generatedAt": "2026-09-13T19:22:36.859Z",
+  "note": "Experimental Wavefielder analysis. This script mirrors the current production default kernels and superposition formula; it does not alter game rules.",
+  "options": {
+    "placementRadius": 3,
+    "signatureRadius": 3,
+    "maxPieces": 6,
+    "beamWidth": 220,
+    "randomSamples": 2500,
+    "seed": 20260913,
+    "signed": true,
+    "includeSame": false,
+    "scaled": false
+  },
+  "signatureDefinition": {
+    "scaleI": "Vector of signed production contribution values from a single red target piece over a Chebyshev-local window around the target, excluding the origin.",
+    "comparison": "Cosine similarity for shape, normalized RMSE after optimal scalar fit for shape error, raw normalized RMSE for actual magnitude, sign agreement, and field-norm magnitude ratio.",
+    "scaleIIExtension": "Reasonable extension only: spatial dilation by integer scale using coarse coordinates trunc(delta / scale), with amplitude divided by scale. This is not implemented in normal Wave Field."
+  },
+  "scaleI": [
+    {
+      "targetPiece": "Round Hat",
+      "targetType": "pawn",
+      "targetScale": 1,
+      "bestByPieceCount": [
+        {
+          "pieceCount": 1,
+          "metrics": {
+            "cosine": 0.7436,
+            "scaledError": 0.6686,
+            "rawError": 0.8856,
+            "signAgreement": 0.5,
+            "magnitudeRatio": 1.3243,
+            "optimalScaleAlpha": 0.5615,
+            "score": 0.7099
+          },
+          "config": [
+            {
+              "piece": "Triangle Hat",
+              "type": "spy",
+              "ownerSign": 1,
+              "x": 0,
+              "y": -2
+            }
+          ],
+          "diagram": " .  .  T  .  .\n .  .  .  .  .\n .  .  *  .  .\n .  .  .  .  .\n .  .  .  .  ."
+        },
+        {
+          "pieceCount": 2,
+          "metrics": {
+            "cosine": 0.8821,
+            "scaledError": 0.471,
+            "rawError": 1.4303,
+            "signAgreement": 0.5,
+            "magnitudeRatio": 2.2327,
+            "optimalScaleAlpha": 0.3951,
+            "score": 0.7858
+          },
+          "config": [
+            {
+              "piece": "Triangle Hat",
+              "type": "spy",
+              "ownerSign": 1,
+              "x": 0,
+              "y": -2
+            },
+            {
+              "piece": "Triangle Hat",
+              "type": "spy",
+              "ownerSign": 1,
+              "x": 0,
+              "y": 2
+            }
+          ],
+          "diagram": " .  .  T  .  .\n .  .  .  .  .\n .  .  *  .  .\n .  .  .  .  .\n .  .  T  .  ."
+        },
+        {
+          "pieceCount": 3,
+          "metrics": {
+            "cosine": 0.8722,
+            "scaledError": 0.4891,
+            "rawError": 1.3956,
+            "signAgreement": 0.5,
+            "magnitudeRatio": 2.1793,
+            "optimalScaleAlpha": 0.4002,
+            "score": 0.7788
+          },
+          "config": [
+            {
+              "piece": "Triangle Hat",
+              "type": "spy",
+              "ownerSign": 1,
+              "x": 0,
+              "y": -2
+            },
+            {
+              "piece": "Triangle Hat",
+              "type": "spy",
+              "ownerSign": 1,
+              "x": -3,
+              "y": 3
+            },
+            {
+              "piece": "Triangle Hat",
+              "type": "spy",
+              "ownerSign": 1,
+              "x": 3,
+              "y": 3
+            }
+          ],
+          "diagram": " .  .  .  .  .  .  .\n .  .  .  T  .  .  .\n .  .  .  .  .  .  .\n .  .  .  *  .  .  .\n .  .  .  .  .  .  .\n .  .  .  .  .  .  .\n T  .  .  .  .  .  T"
+        },
+        {
+          "pieceCount": 4,
+          "metrics": {
+            "cosine": 0.8876,
+            "scaledError": 0.4606,
+            "rawError": 1.6561,
+            "signAgreement": 0.5,
+            "magnitudeRatio": 2.4784,
+            "optimalScaleAlpha": 0.3581,
+            "score": 0.7787
+          },
+          "config": [
+            {
+              "piece": "Triangle Hat",
+              "type": "spy",
+              "ownerSign": 1,
+              "x": 0,
+              "y": -2
+            },
+            {
+              "piece": "Triangle Hat",
+              "type": "spy",
+              "ownerSign": 1,
+              "x": 0,
+              "y": 2
+            },
+            {
+              "piece": "Triangle Hat",
+              "type": "spy",
+              "ownerSign": 1,
+              "x": -1,
+              "y": -3
+            },
+            {
+              "piece": "Triangle Hat",
+              "type": "spy",
+              "ownerSign": -1,
+              "x": -3,
+              "y": -3
+            }
+          ],
+          "diagram": "-T  .  T  .  .  .  .\n .  .  .  T  .  .  .\n .  .  .  .  .  .  .\n .  .  .  *  .  .  .\n .  .  .  .  .  .  .\n .  .  .  T  .  .  .\n .  .  .  .  .  .  ."
+        },
+        {
+          "pieceCount": 5,
+          "metrics": {
+            "cosine": 0.8906,
+            "scaledError": 0.4548,
+            "rawError": 1.7203,
+            "signAgreement": 0.7917,
+            "magnitudeRatio": 2.5497,
+            "optimalScaleAlpha": 0.3493,
+            "score": 0.7783
+          },
+          "config": [
+            {
+              "piece": "Triangle Hat",
+              "type": "spy",
+              "ownerSign": 1,
+              "x": 0,
+              "y": -2
+            },
+            {
+              "piece": "Triangle Hat",
+              "type": "spy",
+              "ownerSign": 1,
+              "x": 0,
+              "y": 2
+            },
+            {
+              "piece": "Tower",
+              "type": "rook",
+              "ownerSign": -1,
+              "x": 0,
+              "y": 3
+            },
+            {
+              "piece": "Triangle Hat",
+              "type": "spy",
+              "ownerSign": 1,
+              "x": -1,
+              "y": 1
+            },
+            {
+              "piece": "Triangle Hat",
+              "type": "spy",
+              "ownerSign": -1,
+              "x": -3,
+              "y": 1
+            }
+          ],
+          "diagram": " .  .  .  .  .  .  .\n .  .  .  T  .  .  .\n .  .  .  .  .  .  .\n .  .  .  *  .  .  .\n-T  .  T  .  .  .  .\n .  .  .  T  .  .  .\n .  .  . -T  .  .  ."
+        },
+        {
+          "pieceCount": 6,
+          "metrics": {
+            "cosine": 0.8484,
+            "scaledError": 0.5293,
+            "rawError": 0.9679,
+            "signAgreement": 0.5,
+            "magnitudeRatio": 1.6588,
+            "optimalScaleAlpha": 0.5115,
+            "score": 0.7877
+          },
+          "config": [
+            {
+              "piece": "Triangle Hat",
+              "type": "spy",
+              "ownerSign": 1,
+              "x": 0,
+              "y": -2
+            },
+            {
+              "piece": "Triangle Hat",
+              "type": "spy",
+              "ownerSign": 1,
+              "x": 0,
+              "y": 2
+            },
+            {
+              "piece": "Triangle Hat",
+              "type": "spy",
+              "ownerSign": 1,
+              "x": -1,
+              "y": -3
+            },
+            {
+              "piece": "Triangle Hat",
+              "type": "spy",
+              "ownerSign": -1,
+              "x": -1,
+              "y": -1
+            },
+            {
+              "piece": "Triangle Hat",
+              "type": "spy",
+              "ownerSign": 1,
+              "x": 1,
+              "y": 3
+            },
+            {
+              "piece": "Triangle Hat",
+              "type": "spy",
+              "ownerSign": -1,
+              "x": 1,
+              "y": 1
+            }
+          ],
+          "diagram": " .  .  T  .  .  .  .\n .  .  .  T  .  .  .\n .  . -T  .  .  .  .\n .  .  .  *  .  .  .\n .  .  .  . -T  .  .\n .  .  .  T  .  .  .\n .  .  .  .  T  .  ."
+        }
+      ],
+      "randomBaseline": [
+        {
+          "pieceCount": 2,
+          "cosineP50": 0,
+          "cosineP90": 0.4159,
+          "cosineP99": 0.6853,
+          "accidentalRateCosineAtLeast90": 0,
+          "accidentalRateCosineAtLeast95": 0,
+          "bestRandom": {
+            "metrics": {
+              "cosine": 0.8578,
+              "scaledError": 0.514,
+              "rawError": 1.2077,
+              "signAgreement": 0.5,
+              "magnitudeRatio": 1.9506,
+              "optimalScaleAlpha": 0.4397,
+              "score": 0.7776
+            },
+            "config": [
+              {
+                "piece": "Triangle Hat",
+                "type": "spy",
+                "ownerSign": 1,
+                "x": 0,
+                "y": -2
+              },
+              {
+                "piece": "Triangle Hat",
+                "type": "spy",
+                "ownerSign": 1,
+                "x": -1,
+                "y": 3
+              }
+            ]
+          }
+        },
+        {
+          "pieceCount": 3,
+          "cosineP50": -0.0134,
+          "cosineP90": 0.4097,
+          "cosineP99": 0.6539,
+          "accidentalRateCosineAtLeast90": 0,
+          "accidentalRateCosineAtLeast95": 0,
+          "bestRandom": {
+            "metrics": {
+              "cosine": 0.846,
+              "scaledError": 0.5331,
+              "rawError": 2.0115,
+              "signAgreement": 0.625,
+              "magnitudeRatio": 2.7856,
+              "optimalScaleAlpha": 0.3037,
+              "score": 0.7231
+            },
+            "config": [
+              {
+                "piece": "Triangle Hat",
+                "type": "spy",
+                "ownerSign": 1,
+                "x": 0,
+                "y": 2
+              },
+              {
+                "piece": "Triangle Hat",
+                "type": "spy",
+                "ownerSign": 1,
+                "x": 0,
+                "y": -2
+              },
+              {
+                "piece": "Tower",
+                "type": "rook",
+                "ownerSign": 1,
+                "x": 1,
+                "y": 3
+              }
+            ]
+          }
+        },
+        {
+          "pieceCount": 4,
+          "cosineP50": 0.0131,
+          "cosineP90": 0.3979,
+          "cosineP99": 0.6253,
+          "accidentalRateCosineAtLeast90": 0,
+          "accidentalRateCosineAtLeast95": 0,
+          "bestRandom": {
+            "metrics": {
+              "cosine": 0.7805,
+              "scaledError": 0.6252,
+              "rawError": 2.3225,
+              "signAgreement": 1,
+              "magnitudeRatio": 3.0172,
+              "optimalScaleAlpha": 0.2587,
+              "score": 0.6479
+            },
+            "config": [
+              {
+                "piece": "Triangle Hat",
+                "type": "spy",
+                "ownerSign": 1,
+                "x": -3,
+                "y": -1
+              },
+              {
+                "piece": "Triangle Hat",
+                "type": "spy",
+                "ownerSign": -1,
+                "x": -1,
+                "y": 2
+              },
+              {
+                "piece": "Triangle Hat",
+                "type": "spy",
+                "ownerSign": 1,
+                "x": -1,
+                "y": -1
+              },
+              {
+                "piece": "Triangle Hat",
+                "type": "spy",
+                "ownerSign": 1,
+                "x": 3,
+                "y": -3
+              }
+            ]
+          }
+        },
+        {
+          "pieceCount": 5,
+          "cosineP50": 0,
+          "cosineP90": 0.4163,
+          "cosineP99": 0.6239,
+          "accidentalRateCosineAtLeast90": 0,
+          "accidentalRateCosineAtLeast95": 0,
+          "bestRandom": {
+            "metrics": {
+              "cosine": 0.8237,
+              "scaledError": 0.5671,
+              "rawError": 2.6792,
+              "signAgreement": 0.75,
+              "magnitudeRatio": 3.4422,
+              "optimalScaleAlpha": 0.2393,
+              "score": 0.6753
+            },
+            "config": [
+              {
+                "piece": "Tower",
+                "type": "rook",
+                "ownerSign": 1,
+                "x": 0,
+                "y": -2
+              },
+              {
+                "piece": "Triangle Hat",
+                "type": "spy",
+                "ownerSign": 1,
+                "x": 3,
+                "y": 3
+              },
+              {
+                "piece": "Triangle Hat",
+                "type": "spy",
+                "ownerSign": 1,
+                "x": -1,
+                "y": 3
+              },
+              {
+                "piece": "Triangle Hat",
+                "type": "spy",
+                "ownerSign": 1,
+                "x": 1,
+                "y": 1
+              },
+              {
+                "piece": "Tower",
+                "type": "rook",
+                "ownerSign": -1,
+                "x": 3,
+                "y": 0
+              }
+            ]
+          }
+        },
+        {
+          "pieceCount": 6,
+          "cosineP50": -0.0028,
+          "cosineP90": 0.3868,
+          "cosineP99": 0.6351,
+          "accidentalRateCosineAtLeast90": 0,
+          "accidentalRateCosineAtLeast95": 0,
+          "bestRandom": {
+            "metrics": {
+              "cosine": 0.7842,
+              "scaledError": 0.6206,
+              "rawError": 2.9554,
+              "signAgreement": 0.9167,
+              "magnitudeRatio": 3.6737,
+              "optimalScaleAlpha": 0.2135,
+              "score": 0.628
+            },
+            "config": [
+              {
+                "piece": "Tower",
+                "type": "rook",
+                "ownerSign": 1,
+                "x": 1,
+                "y": 3
+              },
+              {
+                "piece": "Big Hat",
+                "type": "king",
+                "ownerSign": -1,
+                "x": 2,
+                "y": -3
+              },
+              {
+                "piece": "Triangle Hat",
+                "type": "spy",
+                "ownerSign": 1,
+                "x": 1,
+                "y": 1
+              },
+              {
+                "piece": "Big Hat",
+                "type": "king",
+                "ownerSign": 1,
+                "x": 2,
+                "y": -2
+              },
+              {
+                "piece": "Triangle Hat",
+                "type": "spy",
+                "ownerSign": -1,
+                "x": 0,
+                "y": 1
+              },
+              {
+                "piece": "Triangle Hat",
+                "type": "spy",
+                "ownerSign": 1,
+                "x": -3,
+                "y": -1
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "targetPiece": "Tower",
+      "targetType": "rook",
+      "targetScale": 1,
+      "bestByPieceCount": [
+        {
+          "pieceCount": 1,
+          "metrics": {
+            "cosine": 0.5712,
+            "scaledError": 0.8208,
+            "rawError": 0.8685,
+            "signAgreement": 0.4318,
+            "magnitudeRatio": 0.8551,
+            "optimalScaleAlpha": 0.668,
+            "score": 0.5524
+          },
+          "config": [
+            {
+              "piece": "Triangle Hat",
+              "type": "spy",
+              "ownerSign": 1,
+              "x": -2,
+              "y": 0
+            }
+          ],
+          "diagram": " .  .  .  .  .\n .  .  .  .  .\n T  .  *  .  .\n .  .  .  .  .\n .  .  .  .  ."
+        },
+        {
+          "pieceCount": 2,
+          "metrics": {
+            "cosine": 0.6691,
+            "scaledError": 0.7432,
+            "rawError": 1.0719,
+            "signAgreement": 0.4318,
+            "magnitudeRatio": 1.4416,
+            "optimalScaleAlpha": 0.4642,
+            "score": 0.6252
+          },
+          "config": [
+            {
+              "piece": "Triangle Hat",
+              "type": "spy",
+              "ownerSign": 1,
+              "x": 0,
+              "y": -2
+            },
+            {
+              "piece": "Triangle Hat",
+              "type": "spy",
+              "ownerSign": 1,
+              "x": 0,
+              "y": 2
+            }
+          ],
+          "diagram": " .  .  T  .  .\n .  .  .  .  .\n .  .  *  .  .\n .  .  .  .  .\n .  .  T  .  ."
+        },
+        {
+          "pieceCount": 3,
+          "metrics": {
+            "cosine": 0.6775,
+            "scaledError": 0.7355,
+            "rawError": 0.8526,
+            "signAgreement": 0.6591,
+            "magnitudeRatio": 1.1087,
+            "optimalScaleAlpha": 0.6111,
+            "score": 0.6651
+          },
+          "config": [
+            {
+              "piece": "Triangle Hat",
+              "type": "spy",
+              "ownerSign": 1,
+              "x": 0,
+              "y": -2
+            },
+            {
+              "piece": "Triangle Hat",
+              "type": "spy",
+              "ownerSign": 1,
+              "x": 0,
+              "y": 2
+            },
+            {
+              "piece": "Round Hat",
+              "type": "pawn",
+              "ownerSign": -1,
+              "x": 1,
+              "y": -1
+            }
+          ],
+          "diagram": " .  .  T  .  .\n .  .  . -R  .\n .  .  *  .  .\n .  .  .  .  .\n .  .  T  .  ."
+        },
+        {
+          "pieceCount": 4,
+          "metrics": {
+            "cosine": 0.6938,
+            "scaledError": 0.7201,
+            "rawError": 0.7976,
+            "signAgreement": 0.6818,
+            "magnitudeRatio": 1.0366,
+            "optimalScaleAlpha": 0.6693,
+            "score": 0.6895
+          },
+          "config": [
+            {
+              "piece": "Triangle Hat",
+              "type": "spy",
+              "ownerSign": 1,
+              "x": 0,
+              "y": 2
+            },
+            {
+              "piece": "Triangle Hat",
+              "type": "spy",
+              "ownerSign": 1,
+              "x": -3,
+              "y": -3
+            },
+            {
+              "piece": "Triangle Hat",
+              "type": "spy",
+              "ownerSign": 1,
+              "x": 3,
+              "y": -3
+            },
+            {
+              "piece": "Round Hat",
+              "type": "pawn",
+              "ownerSign": -1,
+              "x": 1,
+              "y": -1
+            }
+          ],
+          "diagram": " T  .  .  .  .  .  T\n .  .  .  .  .  .  .\n .  .  .  . -R  .  .\n .  .  .  *  .  .  .\n .  .  .  .  .  .  .\n .  .  .  T  .  .  .\n .  .  .  .  .  .  ."
+        },
+        {
+          "pieceCount": 5,
+          "metrics": {
+            "cosine": 0.721,
+            "scaledError": 0.6929,
+            "rawError": 0.7762,
+            "signAgreement": 0.6591,
+            "magnitudeRatio": 1.0708,
+            "optimalScaleAlpha": 0.6733,
+            "score": 0.7128
+          },
+          "config": [
+            {
+              "piece": "Triangle Hat",
+              "type": "spy",
+              "ownerSign": 1,
+              "x": -2,
+              "y": 0
+            },
+            {
+              "piece": "Triangle Hat",
+              "type": "spy",
+              "ownerSign": 1,
+              "x": 0,
+              "y": 2
+            },
+            {
+              "piece": "Round Hat",
+              "type": "pawn",
+              "ownerSign": -1,
+              "x": -2,
+              "y": 2
+            },
+            {
+              "piece": "Triangle Hat",
+              "type": "spy",
+              "ownerSign": 1,
+              "x": 3,
+              "y": -3
+            },
+            {
+              "piece": "Round Hat",
+              "type": "pawn",
+              "ownerSign": -1,
+              "x": 1,
+              "y": -1
+            }
+          ],
+          "diagram": " .  .  .  .  .  .  T\n .  .  .  .  .  .  .\n .  .  .  . -R  .  .\n .  T  .  *  .  .  .\n .  .  .  .  .  .  .\n . -R  .  T  .  .  .\n .  .  .  .  .  .  ."
+        },
+        {
+          "pieceCount": 6,
+          "metrics": {
+            "cosine": 0.7475,
+            "scaledError": 0.6643,
+            "rawError": 0.7606,
+            "signAgreement": 0.7045,
+            "magnitudeRatio": 1.118,
+            "optimalScaleAlpha": 0.6686,
+            "score": 0.7341
+          },
+          "config": [
+            {
+              "piece": "Triangle Hat",
+              "type": "spy",
+              "ownerSign": 1,
+              "x": 0,
+              "y": 2
+            },
+            {
+              "piece": "Triangle Hat",
+              "type": "spy",
+              "ownerSign": 1,
+              "x": 1,
+              "y": -3
+            },
+            {
+              "piece": "Round Hat",
+              "type": "pawn",
+              "ownerSign": -1,
+              "x": 1,
+              "y": -1
+            },
+            {
+              "piece": "Round Hat",
+              "type": "pawn",
+              "ownerSign": 1,
+              "x": 0,
+              "y": -2
+            },
+            {
+              "piece": "Round Hat",
+              "type": "pawn",
+              "ownerSign": -1,
+              "x": -1,
+              "y": 1
+            },
+            {
+              "piece": "Round Hat",
+              "type": "pawn",
+              "ownerSign": 1,
+              "x": -1,
+              "y": 3
+            }
+          ],
+          "diagram": " .  .  .  .  T  .  .\n .  .  .  R  .  .  .\n .  .  .  . -R  .  .\n .  .  .  *  .  .  .\n .  . -R  .  .  .  .\n .  .  .  T  .  .  .\n .  .  R  .  .  .  ."
+        }
+      ],
+      "randomBaseline": [
+        {
+          "pieceCount": 2,
+          "cosineP50": 0.0001,
+          "cosineP90": 0.4004,
+          "cosineP99": 0.5497,
+          "accidentalRateCosineAtLeast90": 0,
+          "accidentalRateCosineAtLeast95": 0,
+          "bestRandom": {
+            "metrics": {
+              "cosine": 0.6243,
+              "scaledError": 0.7812,
+              "rawError": 1.0068,
+              "signAgreement": 0.4318,
+              "magnitudeRatio": 1.2595,
+              "optimalScaleAlpha": 0.4957,
+              "score": 0.5966
+            },
+            "config": [
+              {
+                "piece": "Triangle Hat",
+                "type": "spy",
+                "ownerSign": 1,
+                "x": 3,
+                "y": 1
+              },
+              {
+                "piece": "Triangle Hat",
+                "type": "spy",
+                "ownerSign": 1,
+                "x": -2,
+                "y": 0
+              }
+            ]
+          }
+        },
+        {
+          "pieceCount": 3,
+          "cosineP50": -0.0172,
+          "cosineP90": 0.3961,
+          "cosineP99": 0.5442,
+          "accidentalRateCosineAtLeast90": 0,
+          "accidentalRateCosineAtLeast95": 0,
+          "bestRandom": {
+            "metrics": {
+              "cosine": 0.6141,
+              "scaledError": 0.7892,
+              "rawError": 1.0773,
+              "signAgreement": 0.75,
+              "magnitudeRatio": 1.3474,
+              "optimalScaleAlpha": 0.4558,
+              "score": 0.5783
+            },
+            "config": [
+              {
+                "piece": "Round Hat",
+                "type": "pawn",
+                "ownerSign": 1,
+                "x": -2,
+                "y": 0
+              },
+              {
+                "piece": "Triangle Hat",
+                "type": "spy",
+                "ownerSign": 1,
+                "x": 2,
+                "y": -3
+              },
+              {
+                "piece": "Triangle Hat",
+                "type": "spy",
+                "ownerSign": 1,
+                "x": 2,
+                "y": 0
+              }
+            ]
+          }
+        },
+        {
+          "pieceCount": 4,
+          "cosineP50": 0.0066,
+          "cosineP90": 0.4085,
+          "cosineP99": 0.5582,
+          "accidentalRateCosineAtLeast90": 0,
+          "accidentalRateCosineAtLeast95": 0,
+          "bestRandom": {
+            "metrics": {
+              "cosine": 0.6383,
+              "scaledError": 0.7698,
+              "rawError": 1.5454,
+              "signAgreement": 0.6818,
+              "magnitudeRatio": 1.9783,
+              "optimalScaleAlpha": 0.3226,
+              "score": 0.5564
+            },
+            "config": [
+              {
+                "piece": "Round Hat",
+                "type": "pawn",
+                "ownerSign": 1,
+                "x": -3,
+                "y": -1
+              },
+              {
+                "piece": "Big Hat",
+                "type": "king",
+                "ownerSign": 1,
+                "x": -2,
+                "y": 1
+              },
+              {
+                "piece": "Triangle Hat",
+                "type": "spy",
+                "ownerSign": 1,
+                "x": 3,
+                "y": -1
+              },
+              {
+                "piece": "Triangle Hat",
+                "type": "spy",
+                "ownerSign": 1,
+                "x": -3,
+                "y": 3
+              }
+            ]
+          }
+        },
+        {
+          "pieceCount": 5,
+          "cosineP50": -0.0099,
+          "cosineP90": 0.3875,
+          "cosineP99": 0.5561,
+          "accidentalRateCosineAtLeast90": 0,
+          "accidentalRateCosineAtLeast95": 0,
+          "bestRandom": {
+            "metrics": {
+              "cosine": 0.5963,
+              "scaledError": 0.8027,
+              "rawError": 1.1283,
+              "signAgreement": 0.7045,
+              "magnitudeRatio": 1.3892,
+              "optimalScaleAlpha": 0.4293,
+              "score": 0.5569
+            },
+            "config": [
+              {
+                "piece": "Round Hat",
+                "type": "pawn",
+                "ownerSign": 1,
+                "x": 3,
+                "y": 2
+              },
+              {
+                "piece": "Triangle Hat",
+                "type": "spy",
+                "ownerSign": 1,
+                "x": 0,
+                "y": 2
+              },
+              {
+                "piece": "Round Hat",
+                "type": "pawn",
+                "ownerSign": 1,
+                "x": 1,
+                "y": -2
+              },
+              {
+                "piece": "Round Hat",
+                "type": "pawn",
+                "ownerSign": -1,
+                "x": 3,
+                "y": 0
+              },
+              {
+                "piece": "Triangle Hat",
+                "type": "spy",
+                "ownerSign": 1,
+                "x": -3,
+                "y": -1
+              }
+            ]
+          }
+        },
+        {
+          "pieceCount": 6,
+          "cosineP50": -0.0209,
+          "cosineP90": 0.3991,
+          "cosineP99": 0.5653,
+          "accidentalRateCosineAtLeast90": 0,
+          "accidentalRateCosineAtLeast95": 0,
+          "bestRandom": {
+            "metrics": {
+              "cosine": 0.6143,
+              "scaledError": 0.7891,
+              "rawError": 1.7163,
+              "signAgreement": 0.6364,
+              "magnitudeRatio": 2.1384,
+              "optimalScaleAlpha": 0.2873,
+              "score": 0.5231
+            },
+            "config": [
+              {
+                "piece": "Round Hat",
+                "type": "pawn",
+                "ownerSign": 1,
+                "x": -3,
+                "y": 3
+              },
+              {
+                "piece": "Triangle Hat",
+                "type": "spy",
+                "ownerSign": 1,
+                "x": -2,
+                "y": 0
+              },
+              {
+                "piece": "Triangle Hat",
+                "type": "spy",
+                "ownerSign": 1,
+                "x": -1,
+                "y": 3
+              },
+              {
+                "piece": "Triangle Hat",
+                "type": "spy",
+                "ownerSign": 1,
+                "x": -1,
+                "y": 0
+              },
+              {
+                "piece": "Round Hat",
+                "type": "pawn",
+                "ownerSign": -1,
+                "x": -3,
+                "y": 0
+              },
+              {
+                "piece": "Triangle Hat",
+                "type": "spy",
+                "ownerSign": 1,
+                "x": 3,
+                "y": 3
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "targetPiece": "Triangle Hat",
+      "targetType": "spy",
+      "targetScale": 1,
+      "bestByPieceCount": [
+        {
+          "pieceCount": 1,
+          "metrics": {
+            "cosine": 0.7305,
+            "scaledError": 0.6829,
+            "rawError": 0.691,
+            "signAgreement": 0.9583,
+            "magnitudeRatio": 0.6253,
+            "optimalScaleAlpha": 1.1683,
+            "score": 0.6742
+          },
+          "config": [
+            {
+              "piece": "Round Hat",
+              "type": "pawn",
+              "ownerSign": 1,
+              "x": 0,
+              "y": -2
+            }
+          ],
+          "diagram": " .  .  R  .  .\n .  .  .  .  .\n .  .  *  .  .\n .  .  .  .  .\n .  .  .  .  ."
+        },
+        {
+          "pieceCount": 2,
+          "metrics": {
+            "cosine": 0.8683,
+            "scaledError": 0.4961,
+            "rawError": 0.5291,
+            "signAgreement": 1,
+            "magnitudeRatio": 1.0522,
+            "optimalScaleAlpha": 0.8252,
+            "score": 0.8622
+          },
+          "config": [
+            {
+              "piece": "Round Hat",
+              "type": "pawn",
+              "ownerSign": 1,
+              "x": 0,
+              "y": -2
+            },
+            {
+              "piece": "Round Hat",
+              "type": "pawn",
+              "ownerSign": 1,
+              "x": 0,
+              "y": 2
+            }
+          ],
+          "diagram": " .  .  R  .  .\n .  .  .  .  .\n .  .  *  .  .\n .  .  .  .  .\n .  .  R  .  ."
+        },
+        {
+          "pieceCount": 3,
+          "metrics": {
+            "cosine": 0.857,
+            "scaledError": 0.5153,
+            "rawError": 0.5429,
+            "signAgreement": 1,
+            "magnitudeRatio": 1.0282,
+            "optimalScaleAlpha": 0.8336,
+            "score": 0.8537
+          },
+          "config": [
+            {
+              "piece": "Round Hat",
+              "type": "pawn",
+              "ownerSign": 1,
+              "x": 0,
+              "y": -2
+            },
+            {
+              "piece": "Round Hat",
+              "type": "pawn",
+              "ownerSign": 1,
+              "x": -3,
+              "y": 3
+            },
+            {
+              "piece": "Round Hat",
+              "type": "pawn",
+              "ownerSign": 1,
+              "x": 3,
+              "y": 3
+            }
+          ],
+          "diagram": " .  .  .  .  .  .  .\n .  .  .  R  .  .  .\n .  .  .  .  .  .  .\n .  .  .  *  .  .  .\n .  .  .  .  .  .  .\n .  .  .  .  .  .  .\n R  .  .  .  .  .  R"
+        },
+        {
+          "pieceCount": 4,
+          "metrics": {
+            "cosine": 0.8937,
+            "scaledError": 0.4488,
+            "rawError": 0.5964,
+            "signAgreement": 1,
+            "magnitudeRatio": 1.2865,
+            "optimalScaleAlpha": 0.6946,
+            "score": 0.8634
+          },
+          "config": [
+            {
+              "piece": "Round Hat",
+              "type": "pawn",
+              "ownerSign": 1,
+              "x": 0,
+              "y": -2
+            },
+            {
+              "piece": "Round Hat",
+              "type": "pawn",
+              "ownerSign": 1,
+              "x": 0,
+              "y": 2
+            },
+            {
+              "piece": "Round Hat",
+              "type": "pawn",
+              "ownerSign": 1,
+              "x": -1,
+              "y": -3
+            },
+            {
+              "piece": "Round Hat",
+              "type": "pawn",
+              "ownerSign": 1,
+              "x": 0,
+              "y": -3
+            }
+          ],
+          "diagram": " .  .  R  R  .  .  .\n .  .  .  R  .  .  .\n .  .  .  .  .  .  .\n .  .  .  *  .  .  .\n .  .  .  .  .  .  .\n .  .  .  R  .  .  .\n .  .  .  .  .  .  ."
+        },
+        {
+          "pieceCount": 5,
+          "metrics": {
+            "cosine": 0.919,
+            "scaledError": 0.3942,
+            "rawError": 0.7871,
+            "signAgreement": 1,
+            "magnitudeRatio": 1.6003,
+            "optimalScaleAlpha": 0.5743,
+            "score": 0.8626
+          },
+          "config": [
+            {
+              "piece": "Round Hat",
+              "type": "pawn",
+              "ownerSign": 1,
+              "x": 0,
+              "y": -2
+            },
+            {
+              "piece": "Round Hat",
+              "type": "pawn",
+              "ownerSign": 1,
+              "x": 0,
+              "y": 2
+            },
+            {
+              "piece": "Round Hat",
+              "type": "pawn",
+              "ownerSign": 1,
+              "x": -1,
+              "y": -3
+            },
+            {
+              "piece": "Round Hat",
+              "type": "pawn",
+              "ownerSign": 1,
+              "x": -3,
+              "y": 0
+            },
+            {
+              "piece": "Round Hat",
+              "type": "pawn",
+              "ownerSign": 1,
+              "x": -1,
+              "y": 3
+            }
+          ],
+          "diagram": " .  .  R  .  .  .  .\n .  .  .  R  .  .  .\n .  .  .  .  .  .  .\n R  .  .  *  .  .  .\n .  .  .  .  .  .  .\n .  .  .  R  .  .  .\n .  .  R  .  .  .  ."
+        },
+        {
+          "pieceCount": 6,
+          "metrics": {
+            "cosine": 0.9078,
+            "scaledError": 0.4195,
+            "rawError": 0.6364,
+            "signAgreement": 1,
+            "magnitudeRatio": 1.3864,
+            "optimalScaleAlpha": 0.6548,
+            "score": 0.8686
+          },
+          "config": [
+            {
+              "piece": "Round Hat",
+              "type": "pawn",
+              "ownerSign": 1,
+              "x": 0,
+              "y": -2
+            },
+            {
+              "piece": "Round Hat",
+              "type": "pawn",
+              "ownerSign": 1,
+              "x": 0,
+              "y": 2
+            },
+            {
+              "piece": "Round Hat",
+              "type": "pawn",
+              "ownerSign": 1,
+              "x": -1,
+              "y": -3
+            },
+            {
+              "piece": "Round Hat",
+              "type": "pawn",
+              "ownerSign": 1,
+              "x": 0,
+              "y": -3
+            },
+            {
+              "piece": "Round Hat",
+              "type": "pawn",
+              "ownerSign": 1,
+              "x": -1,
+              "y": 3
+            },
+            {
+              "piece": "Round Hat",
+              "type": "pawn",
+              "ownerSign": -1,
+              "x": -3,
+              "y": 3
+            }
+          ],
+          "diagram": " .  .  R  R  .  .  .\n .  .  .  R  .  .  .\n .  .  .  .  .  .  .\n .  .  .  *  .  .  .\n .  .  .  .  .  .  .\n .  .  .  R  .  .  .\n-R  .  R  .  .  .  ."
+        }
+      ],
+      "randomBaseline": [
+        {
+          "pieceCount": 2,
+          "cosineP50": -0.001,
+          "cosineP90": 0.4602,
+          "cosineP99": 0.6748,
+          "accidentalRateCosineAtLeast90": 0,
+          "accidentalRateCosineAtLeast95": 0,
+          "bestRandom": {
+            "metrics": {
+              "cosine": 0.8203,
+              "scaledError": 0.572,
+              "rawError": 0.6429,
+              "signAgreement": 1,
+              "magnitudeRatio": 1.1138,
+              "optimalScaleAlpha": 0.7365,
+              "score": 0.8073
+            },
+            "config": [
+              {
+                "piece": "Round Hat",
+                "type": "pawn",
+                "ownerSign": 1,
+                "x": -2,
+                "y": 0
+              },
+              {
+                "piece": "Round Hat",
+                "type": "pawn",
+                "ownerSign": 1,
+                "x": 0,
+                "y": -2
+              }
+            ]
+          }
+        },
+        {
+          "pieceCount": 3,
+          "cosineP50": 0.0079,
+          "cosineP90": 0.4534,
+          "cosineP99": 0.6439,
+          "accidentalRateCosineAtLeast90": 0,
+          "accidentalRateCosineAtLeast95": 0,
+          "bestRandom": {
+            "metrics": {
+              "cosine": 0.7498,
+              "scaledError": 0.6616,
+              "rawError": 0.726,
+              "signAgreement": 1,
+              "magnitudeRatio": 1.0486,
+              "optimalScaleAlpha": 0.7151,
+              "score": 0.7441
+            },
+            "config": [
+              {
+                "piece": "Round Hat",
+                "type": "pawn",
+                "ownerSign": 1,
+                "x": -1,
+                "y": -1
+              },
+              {
+                "piece": "Round Hat",
+                "type": "pawn",
+                "ownerSign": 1,
+                "x": -1,
+                "y": -2
+              },
+              {
+                "piece": "Round Hat",
+                "type": "pawn",
+                "ownerSign": 1,
+                "x": -2,
+                "y": 0
+              }
+            ]
+          }
+        },
+        {
+          "pieceCount": 4,
+          "cosineP50": 0.008,
+          "cosineP90": 0.4515,
+          "cosineP99": 0.639,
+          "accidentalRateCosineAtLeast90": 0,
+          "accidentalRateCosineAtLeast95": 0,
+          "bestRandom": {
+            "metrics": {
+              "cosine": 0.7548,
+              "scaledError": 0.656,
+              "rawError": 0.9431,
+              "signAgreement": 0.9167,
+              "magnitudeRatio": 1.4323,
+              "optimalScaleAlpha": 0.527,
+              "score": 0.7116
+            },
+            "config": [
+              {
+                "piece": "Round Hat",
+                "type": "pawn",
+                "ownerSign": -1,
+                "x": -3,
+                "y": -3
+              },
+              {
+                "piece": "Round Hat",
+                "type": "pawn",
+                "ownerSign": 1,
+                "x": -1,
+                "y": 3
+              },
+              {
+                "piece": "Round Hat",
+                "type": "pawn",
+                "ownerSign": 1,
+                "x": 1,
+                "y": -1
+              },
+              {
+                "piece": "Tower",
+                "type": "rook",
+                "ownerSign": 1,
+                "x": 0,
+                "y": -2
+              }
+            ]
+          }
+        },
+        {
+          "pieceCount": 5,
+          "cosineP50": 0.0172,
+          "cosineP90": 0.4586,
+          "cosineP99": 0.6522,
+          "accidentalRateCosineAtLeast90": 0,
+          "accidentalRateCosineAtLeast95": 0,
+          "bestRandom": {
+            "metrics": {
+              "cosine": 0.7626,
+              "scaledError": 0.6469,
+              "rawError": 0.8676,
+              "signAgreement": 1,
+              "magnitudeRatio": 1.3407,
+              "optimalScaleAlpha": 0.5688,
+              "score": 0.7274
+            },
+            "config": [
+              {
+                "piece": "Round Hat",
+                "type": "pawn",
+                "ownerSign": 1,
+                "x": 1,
+                "y": -2
+              },
+              {
+                "piece": "Round Hat",
+                "type": "pawn",
+                "ownerSign": 1,
+                "x": 1,
+                "y": 1
+              },
+              {
+                "piece": "Round Hat",
+                "type": "pawn",
+                "ownerSign": 1,
+                "x": 2,
+                "y": 0
+              },
+              {
+                "piece": "Round Hat",
+                "type": "pawn",
+                "ownerSign": 1,
+                "x": -1,
+                "y": -3
+              },
+              {
+                "piece": "Round Hat",
+                "type": "pawn",
+                "ownerSign": 1,
+                "x": 0,
+                "y": 3
+              }
+            ]
+          }
+        },
+        {
+          "pieceCount": 6,
+          "cosineP50": 0.0027,
+          "cosineP90": 0.4267,
+          "cosineP99": 0.6452,
+          "accidentalRateCosineAtLeast90": 0,
+          "accidentalRateCosineAtLeast95": 0,
+          "bestRandom": {
+            "metrics": {
+              "cosine": 0.7559,
+              "scaledError": 0.6547,
+              "rawError": 1.7098,
+              "signAgreement": 0.9583,
+              "magnitudeRatio": 2.3354,
+              "optimalScaleAlpha": 0.3237,
+              "score": 0.6541
+            },
+            "config": [
+              {
+                "piece": "Round Hat",
+                "type": "pawn",
+                "ownerSign": 1,
+                "x": -3,
+                "y": 1
+              },
+              {
+                "piece": "Tower",
+                "type": "rook",
+                "ownerSign": 1,
+                "x": 3,
+                "y": -1
+              },
+              {
+                "piece": "Tower",
+                "type": "rook",
+                "ownerSign": 1,
+                "x": -2,
+                "y": 2
+              },
+              {
+                "piece": "Tower",
+                "type": "rook",
+                "ownerSign": -1,
+                "x": -3,
+                "y": -2
+              },
+              {
+                "piece": "Round Hat",
+                "type": "pawn",
+                "ownerSign": 1,
+                "x": 1,
+                "y": 1
+              },
+              {
+                "piece": "Round Hat",
+                "type": "pawn",
+                "ownerSign": 1,
+                "x": -1,
+                "y": -1
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "targetPiece": "Big Hat",
+      "targetType": "king",
+      "targetScale": 1,
+      "bestByPieceCount": [
+        {
+          "pieceCount": 1,
+          "metrics": {
+            "cosine": 0.5488,
+            "scaledError": 0.8359,
+            "rawError": 0.8461,
+            "signAgreement": 0.5,
+            "magnitudeRatio": 0.4182,
+            "optimalScaleAlpha": 1.3125,
+            "score": 0.4442
+          },
+          "config": [
+            {
+              "piece": "Triangle Hat",
+              "type": "spy",
+              "ownerSign": 1,
+              "x": -1,
+              "y": -1
+            }
+          ],
+          "diagram": " T  .  .\n .  *  .\n .  .  ."
+        },
+        {
+          "pieceCount": 2,
+          "metrics": {
+            "cosine": 0.6253,
+            "scaledError": 0.7804,
+            "rawError": 0.788,
+            "signAgreement": 0.5,
+            "magnitudeRatio": 0.7341,
+            "optimalScaleAlpha": 0.8518,
+            "score": 0.5882
+          },
+          "config": [
+            {
+              "piece": "Triangle Hat",
+              "type": "spy",
+              "ownerSign": 1,
+              "x": -1,
+              "y": -1
+            },
+            {
+              "piece": "Triangle Hat",
+              "type": "spy",
+              "ownerSign": 1,
+              "x": 1,
+              "y": 1
+            }
+          ],
+          "diagram": " T  .  .\n .  *  .\n .  .  T"
+        },
+        {
+          "pieceCount": 3,
+          "metrics": {
+            "cosine": 0.7249,
+            "scaledError": 0.6889,
+            "rawError": 0.7032,
+            "signAgreement": 0.9583,
+            "magnitudeRatio": 0.8659,
+            "optimalScaleAlpha": 0.8371,
+            "score": 0.7076
+          },
+          "config": [
+            {
+              "piece": "Triangle Hat",
+              "type": "spy",
+              "ownerSign": 1,
+              "x": -1,
+              "y": -1
+            },
+            {
+              "piece": "Triangle Hat",
+              "type": "spy",
+              "ownerSign": 1,
+              "x": 1,
+              "y": 1
+            },
+            {
+              "piece": "Triangle Hat",
+              "type": "spy",
+              "ownerSign": 1,
+              "x": 0,
+              "y": -1
+            }
+          ],
+          "diagram": " T  T  .\n .  *  .\n .  .  T"
+        },
+        {
+          "pieceCount": 4,
+          "metrics": {
+            "cosine": 0.7862,
+            "scaledError": 0.618,
+            "rawError": 0.6288,
+            "signAgreement": 0.8958,
+            "magnitudeRatio": 0.9024,
+            "optimalScaleAlpha": 0.8712,
+            "score": 0.7739
+          },
+          "config": [
+            {
+              "piece": "Tower",
+              "type": "rook",
+              "ownerSign": 1,
+              "x": 3,
+              "y": 1
+            },
+            {
+              "piece": "Tower",
+              "type": "rook",
+              "ownerSign": 1,
+              "x": -3,
+              "y": 1
+            },
+            {
+              "piece": "Tower",
+              "type": "rook",
+              "ownerSign": 1,
+              "x": 0,
+              "y": 1
+            },
+            {
+              "piece": "Triangle Hat",
+              "type": "spy",
+              "ownerSign": 1,
+              "x": -1,
+              "y": -1
+            }
+          ],
+          "diagram": " .  .  .  .  .  .  .\n .  .  .  .  .  .  .\n .  .  T  .  .  .  .\n .  .  .  *  .  .  .\n T  .  .  T  .  .  T\n .  .  .  .  .  .  .\n .  .  .  .  .  .  ."
+        },
+        {
+          "pieceCount": 5,
+          "metrics": {
+            "cosine": 0.8141,
+            "scaledError": 0.5807,
+            "rawError": 0.6109,
+            "signAgreement": 0.875,
+            "magnitudeRatio": 1.0041,
+            "optimalScaleAlpha": 0.8108,
+            "score": 0.8137
+          },
+          "config": [
+            {
+              "piece": "Triangle Hat",
+              "type": "spy",
+              "ownerSign": 1,
+              "x": 1,
+              "y": -1
+            },
+            {
+              "piece": "Tower",
+              "type": "rook",
+              "ownerSign": 1,
+              "x": -3,
+              "y": 1
+            },
+            {
+              "piece": "Tower",
+              "type": "rook",
+              "ownerSign": 1,
+              "x": -3,
+              "y": -2
+            },
+            {
+              "piece": "Triangle Hat",
+              "type": "spy",
+              "ownerSign": 1,
+              "x": 3,
+              "y": 0
+            },
+            {
+              "piece": "Triangle Hat",
+              "type": "spy",
+              "ownerSign": 1,
+              "x": 3,
+              "y": 1
+            }
+          ],
+          "diagram": " .  .  .  .  .  .  .\n T  .  .  .  .  .  .\n .  .  .  .  T  .  .\n .  .  .  *  .  .  T\n T  .  .  .  .  .  T\n .  .  .  .  .  .  .\n .  .  .  .  .  .  ."
+        },
+        {
+          "pieceCount": 6,
+          "metrics": {
+            "cosine": 0.8269,
+            "scaledError": 0.5623,
+            "rawError": 0.5815,
+            "signAgreement": 0.9375,
+            "magnitudeRatio": 0.9751,
+            "optimalScaleAlpha": 0.848,
+            "score": 0.8239
+          },
+          "config": [
+            {
+              "piece": "Tower",
+              "type": "rook",
+              "ownerSign": 1,
+              "x": 3,
+              "y": 1
+            },
+            {
+              "piece": "Tower",
+              "type": "rook",
+              "ownerSign": 1,
+              "x": -3,
+              "y": 1
+            },
+            {
+              "piece": "Tower",
+              "type": "rook",
+              "ownerSign": 1,
+              "x": 0,
+              "y": 1
+            },
+            {
+              "piece": "Triangle Hat",
+              "type": "spy",
+              "ownerSign": 1,
+              "x": 1,
+              "y": -1
+            },
+            {
+              "piece": "Tower",
+              "type": "rook",
+              "ownerSign": 1,
+              "x": -3,
+              "y": -2
+            },
+            {
+              "piece": "Round Hat",
+              "type": "pawn",
+              "ownerSign": -1,
+              "x": -2,
+              "y": 1
+            }
+          ],
+          "diagram": " .  .  .  .  .  .  .\n T  .  .  .  .  .  .\n .  .  .  .  T  .  .\n .  .  .  *  .  .  .\n T -R  .  T  .  .  T\n .  .  .  .  .  .  .\n .  .  .  .  .  .  ."
+        }
+      ],
+      "randomBaseline": [
+        {
+          "pieceCount": 2,
+          "cosineP50": -0.0047,
+          "cosineP90": 0.4509,
+          "cosineP99": 0.5752,
+          "accidentalRateCosineAtLeast90": 0,
+          "accidentalRateCosineAtLeast95": 0,
+          "bestRandom": {
+            "metrics": {
+              "cosine": 0.637,
+              "scaledError": 0.7708,
+              "rawError": 0.7725,
+              "signAgreement": 0.7292,
+              "magnitudeRatio": 0.5866,
+              "optimalScaleAlpha": 1.086,
+              "score": 0.573
+            },
+            "config": [
+              {
+                "piece": "Triangle Hat",
+                "type": "spy",
+                "ownerSign": 1,
+                "x": 1,
+                "y": -1
+              },
+              {
+                "piece": "Tower",
+                "type": "rook",
+                "ownerSign": 1,
+                "x": -3,
+                "y": 0
+              }
+            ]
+          }
+        },
+        {
+          "pieceCount": 3,
+          "cosineP50": 0.0144,
+          "cosineP90": 0.4267,
+          "cosineP99": 0.5936,
+          "accidentalRateCosineAtLeast90": 0,
+          "accidentalRateCosineAtLeast95": 0,
+          "bestRandom": {
+            "metrics": {
+              "cosine": 0.6982,
+              "scaledError": 0.7159,
+              "rawError": 0.7159,
+              "signAgreement": 0.9583,
+              "magnitudeRatio": 0.6998,
+              "optimalScaleAlpha": 0.9978,
+              "score": 0.6554
+            },
+            "config": [
+              {
+                "piece": "Triangle Hat",
+                "type": "spy",
+                "ownerSign": 1,
+                "x": -1,
+                "y": -1
+              },
+              {
+                "piece": "Triangle Hat",
+                "type": "spy",
+                "ownerSign": 1,
+                "x": 0,
+                "y": 1
+              },
+              {
+                "piece": "Round Hat",
+                "type": "pawn",
+                "ownerSign": 1,
+                "x": 3,
+                "y": 1
+              }
+            ]
+          }
+        },
+        {
+          "pieceCount": 4,
+          "cosineP50": 0.0106,
+          "cosineP90": 0.4193,
+          "cosineP99": 0.5982,
+          "accidentalRateCosineAtLeast90": 0,
+          "accidentalRateCosineAtLeast95": 0,
+          "bestRandom": {
+            "metrics": {
+              "cosine": 0.7172,
+              "scaledError": 0.6968,
+              "rawError": 0.6992,
+              "signAgreement": 0.8958,
+              "magnitudeRatio": 0.775,
+              "optimalScaleAlpha": 0.9255,
+              "score": 0.6866
+            },
+            "config": [
+              {
+                "piece": "Round Hat",
+                "type": "pawn",
+                "ownerSign": 1,
+                "x": 1,
+                "y": -1
+              },
+              {
+                "piece": "Triangle Hat",
+                "type": "spy",
+                "ownerSign": 1,
+                "x": 3,
+                "y": -2
+              },
+              {
+                "piece": "Triangle Hat",
+                "type": "spy",
+                "ownerSign": 1,
+                "x": -3,
+                "y": 1
+              },
+              {
+                "piece": "Tower",
+                "type": "rook",
+                "ownerSign": 1,
+                "x": 3,
+                "y": 1
+              }
+            ]
+          }
+        },
+        {
+          "pieceCount": 5,
+          "cosineP50": -0.0142,
+          "cosineP90": 0.4256,
+          "cosineP99": 0.5943,
+          "accidentalRateCosineAtLeast90": 0,
+          "accidentalRateCosineAtLeast95": 0,
+          "bestRandom": {
+            "metrics": {
+              "cosine": 0.7236,
+              "scaledError": 0.6902,
+              "rawError": 0.7771,
+              "signAgreement": 0.8333,
+              "magnitudeRatio": 1.0805,
+              "optimalScaleAlpha": 0.6697,
+              "score": 0.7143
+            },
+            "config": [
+              {
+                "piece": "Tower",
+                "type": "rook",
+                "ownerSign": 1,
+                "x": -3,
+                "y": 0
+              },
+              {
+                "piece": "Tower",
+                "type": "rook",
+                "ownerSign": 1,
+                "x": 2,
+                "y": 0
+              },
+              {
+                "piece": "Round Hat",
+                "type": "pawn",
+                "ownerSign": 1,
+                "x": 3,
+                "y": 2
+              },
+              {
+                "piece": "Tower",
+                "type": "rook",
+                "ownerSign": 1,
+                "x": -3,
+                "y": -1
+              },
+              {
+                "piece": "Triangle Hat",
+                "type": "spy",
+                "ownerSign": 1,
+                "x": 1,
+                "y": -1
+              }
+            ]
+          }
+        },
+        {
+          "pieceCount": 6,
+          "cosineP50": 0.0095,
+          "cosineP90": 0.4309,
+          "cosineP99": 0.6072,
+          "accidentalRateCosineAtLeast90": 0,
+          "accidentalRateCosineAtLeast95": 0,
+          "bestRandom": {
+            "metrics": {
+              "cosine": 0.7033,
+              "scaledError": 0.7109,
+              "rawError": 0.8294,
+              "signAgreement": 0.8958,
+              "magnitudeRatio": 1.1304,
+              "optimalScaleAlpha": 0.6221,
+              "score": 0.6886
+            },
+            "config": [
+              {
+                "piece": "Tower",
+                "type": "rook",
+                "ownerSign": 1,
+                "x": -3,
+                "y": 1
+              },
+              {
+                "piece": "Triangle Hat",
+                "type": "spy",
+                "ownerSign": 1,
+                "x": 1,
+                "y": -3
+              },
+              {
+                "piece": "Round Hat",
+                "type": "pawn",
+                "ownerSign": -1,
+                "x": 2,
+                "y": -3
+              },
+              {
+                "piece": "Tower",
+                "type": "rook",
+                "ownerSign": 1,
+                "x": -3,
+                "y": -2
+              },
+              {
+                "piece": "Triangle Hat",
+                "type": "spy",
+                "ownerSign": 1,
+                "x": 0,
+                "y": -1
+              },
+              {
+                "piece": "Tower",
+                "type": "rook",
+                "ownerSign": 1,
+                "x": -2,
+                "y": 0
+              }
+            ]
+          }
+        }
+      ]
+    }
+  ],
+  "scaleII": []
+}
