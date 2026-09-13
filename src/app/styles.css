@@ -1972,6 +1972,227 @@ select, .editor-bar button, .secondary, .import-button {
   margin: 0;
 }
 
+.wavefielder-page {
+  min-height: 100vh;
+  padding: 22px 24px 28px;
+  background: #101313;
+  color: var(--text);
+}
+
+.wavefielder-header {
+  max-width: 1440px;
+  margin: 0 auto 18px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(280px, 520px);
+  gap: 18px;
+  align-items: end;
+}
+
+.wavefielder-header .eyebrow {
+  margin: 0 0 4px;
+  color: var(--muted);
+  font-size: 0.82rem;
+  text-transform: uppercase;
+}
+
+.wavefielder-header p {
+  margin: 0;
+  color: var(--muted);
+  line-height: 1.45;
+}
+
+.wavefielder-layout {
+  max-width: 1440px;
+  margin: 0 auto;
+  display: grid;
+  grid-template-columns: minmax(620px, 1fr) minmax(300px, 380px);
+  gap: 18px;
+  align-items: start;
+}
+
+.wavefielder-board-panel,
+.wavefielder-panel {
+  border: 1px solid var(--line);
+  background: #171919;
+}
+
+.wavefielder-board-panel {
+  padding: 12px;
+}
+
+.wavefielder-board-meta {
+  min-height: 30px;
+  margin-bottom: 10px;
+  display: flex;
+  justify-content: space-between;
+  gap: 14px;
+  color: var(--muted);
+  font-size: 0.82rem;
+}
+
+.wavefielder-board-meta strong {
+  color: var(--text);
+  font-size: 1rem;
+}
+
+.wavefielder-board {
+  width: min(100%, calc(100vh - 150px));
+  min-width: 600px;
+  aspect-ratio: 1;
+  margin: 0 auto;
+  display: grid;
+  grid-template-columns: repeat(var(--wavefielder-board-size), minmax(0, 1fr));
+  grid-template-rows: repeat(var(--wavefielder-board-size), minmax(0, 1fr));
+  border: 1px solid #080909;
+  background: #b8b5ad;
+}
+
+.wavefielder-cell {
+  position: relative;
+  min-width: 0;
+  min-height: 0;
+  border-right: 1px solid rgba(9, 11, 11, 0.08);
+  border-bottom: 1px solid rgba(9, 11, 11, 0.08);
+}
+
+.wavefielder-cell.footprint {
+  box-shadow: inset 0 0 0 2px rgba(255, 216, 77, 0.82);
+}
+
+.wavefielder-cell.anchor::after {
+  content: "";
+  position: absolute;
+  inset: 18%;
+  z-index: 3;
+  border: 2px solid #fff7c6;
+  box-shadow: 0 0 0 1px rgba(9, 11, 11, 0.75), 0 0 8px rgba(255, 216, 77, 0.7);
+  pointer-events: none;
+}
+
+.wavefielder-cell b {
+  position: absolute;
+  inset: 0;
+  z-index: 4;
+  display: grid;
+  place-items: center;
+  color: #fff7c6;
+  font-size: 0.64rem;
+  line-height: 1;
+  text-shadow: 0 1px 1px #090b0b;
+}
+
+.wavefielder-piece {
+  position: absolute;
+  inset: 8%;
+  z-index: 5;
+  display: grid;
+  place-items: center;
+  border: 1px solid rgba(9, 11, 11, 0.55);
+  background: rgba(238, 234, 225, 0.92);
+  color: #090b0b;
+  font-size: clamp(0.42rem, 0.75vw, 0.68rem);
+  font-style: normal;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.wavefielder-piece.pawn { border-radius: 999px 999px 1px 1px; }
+.wavefielder-piece.rook { border-radius: 1px; }
+.wavefielder-piece.spy {
+  clip-path: polygon(50% 7%, 96% 92%, 4% 92%);
+  padding-top: 18%;
+}
+.wavefielder-piece.king {
+  border-radius: 999px 999px 1px 1px;
+  box-shadow: inset 0 -4px 0 rgba(9, 11, 11, 0.35);
+}
+
+.wavefielder-panel {
+  padding: 12px;
+  display: grid;
+  gap: 12px;
+}
+
+.wavefielder-pattern-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 7px;
+}
+
+.wavefielder-pattern-grid button {
+  min-height: 64px;
+  padding: 8px;
+  display: grid;
+  gap: 5px;
+  align-content: center;
+  text-align: left;
+}
+
+.wavefielder-pattern-grid button.active {
+  border-color: var(--text);
+  background: #242828;
+}
+
+.wavefielder-pattern-grid span {
+  min-width: 0;
+  color: var(--muted);
+  font-size: 0.74rem;
+}
+
+.wavefielder-metrics {
+  margin: 0;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 7px;
+}
+
+.wavefielder-metrics div,
+.wavefielder-assessment {
+  border: 1px solid var(--line);
+  background: #111414;
+  padding: 9px;
+}
+
+.wavefielder-metrics dt {
+  color: var(--muted);
+  font-size: 0.72rem;
+}
+
+.wavefielder-metrics dd {
+  margin: 2px 0 0;
+  font-size: 1.08rem;
+}
+
+.wavefielder-panel p {
+  margin: 0;
+  color: var(--muted);
+  line-height: 1.45;
+}
+
+.wavefielder-assessment {
+  display: grid;
+  gap: 7px;
+}
+
+.wavefielder-assessment p,
+.wavefielder-assessment small {
+  margin: 0;
+  color: var(--muted);
+  line-height: 1.45;
+}
+
+@media (max-width: 900px) {
+  .wavefielder-page { padding: 16px 10px; }
+  .wavefielder-header,
+  .wavefielder-layout {
+    grid-template-columns: 1fr;
+  }
+  .wavefielder-board {
+    width: 100%;
+    min-width: 0;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .loss-pop::before,
   .loss-pop i {
