@@ -33,9 +33,9 @@ one piece ends the turn and relocates that piece's wave origin, so a local move
 can change territory far away.
 
 The `+` and `-` controls flip the polarity of a piece type's canonical wave
-pattern. Each piece type starts with one pattern: Round Hats use a checkerboard,
-Towers use a paired push/pull cadence, Triangle Hats use a compass rose, and
-Big Hats use a block checker. Tuning is
+pattern. Triangle Hats use only the Diamond core pattern in its two opposite
+phases. Round Hats use a checkerboard, Towers combine two patterns, and
+Big Hats combine two patterns. Tuning is
 shared by type, so both of your Towers use the same Tower profile.
 
 ## The Field
@@ -86,16 +86,15 @@ first.
 | Piece | Wave components | Energy | Active | Home | Default (Red / Blue) | Movement |
 |---|---:|---:|---:|---:|---|---|
 | Round Hat | 1 | 1 | 1 | 0 | `+` / `-` | Any distance in one direction |
-| Tower | 1 | 2 | 1 | 0 | `+` / `-` | Any distance in one direction |
+| Tower | 2 | 2 | 2 | 0 | Two reversible signs | Any distance in one direction |
 | Triangle Hat | 1 | 2 | 1 | 0.5 | `+` / `-` | Any distance in one direction, ignoring territory |
-| Big Hat | 1 | 2 | 1 | 0 | `+` / `-` | Any distance in one direction |
+| Big Hat | 2 | 2 | 2 | 0 | Two reversible signs | Any distance in one direction |
 
 A direction may be horizontal, vertical, or diagonal, giving eight possible
 rays. Despite their familiar names, pieces do not use chess movement.
 
-Developer mode can expand a piece type back toward the older multi-pattern
-debug space. In the normal ruleset, every piece type uses exactly one reversible
-pattern.
+Developer mode can inspect the two patterns on Towers and Big Hats. Triangle Hat
+has one reversible pattern in every mode.
 
 ## Turn
 

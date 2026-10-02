@@ -5,14 +5,14 @@ import type { BasisDefinition, FormulaPreset } from "../game/types";
 export const DEFAULT_COMPONENTS: PlayerComponents = {
   pawn: [1],
   rook: [1, 1],
-  spy: [1, 0],
+  spy: [1],
   king: [1, 1],
 };
 
 export const TRAINING_COMPONENTS: PlayerComponents = {
   pawn: [1],
   rook: [1, 1],
-  spy: [1, 0],
+  spy: [1],
   king: [1, 1],
 };
 
@@ -49,7 +49,6 @@ export const DEBUG_DEFINITIONS: ComponentDefinitions = {
     { kind: "ring", name: "Pull gap push", geometry: "chebyshev", ringValues: [0, 1, 0, -1], repeat: true, decayBase: 2, originScale: 1 },
   ],
   spy: [
-    { kind: "preset", name: "Round Hat mask", preset: "checkerboard", decayBase: 2, originScale: 1 },
     { kind: "preset", name: "Diamond core", preset: "diamond-core", decayBase: 2, originScale: 1 },
   ],
   king: [

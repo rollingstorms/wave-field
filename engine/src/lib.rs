@@ -8,6 +8,7 @@ mod hint_search;
 mod model;
 mod rollout_session;
 mod rules;
+mod triangle_policy;
 
 #[cfg(feature = "wasm")]
 mod wasm;

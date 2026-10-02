@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { createInitialState } from "../game/initialState";
 import { canSetComponentValue, getTuningLoad, isTuningAtStrength, isTuningWithinStrength } from "../game/tuning";
 import { coefficientLabel } from "../components/ComponentControls";
-import { randomizeTuning, resetTuning } from "../game/rules";
+import { applyTuning, randomizeTuning, resetTuning } from "../game/rules";
 
 describe("component strength budget", () => {
   it("starts both players with the current default component set", () => {
@@ -10,9 +10,19 @@ describe("component strength budget", () => {
 
     expect(state.components.blue.pawn).toEqual([1]);
     expect(state.components.blue.rook).toEqual([1, 1]);
-    expect(state.components.blue.spy).toEqual([1, 0]);
+    expect(state.components.blue.spy).toEqual([1]);
     expect(state.components.blue.king).toEqual([1, 1]);
     expect(state.components.red).toEqual(state.components.blue);
+  });
+
+  it("offers only the two Diamond core phases for Triangle Hat", () => {
+    const state = createInitialState();
+    expect(state.definitions.spy).toHaveLength(1);
+    expect(state.definitions.spy[0].name).toBe("Diamond core");
+    const reversed = applyTuning("blue", "spy", 0, -1, state);
+    expect(reversed.ok).toBe(true);
+    expect(reversed.state.components.blue.spy).toEqual([-1]);
+    expect(applyTuning("blue", "spy", 1, 1, state).ok).toBe(false);
   });
 
   it("counts positive and negative coefficients as active", () => {
@@ -22,14 +32,13 @@ describe("component strength budget", () => {
   it("limits the combined number of positive and negative components", () => {
     expect(isTuningWithinStrength("king", [1, -1])).toBe(true);
     expect(isTuningWithinStrength("king", [1, 1])).toBe(true);
-    expect(isTuningWithinStrength("spy", [1, 0])).toBe(true);
-    expect(isTuningWithinStrength("spy", [1, 1])).toBe(false);
+    expect(isTuningWithinStrength("spy", [1])).toBe(true);
   });
 
   it("recognizes exact full-strength tuning", () => {
     expect(isTuningAtStrength("king", [1, -1])).toBe(true);
     expect(isTuningAtStrength("king", [1, 0])).toBe(false);
-    expect(isTuningAtStrength("spy", [1, 0])).toBe(true);
+    expect(isTuningAtStrength("spy", [1])).toBe(true);
   });
 
   it("allows flipping an active component while at full strength", () => {

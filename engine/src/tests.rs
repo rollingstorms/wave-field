@@ -226,6 +226,7 @@ fn easy_ai_turn_moves_from_initial_state() {
 #[test]
 fn easy_ai_prefers_safe_generosity_over_self_instability() {
     let mut state = fixture();
+    triangle_policy::normalize(&mut state).unwrap();
     state.current_player = Player::Red;
     state.pieces = vec![
         Piece {
@@ -267,13 +268,13 @@ fn easy_ai_prefers_safe_generosity_over_self_instability() {
     state.components.red = PlayerComponents {
         pawn: vec![0],
         rook: vec![1, 0],
-        spy: vec![1, 0],
+        spy: vec![1],
         king: vec![1, 0],
     };
     state.components.blue = PlayerComponents {
         pawn: vec![-1],
         rook: vec![0, 0],
-        spy: vec![0, 0],
+        spy: vec![0],
         king: vec![0, 0],
     };
     state.activation_orders.red = PlayerActivationOrder {

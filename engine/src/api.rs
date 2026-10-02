@@ -6,7 +6,10 @@ pub type ApiResult = Result<String, String>;
 const PRODUCT_INITIAL_STATE: &str = include_str!("../tests/product-initial-state.json");
 
 fn parse_state(json: &str) -> Result<GameState, String> {
-    serde_json::from_str(json).map_err(|error| format!("invalid game state JSON: {error}"))
+    let mut state: GameState = serde_json::from_str(json)
+        .map_err(|error| format!("invalid game state JSON: {error}"))?;
+    triangle_policy::normalize(&mut state)?;
+    Ok(state)
 }
 
 fn parse_json<T>(json: &str, label: &str) -> Result<T, String>
@@ -30,6 +33,10 @@ fn json<T: Serialize>(value: &T) -> ApiResult {
 
 pub fn new_game_json() -> ApiResult {
     json(&parse_state(PRODUCT_INITIAL_STATE)?)
+}
+
+pub fn normalize_state_json(state_json: &str) -> ApiResult {
+    json(&parse_state(state_json)?)
 }
 
 pub fn undo_json(state_json: &str) -> ApiResult {

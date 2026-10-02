@@ -24,14 +24,14 @@ describe("mechanics analysis", () => {
   it("enumerates legal full-strength profiles", () => {
     expect(enumerateProfiles("pawn")).toHaveLength(2);
     expect(enumerateProfiles("rook")).toHaveLength(4);
-    expect(enumerateProfiles("spy")).toHaveLength(4);
+    expect(enumerateProfiles("spy")).toEqual([[-1], [1]]);
     expect(enumerateProfiles("king")).toHaveLength(4);
   });
 
   it("measures polarity imbalance created by scales and clipped board geometry", () => {
     const metrics = profilePowerMetrics();
 
-    expect(metrics).toHaveLength(14);
+    expect(metrics).toHaveLength(12);
     expect(metrics.some((metric) => Math.abs(metric.polarityL1Ratio - 1) > 0.01)).toBe(true);
     expect(metrics.some((metric) => Math.abs(metric.polarityNetDelta) > 0.01)).toBe(true);
   });
@@ -42,9 +42,9 @@ describe("mechanics analysis", () => {
     const deadRook = mobility.find((row) =>
       row.pieceType === "rook" && row.profile.every((value) => value === -1));
 
-    expect(patterns).toHaveLength(7);
+    expect(patterns).toHaveLength(6);
     expect(patterns.some((metric) => metric.adjacentPositive + metric.adjacentNegative + metric.adjacentZero > 0)).toBe(true);
-    expect(mobility).toHaveLength(14);
+    expect(mobility).toHaveLength(12);
     expect(deadRook?.averageMoves).toBeGreaterThan(10);
     expect(deadRook?.deadOrigins).toBe(0);
     expect(mobility.find((row) =>
@@ -89,16 +89,16 @@ describe("mechanics analysis", () => {
     const current = evaluateDefaultComponentSet({
       pawn: [1],
       rook: [1, 1],
-      spy: [1, 0],
+      spy: [1],
       king: [1, 1],
     });
     const candidates = searchDefaultComponentSets(3, undefined, [
       current.components,
-      { pawn: [1], rook: [1, -1], spy: [0, -1], king: [-1, 1] },
-      { pawn: [-1], rook: [-1, -1], spy: [-1, 0], king: [-1, -1] },
+      { pawn: [1], rook: [1, -1], spy: [-1], king: [-1, 1] },
+      { pawn: [-1], rook: [-1, -1], spy: [-1], king: [-1, -1] },
     ]);
 
-    expect(allDefaults).toHaveLength(128);
+    expect(allDefaults).toHaveLength(64);
     expect(current.openingMoves.blue).toBe(current.openingMoves.red);
     expect(candidates).toHaveLength(3);
     expect(candidates[0].score).toBeLessThanOrEqual(candidates[1].score);

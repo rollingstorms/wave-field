@@ -132,8 +132,7 @@
         1
       ],
       "spy": [
-        1,
-        0
+        1
       ],
       "king": [
         1,
@@ -149,8 +148,7 @@
         1
       ],
       "spy": [
-        1,
-        0
+        1
       ],
       "king": [
         1,
@@ -201,8 +199,7 @@
       1
     ],
     "spy": [
-      1,
-      0
+      1
     ],
     "king": [
       1,
@@ -307,13 +304,6 @@
       }
     ],
     "spy": [
-      {
-        "kind": "preset",
-        "name": "Pawn mask",
-        "preset": "checkerboard",
-        "decayBase": 2,
-        "originScale": 1
-      },
       {
         "kind": "preset",
         "name": "Diamond core",

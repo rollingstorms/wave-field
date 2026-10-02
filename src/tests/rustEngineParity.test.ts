@@ -157,7 +157,7 @@ describe("Rust engine parity", () => {
       { id: "blue-spy", owner: "blue", type: "spy", position: { x: 0, y: 1 }, unstable: false },
     ];
     state.components.red.king = [0, 0];
-    state.components.blue.spy = [-1, 0];
+    state.components.blue.spy = [-1];
 
     expect(rust("applyClosestPlayableHint", state)).toEqual(applyClosestPlayableHint(state));
     expect(rust("resignInCheck", state)).toEqual(resignInCheck(state));

@@ -46,12 +46,6 @@ function createBalancedPressureConfig(): OptimizedGameConfig {
     ringValues: [0, 1, 0, -1],
     repeat: true,
   };
-  definitions.spy[1] = {
-    ...definitions.spy[1],
-    name: "Optim Triangle diagonal favor",
-    kind: "preset",
-    preset: "diagonal-favor",
-  };
   definitions.king[0] = {
     ...definitions.king[0],
     name: "Optim Big Hat alternating rings",
@@ -75,12 +69,6 @@ function createBalancedPressureConfig(): OptimizedGameConfig {
 
 function createEasyMobilityConfig(): OptimizedGameConfig {
   const definitions = cloneDefinitions();
-  definitions.spy[1] = {
-    ...definitions.spy[1],
-    name: "Easy Triangle diagonal favor",
-    kind: "preset",
-    preset: "diagonal-favor",
-  };
   definitions.king[1] = {
     ...definitions.king[1],
     name: "Easy Big Hat astigmatism",
@@ -115,12 +103,6 @@ function createLowRescueConfig(): OptimizedGameConfig {
     ringValues: [0, 1, -1, 1],
     repeat: true,
   };
-  definitions.spy[1] = {
-    ...definitions.spy[1],
-    name: "Low Rescue Triangle diagonal favor",
-    kind: "preset",
-    preset: "diagonal-favor",
-  };
   definitions.king[0] = {
     ...definitions.king[0],
     name: "Low Rescue Big Hat pressure rings",
@@ -141,7 +123,7 @@ function createLowRescueConfig(): OptimizedGameConfig {
     components: {
       pawn: [1],
       rook: [1, 1],
-      spy: [0, 1],
+      spy: [1],
       king: [-1, 1],
     },
     definitions,

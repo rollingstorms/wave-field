@@ -23,8 +23,8 @@ legal destinations, or drag it to move.
 
 The `+` and `-` controls activate a component with that field orientation, or
 reverse the polarity of an active component. Round Hats have one checkerboard-like
-pattern. Towers combine two overlapping patterns. Triangle Hats choose one of three
-patterns. Big Hats keep two of three patterns active.
+pattern. Towers combine two overlapping patterns. Triangle Hats use only the
+Diamond core pattern, with two opposite phases. Big Hats keep two of three patterns active.
 
 ## Field
 

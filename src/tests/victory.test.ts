@@ -79,10 +79,10 @@ describe("stability and victory", () => {
     state.components.blue.pawn = [-1];
     state.components.blue.king = [0, 0];
     state.components.blue.rook = [1, 0];
-    state.components.blue.spy = [-1, 0];
+    state.components.blue.spy = [-1];
     state.components.red.pawn = [0];
 
-    const result = applyMove("blue-rook", { x: 1, y: 2 }, state);
+    const result = applyMove("blue-rook", { x: 3, y: 4 }, state);
     const pawn = result.state.pieces.find((piece) => piece.id === "red-pawn");
 
     expect(result.ok).toBe(true);
@@ -128,7 +128,7 @@ describe("stability and victory", () => {
       { id: "blue-spy", owner: "blue", type: "spy", position: { x: 2, y: 3 }, unstable: false },
     ];
     state.components.blue.pawn = [0];
-    state.components.blue.spy = [1, 0];
+    state.components.blue.spy = [1];
 
     const result = applyMove("blue-spy", { x: 2, y: 2 }, state);
     const pawn = result.state.pieces.find((piece) => piece.id === "blue-pawn");
@@ -146,7 +146,7 @@ describe("stability and victory", () => {
       { id: "red-rook", owner: "red", type: "rook", position: { x: 3, y: 4 }, unstable: false },
     ];
     state.components.blue.pawn = [0];
-    state.components.blue.spy = [1, 0];
+    state.components.blue.spy = [1];
     state.components.red.rook = [0, 1];
 
     const result = applyMove("blue-spy", { x: 0, y: 3 }, state);
@@ -165,7 +165,7 @@ describe("stability and victory", () => {
       { id: "red-rook", owner: "red", type: "rook", position: { x: 3, y: 4 }, unstable: false },
     ];
     state.components.blue.pawn = [0];
-    state.components.blue.spy = [-1, 0];
+    state.components.blue.spy = [-1];
     state.components.red.pawn = [-1];
     state.components.red.rook = [0, 0];
     state.definitions.spy[0] = structuredClone(state.definitions.pawn[0]);
@@ -186,7 +186,7 @@ describe("stability and victory", () => {
       { id: "red-king", owner: "red", type: "king", position: { x: 6, y: 6 }, unstable: false },
     ];
     state.components.blue.king = [0, 0];
-    state.components.blue.spy = [-1, 0];
+    state.components.blue.spy = [-1];
     state.components.red.pawn = [-1];
     state.components.red.king = [0, 0];
     const result = applyMove("blue-spy", { x: 2, y: 0 }, state);
@@ -214,7 +214,7 @@ describe("stability and victory", () => {
       { id: "red-king", owner: "red", type: "king", position: { x: 6, y: 6 }, unstable: false },
     ];
     state.components.blue.king = [0, 0];
-    state.components.blue.spy = [-1, 0];
+    state.components.blue.spy = [-1];
     state.components.red.king = [0, 0];
     state.definitions.spy[0] = structuredClone(state.definitions.pawn[0]);
 

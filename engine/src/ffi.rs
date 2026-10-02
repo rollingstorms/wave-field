@@ -55,6 +55,11 @@ pub extern "C" fn wf_new_game_json() -> *mut c_char {
 }
 
 #[unsafe(no_mangle)]
+pub extern "C" fn wf_normalize_state_json(state_json: *const c_char) -> *mut c_char {
+    call_json(|| api::normalize_state_json(read_str(state_json)?))
+}
+
+#[unsafe(no_mangle)]
 pub extern "C" fn wf_undo_json(state_json: *const c_char) -> *mut c_char {
     call_json(|| api::undo_json(read_str(state_json)?))
 }
@@ -340,7 +345,7 @@ mod tests {
         let state: crate::GameState = serde_json::from_str(value).expect("game state JSON");
         assert_eq!(state.components.blue.pawn.len(), 1);
         assert_eq!(state.components.blue.rook.len(), 2);
-        assert_eq!(state.components.blue.spy.len(), 2);
+        assert_eq!(state.components.blue.spy.len(), 1);
         assert_eq!(state.components.blue.king.len(), 2);
         wf_string_free(result);
     }

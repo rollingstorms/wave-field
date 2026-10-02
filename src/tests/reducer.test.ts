@@ -9,9 +9,9 @@ import type { GameState } from "../game/types";
 function expandedState(pieceType: "spy" | "king"): GameState {
   const state = createInitialState();
   if (pieceType === "spy") {
-    state.components.blue.spy = [1, 0];
-    state.components.red.spy = [1, 0];
-    state.defaultComponents.spy = [1, 0];
+    state.components.blue.spy = [1];
+    state.components.red.spy = [1];
+    state.defaultComponents.spy = [1];
     state.activationOrders.blue.spy = [0];
     state.activationOrders.red.spy = [0];
   } else {
@@ -32,7 +32,7 @@ describe("reducer", () => {
 
     expect(tunedAgain.currentPlayer).toBe("blue");
     expect(tunedAgain.components.blue.pawn[0]).toBe(-1);
-    expect(tunedAgain.components.blue.spy).toEqual([-1, 0]);
+    expect(tunedAgain.components.blue.spy).toEqual([-1]);
     expect(tunedAgain.history).toHaveLength(2);
   });
 
@@ -135,12 +135,12 @@ describe("reducer", () => {
     }
   });
 
-  it("keeps only the last activated spy component", () => {
+  it("keeps Triangle Hat on its sole Diamond core component", () => {
     const state = expandedState("spy");
-    const first = gameReducer(state, { type: "tune", pieceType: "spy", componentIndex: 1, value: 1 });
+    const first = gameReducer(state, { type: "tune", pieceType: "spy", componentIndex: 0, value: -1 });
 
-    expect(first.components.blue.spy).toEqual([0, 1]);
-    expect(first.activationOrders.blue.spy).toEqual([1]);
+    expect(first.components.blue.spy).toEqual([-1]);
+    expect(first.activationOrders.blue.spy).toEqual([0]);
   });
 
   it("allows active pawn and king components to flip sign", () => {
@@ -269,11 +269,11 @@ describe("reducer", () => {
     expect(undone.homeEnergy.spy).toBe(0.5);
   });
 
-  it("replaces an existing default control when a type is at full strength", () => {
+  it("changes the Triangle Hat default phase", () => {
     const state = expandedState("spy");
-    const first = gameReducer(state, { type: "update-default-component", pieceType: "spy", componentIndex: 1, value: -1 });
+    const first = gameReducer(state, { type: "update-default-component", pieceType: "spy", componentIndex: 0, value: -1 });
 
-    expect(first.defaultComponents.spy).toEqual([0, -1]);
+    expect(first.defaultComponents.spy).toEqual([-1]);
     expect(first.message).toContain("updated");
   });
 

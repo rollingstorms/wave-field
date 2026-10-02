@@ -21,7 +21,7 @@ const rulesBoardSize = 7;
 const pieceQuickNotes: Record<PieceType, string> = {
   pawn: "Checkerboard energy.",
   rook: "Two energies that overlap.",
-  spy: "Switch between three masks, and can move to hostile territory.",
+  spy: "Switch between two opposite Diamond core phases, and move through hostile territory.",
   king: "Must always end in stable territory.",
 };
 
@@ -54,7 +54,7 @@ function createMovementDemoState() {
     { id: "rules-red-king", owner: "red", type: "king", position: { x: 6, y: 6 }, unstable: false },
   ];
   state.components.blue.king = [0, 0];
-  state.components.blue.spy = [1, 0];
+  state.components.blue.spy = [1];
   state.components.blue.pawn = [0];
   state.components.red.pawn = [0];
   state.components.red.rook = [0, 0];

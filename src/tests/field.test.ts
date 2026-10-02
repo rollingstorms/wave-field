@@ -46,7 +46,7 @@ function defaultValues(pieceType: PieceType): Coefficient[] {
     case "rook":
       return [1, 1];
     case "spy":
-      return [1, 0];
+      return [1];
     case "king":
       return [1, 1];
   }
@@ -127,8 +127,8 @@ describe("field engine", () => {
     expect(evaluatePieceContribution(piece, square, state)).toBeCloseTo(expected);
   });
 
-  it("spy +0 uses the spy friendly scale on the near remote scout basis", () => {
-    const spy = tuned("spy", [1, 0]);
+  it("Triangle Hat's Diamond core uses the friendly scale", () => {
+    const spy = tuned("spy", [1]);
     expect(evaluatePieceContribution(spy.pieces[0], { x: 2, y: 2 }, spy)).toBeCloseTo(3);
   });
 
@@ -169,14 +169,14 @@ describe("field engine", () => {
   });
 
   it("home square contribution ignores tuned component values", () => {
-    const spy = tuned("spy", [0, 0]);
+    const spy = tuned("spy", [0]);
     const rook = tuned("rook", [-1, -1]);
     expect(evaluatePieceContribution(spy.pieces[0], spy.pieces[0].position, spy)).toBe(0.5);
     expect(evaluatePieceContribution(rook.pieces[0], rook.pieces[0].position, rook)).toBe(0);
   });
 
   it("doubles a piece's whole wave pattern when its origin is on an amp square", () => {
-    const normal = tuned("spy", [1, 0]);
+    const normal = tuned("spy", [1]);
     normal.pieces[0].position = { x: 2, y: 2 };
     const amped: GameState = {
       ...structuredClone(normal),
@@ -192,7 +192,7 @@ describe("field engine", () => {
   });
 
   it("does not amplify a piece merely targeting an amp square from elsewhere", () => {
-    const state = tuned("spy", [1, 0]);
+    const state = tuned("spy", [1]);
     state.pieces[0].position = { x: 3, y: 2 };
     const amped: GameState = {
       ...structuredClone(state),
@@ -217,7 +217,7 @@ describe("field engine", () => {
   });
 
   it("component basis omits ring zero for every piece type", () => {
-    const diamondCore = DEFAULT_DEFINITIONS.spy[1];
+    const diamondCore = DEFAULT_DEFINITIONS.spy[0];
     expect(evaluateBasis(diamondCore, { x: 0, y: 0 })).not.toBe(0);
     (["pawn", "rook", "spy", "king"] as PieceType[]).forEach((pieceType) => {
       expect(evaluateComponentBasis(pieceType, diamondCore, { x: 0, y: 0 })).toBe(0);
@@ -227,7 +227,7 @@ describe("field engine", () => {
 
   it("diamond core is distinct from the checkerboard preset", () => {
     const checkerboard = DEFAULT_DEFINITIONS.pawn[0];
-    const diamondCore = DEFAULT_DEFINITIONS.spy[1];
+    const diamondCore = DEFAULT_DEFINITIONS.spy[0];
 
     expect(evaluateBasis(checkerboard, { x: 1, y: 0 })).toBeLessThan(0);
     expect(evaluateBasis(diamondCore, { x: 1, y: 0 })).toBeGreaterThan(0);
