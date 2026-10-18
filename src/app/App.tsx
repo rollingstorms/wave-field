@@ -78,8 +78,8 @@ export function App() {
   const [aiStats, setAiStats] = useState<AiStats>(emptyAiStats);
   const [hintSearching, setHintSearching] = useState(false);
   const [editorSelection, setEditorSelection] = useState<{ pieceType: PieceType; componentIndex: number }>({ pieceType: "rook", componentIndex: 0 });
-  const field = useMemo(() => evaluateField(state), [state]);
-  const typeFields = useMemo(() => evaluateTypeFields(state), [state]);
+  const field = useMemo(() => evaluateField(state), [state.pieces, state.components, state.definitions, state.waveScales, state.homeEnergy, state.ampSquares, state.entropyField, state.variant]);
+  const typeFields = useMemo(() => evaluateTypeFields(state), [state.pieces, state.components, state.definitions, state.waveScales, state.homeEnergy, state.ampSquares, state.entropyField, state.variant]);
   const bothAutomated = sidePolicies.blue !== "human" && sidePolicies.red !== "human";
   const capReached = arenaEnabled && bothAutomated && state.turnNumber >= duelMaxTurns;
   const currentPolicy = sidePolicies[state.currentPlayer];

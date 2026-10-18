@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { memo, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { Flag, Search } from "lucide-react";
 import type {
   CSSProperties,
@@ -15,6 +15,7 @@ import { contributionGrid, evaluateContinuousField, evaluateField, evaluateTypeF
 import type { TypeFields } from "../field/evaluateField";
 import { projectFieldValue } from "../field/projection";
 import { getContinuousLegalMoves, getLegalMoves, getPieceAt, getPieceAtPrecise, samePosition, samePrecisePosition } from "../game/movement";
+import { rustEngineActive } from "../game/rustEngine";
 import { applyContinuousMove, applyKnownLegalMove, applyMove, getContinuousPlayableMoves, getPlayableMoves } from "../game/rules";
 import { PIECE_DISPLAY_NAMES, PIECE_INITIALS } from "../game/pieceLabels";
 import type { GameState, Position, PrecisePosition } from "../game/types";
@@ -49,7 +50,7 @@ interface ActiveDrag {
   contactId: number;
   input: "pointer" | "touch";
   start: PrecisePosition;
-  legalMoves: PrecisePosition[];
+  legalMoves: PrecisePosition[] | null;
 }
 
 interface LossPop {
@@ -76,6 +77,39 @@ function preciseKey(position: PrecisePosition) {
   return `${position.x.toFixed(6)}:${position.y.toFixed(6)}`;
 }
 
+const ContinuousFieldLayer = memo(function ContinuousFieldLayer({
+  samples,
+  continuous,
+}: {
+  samples: { value: number; activity: number }[][];
+  continuous: boolean;
+}) {
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const maximumMagnitude = continuous
+    ? Math.max(...samples.flat().map((sample) => Math.abs(sample.value)), 0)
+    : 0;
+  useLayoutEffect(() => {
+    const context = canvasRef.current?.getContext("2d");
+    if (!context) return;
+    samples.forEach((row, y) => row.forEach((sample, x) => {
+      context.fillStyle = continuous
+        ? continuousFieldColor(sample.value, maximumMagnitude)
+        : boardDisplayColor(sample.value, sample.activity);
+      context.fillRect(x, y, 1, 1);
+    }));
+  }, [continuous, maximumMagnitude, samples]);
+  const resolution = BOARD_SIZE * CONTINUOUS_SAMPLES_PER_SQUARE;
+  return (
+    <canvas
+      ref={canvasRef}
+      className="continuous-field-layer"
+      width={resolution}
+      height={resolution}
+      aria-hidden="true"
+    />
+  );
+});
+
 export function Board({ state, field, typeFields, continuousField, showTypeSums, energyView, energyChannels, locked = false, onSelect, onMove, onResign, onHint, hintSearching = false, onToggleEnergyChannel }: BoardProps) {
   const boardRef = useRef<HTMLDivElement>(null);
   const dragRef = useRef<ActiveDrag | null>(null);
@@ -88,18 +122,24 @@ export function Board({ state, field, typeFields, continuousField, showTypeSums,
   const [movementAnimations, setMovementAnimations] = useState<MovementAnimation[]>([]);
   const [movingPieceIds, setMovingPieceIds] = useState<Set<string>>(() => new Set());
   const [energySelection, setEnergySelection] = useState<Position | null>(null);
+  const [moveAnalysis, setMoveAnalysis] = useState<{
+    state: GameState;
+    pieceId: string;
+    riskyLossCounts: Map<string, number>;
+    kingBlockedKeys: Set<string>;
+  } | null>(null);
   const selectedPiece = state.pieces.find((piece) => piece.id === state.selectedPieceId);
   const continuousInteraction = state.variant === "continuous" && !energyView;
   const interactionPiece = energyView ? undefined : state.pieces.find((piece) => piece.id === draggingPieceId) ?? selectedPiece;
   const reachableMoves = useMemo(
     () => !locked && interactionPiece
-      ? continuousInteraction ? getContinuousLegalMoves(interactionPiece.id, state) : getLegalMoves(interactionPiece.id, state, field)
+      ? continuousInteraction ? getContinuousLegalMoves(interactionPiece.id, state) : getLegalMoves(interactionPiece.id, state, rustEngineActive() ? undefined : field)
       : [],
     [continuousInteraction, field, interactionPiece, locked, state],
   );
   const playableMoves = useMemo(
     () => !locked && interactionPiece
-      ? continuousInteraction ? getContinuousPlayableMoves(interactionPiece.id, state) : getPlayableMoves(interactionPiece.id, state, field)
+      ? continuousInteraction ? getContinuousPlayableMoves(interactionPiece.id, state) : getPlayableMoves(interactionPiece.id, state, rustEngineActive() ? undefined : field)
       : [],
     [continuousInteraction, field, interactionPiece, locked, state],
   );
@@ -120,7 +160,10 @@ export function Board({ state, field, typeFields, continuousField, showTypeSums,
     };
     return markInstability(moved, evaluateField(moved));
   }, [continuousInteraction, dragPreview, draggingPieceId, state]);
-  const previewing = Boolean(draggingPieceId && dragPreview);
+  const draggingPiece = draggingPieceId
+    ? state.pieces.find((piece) => piece.id === draggingPieceId)
+    : undefined;
+  const previewing = Boolean(draggingPiece && dragPreview && !samePrecisePosition(draggingPiece.position, dragPreview));
   const displayField = useMemo(
     () => previewing ? evaluateField(previewState) : field,
     [field, previewState, previewing],
@@ -133,19 +176,20 @@ export function Board({ state, field, typeFields, continuousField, showTypeSums,
     ...displayField.flat().map((value) => Math.abs(value)),
     0,
   );
-  const continuousSamples = useMemo(
-    () => {
-      if (!continuousField || energyView) return null;
-      return state.variant === "continuous"
-        ? evaluateContinuousField(previewState, CONTINUOUS_SAMPLES_PER_SQUARE)
-          .map((row) => row.map((sample) => ({ value: sample.value, activity: Math.abs(sample.value) })))
-        : sampleBoardDisplay(displayField, CONTINUOUS_SAMPLES_PER_SQUARE);
-    },
-    [continuousField, displayField, energyView, previewState, state.variant],
+  const standardSamples = useMemo(
+    () => continuousField && !energyView && state.variant !== "continuous"
+      ? sampleBoardDisplay(displayField, CONTINUOUS_SAMPLES_PER_SQUARE)
+      : null,
+    [continuousField, displayField, energyView, state.variant],
   );
-  const maximumContinuousMagnitude = continuousSamples
-    ? Math.max(...continuousSamples.flat().map((sample) => Math.abs(sample.value)), 0)
-    : 0;
+  const preciseSamples = useMemo(
+    () => continuousField && !energyView && state.variant === "continuous"
+      ? evaluateContinuousField(previewState, CONTINUOUS_SAMPLES_PER_SQUARE)
+        .map((row) => row.map((sample) => ({ value: sample.value, activity: Math.abs(sample.value) })))
+      : null,
+    [continuousField, energyView, state.variant, previewState.pieces, previewState.components, previewState.definitions, previewState.waveScales, previewState.homeEnergy, previewState.ampSquares],
+  );
+  const continuousSamples = state.variant === "continuous" ? preciseSamples : standardSamples;
   const energyGrid = useMemo(
     () => createCmykEnergyGrid(displayTypeFields, energyChannels),
     [displayTypeFields, energyChannels],
@@ -165,43 +209,51 @@ export function Board({ state, field, typeFields, continuousField, showTypeSums,
     () => new Set(lossPops.map((pop) => preciseKey(pop.position))),
     [lossPops],
   );
-  const riskyMoveLossCounts = useMemo(() => {
-    if (!interactionPiece) return new Map<string, number>();
-    const ownPieceIds = new Set(state.pieces.filter((piece) => piece.owner === interactionPiece.owner).map((piece) => piece.id));
-    return new Map(playableMoves.flatMap((move) => {
-      const result = continuousInteraction
-        ? applyKnownLegalMove(interactionPiece.id, move, state, { analyzeCheckmate: false })
-        : applyMove(interactionPiece.id, move, state, { analyzeCheckmate: false });
-      if (!result.ok) return [];
-      const survivingOwnIds = new Set(result.state.pieces.filter((piece) => piece.owner === interactionPiece.owner).map((piece) => piece.id));
-      const lossCount = [...ownPieceIds].filter((id) => !survivingOwnIds.has(id)).length;
-      return lossCount > 0 ? [[preciseKey(move), lossCount] as const] : [];
-    }));
-  }, [continuousInteraction, interactionPiece, playableMoves, state]);
-  const legalMoves = useMemo(() => {
-    const safeMoves = playableMoves.filter((move) => !riskyMoveLossCounts.has(preciseKey(move)));
-    if (safeMoves.length > 0 || playableMoves.length === 0) return playableMoves;
-    const minimumLoss = Math.min(...playableMoves.map((move) => riskyMoveLossCounts.get(preciseKey(move)) ?? 0));
-    return playableMoves.filter((move) => (riskyMoveLossCounts.get(preciseKey(move)) ?? 0) === minimumLoss);
-  }, [playableMoves, riskyMoveLossCounts]);
+  useEffect(() => {
+    if (!interactionPiece || locked) return;
+    const piece = interactionPiece;
+    const frame = globalThis.requestAnimationFrame(() => {
+      timer = globalThis.setTimeout(() => {
+        const ownPieceIds = new Set(state.pieces.filter((candidate) => candidate.owner === piece.owner).map((candidate) => candidate.id));
+        const riskyLossCounts = new Map<string, number>();
+        for (const move of playableMoves) {
+          const result = continuousInteraction
+            ? applyKnownLegalMove(piece.id, move, state, { analyzeCheckmate: false })
+            : applyMove(piece.id, move, state, { analyzeCheckmate: false });
+          if (!result.ok) continue;
+          const survivingOwnIds = new Set(result.state.pieces.filter((candidate) => candidate.owner === piece.owner).map((candidate) => candidate.id));
+          const lossCount = [...ownPieceIds].filter((id) => !survivingOwnIds.has(id)).length;
+          if (lossCount > 0) riskyLossCounts.set(preciseKey(move), lossCount);
+        }
+        const playableKeys = new Set(playableMoves.map(preciseKey));
+        const kingBlockedKeys = new Set<string>();
+        if (!continuousInteraction) {
+          for (const move of reachableMoves) {
+            const key = preciseKey(move);
+            if (playableKeys.has(key)) continue;
+            const result = applyMove(piece.id, move, state, { analyzeCheckmate: false });
+            if (result.reason?.toLowerCase().includes("big hat unprotected") || result.reason?.toLowerCase().includes("king unprotected")) {
+              kingBlockedKeys.add(key);
+            }
+          }
+        }
+        setMoveAnalysis({ state, pieceId: piece.id, riskyLossCounts, kingBlockedKeys });
+      }, 0);
+    });
+    let timer: ReturnType<typeof globalThis.setTimeout> | undefined;
+    return () => {
+      globalThis.cancelAnimationFrame(frame);
+      if (timer !== undefined) globalThis.clearTimeout(timer);
+    };
+  }, [continuousInteraction, interactionPiece, locked, playableMoves, reachableMoves, state]);
+  const currentMoveAnalysis = moveAnalysis?.state === state && moveAnalysis.pieceId === interactionPiece?.id ? moveAnalysis : null;
+  const riskyMoveLossCounts = currentMoveAnalysis?.riskyLossCounts ?? new Map<string, number>();
+  const legalMoves = playableMoves;
   const riskyMoveKeys = useMemo(
     () => new Set(legalMoves.flatMap((move) => riskyMoveLossCounts.has(preciseKey(move)) ? [preciseKey(move)] : [])),
     [legalMoves, riskyMoveLossCounts],
   );
-  const playableMoveKeys = useMemo(
-    () => new Set(playableMoves.map(preciseKey)),
-    [playableMoves],
-  );
-  const kingBlockedMoveKeys = useMemo(() => {
-    if (continuousInteraction) return new Set<string>();
-    if (!interactionPiece) return new Set<string>();
-    return new Set(reachableMoves.flatMap((move) => {
-      const key = preciseKey(move);
-      if (playableMoveKeys.has(key)) return [];
-      const result = applyMove(interactionPiece.id, move, state, { analyzeCheckmate: false });
-      return result.reason?.toLowerCase().includes("big hat unprotected") || result.reason?.toLowerCase().includes("king unprotected") ? [key] : [];
-    }));
-  }, [continuousInteraction, interactionPiece, playableMoveKeys, reachableMoves, state]);
+  const kingBlockedMoveKeys = currentMoveAnalysis?.kingBlockedKeys ?? new Set<string>();
   const safeMoves = useMemo(
     () => playableMoves.filter((move) => !riskyMoveLossCounts.has(preciseKey(move))),
     [playableMoves, riskyMoveLossCounts],
@@ -310,21 +362,7 @@ export function Board({ state, field, typeFields, continuousField, showTypeSums,
 
   function displayedPlayableMovesFor(pieceId: string): PrecisePosition[] {
     if (continuousInteraction) return getContinuousPlayableMoves(pieceId, state);
-    const piece = state.pieces.find((candidate) => candidate.id === pieceId);
-    if (!piece) return [];
-    const moves = getPlayableMoves(pieceId, state, field);
-    const ownPieceIds = new Set(state.pieces.filter((candidate) => candidate.owner === piece.owner).map((candidate) => candidate.id));
-    const lossCounts = new Map(moves.flatMap((move) => {
-      const result = applyMove(pieceId, move, state, { analyzeCheckmate: false });
-      if (!result.ok) return [];
-      const survivingOwnIds = new Set(result.state.pieces.filter((candidate) => candidate.owner === piece.owner).map((candidate) => candidate.id));
-      const lossCount = [...ownPieceIds].filter((id) => !survivingOwnIds.has(id)).length;
-      return lossCount > 0 ? [[`${move.x}:${move.y}`, lossCount] as const] : [];
-    }));
-    const safe = moves.filter((move) => !lossCounts.has(`${move.x}:${move.y}`));
-    if (safe.length > 0 || moves.length === 0) return moves;
-    const minimumLoss = Math.min(...moves.map((move) => lossCounts.get(`${move.x}:${move.y}`) ?? 0));
-    return moves.filter((move) => (lossCounts.get(`${move.x}:${move.y}`) ?? 0) === minimumLoss);
+    return getPlayableMoves(pieceId, state, rustEngineActive() ? undefined : field);
   }
 
   function startDrag(contactId: number, input: ActiveDrag["input"], clientX: number, clientY: number) {
@@ -342,8 +380,7 @@ export function Board({ state, field, typeFields, continuousField, showTypeSums,
     const piece = precisePosition ? getContinuousPieceNear(precisePosition) : squarePosition ? getPieceAt(state, squarePosition) : undefined;
     if (!piece || piece.owner !== state.currentPlayer) return false;
 
-    const moves = displayedPlayableMovesFor(piece.id);
-    dragRef.current = { pieceId: piece.id, contactId, input, start: piece.position, legalMoves: moves };
+    dragRef.current = { pieceId: piece.id, contactId, input, start: piece.position, legalMoves: null };
     setDraggingPieceId(piece.id);
     setDragPreview(piece.position);
     onSelect(piece.id);
@@ -354,7 +391,10 @@ export function Board({ state, field, typeFields, continuousField, showTypeSums,
     const drag = dragRef.current;
     if (!drag || drag.contactId !== contactId || drag.input !== input) return false;
     const position = continuousInteraction ? precisePositionFromPointer(clientX, clientY) : positionFromPointer(clientX, clientY);
-    const legal = position && drag.legalMoves.some((move) => samePrecisePosition(move, position));
+    if (position && drag.legalMoves === null && Math.hypot(position.x - drag.start.x, position.y - drag.start.y) >= (continuousInteraction ? 0.5 : 1)) {
+      drag.legalMoves = displayedPlayableMovesFor(drag.pieceId);
+    }
+    const legal = position && drag.legalMoves?.some((move) => samePrecisePosition(move, position));
     const nextPreview = legal ? position : drag.start;
     setDragPreview((current) => current && samePrecisePosition(current, nextPreview) ? current : nextPreview);
     return true;
@@ -364,7 +404,10 @@ export function Board({ state, field, typeFields, continuousField, showTypeSums,
     const drag = dragRef.current;
     if (!drag || drag.contactId !== contactId || drag.input !== input) return false;
     const position = continuousInteraction ? precisePositionFromPointer(clientX, clientY) : positionFromPointer(clientX, clientY);
-    const destination = commit && position && drag.legalMoves.some((move) => samePrecisePosition(move, position))
+    if (commit && position && !samePrecisePosition(position, drag.start) && drag.legalMoves === null) {
+      drag.legalMoves = displayedPlayableMovesFor(drag.pieceId);
+    }
+    const destination = commit && position && drag.legalMoves?.some((move) => samePrecisePosition(move, position))
       ? position
       : null;
 
@@ -535,26 +578,7 @@ export function Board({ state, field, typeFields, continuousField, showTypeSums,
           onTouchCancel={(event) => finishTouchDrag(event, false)}
           onClickCapture={handleClickCapture}
         >
-          {continuousSamples && (
-            <div
-              className="continuous-field-layer"
-              style={{
-                "--continuous-resolution": BOARD_SIZE * CONTINUOUS_SAMPLES_PER_SQUARE,
-              } as CSSProperties}
-              aria-hidden="true"
-            >
-              {continuousSamples.flatMap((row, rowIndex) =>
-                row.map((sample, x) => (
-                  <span
-                    key={`${x}-${rowIndex}`}
-                    style={{ backgroundColor: state.variant === "continuous"
-                      ? continuousFieldColor(sample.value, maximumContinuousMagnitude)
-                      : boardDisplayColor(sample.value, sample.activity) }}
-                  />
-                )),
-              )}
-            </div>
-          )}
+          {continuousSamples && <ContinuousFieldLayer samples={continuousSamples} continuous={state.variant === "continuous"} />}
           {continuousInteraction && (
             <button
               type="button"

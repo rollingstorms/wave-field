@@ -1,3 +1,4 @@
+import { memo } from "react";
 import { BOARD_CENTER } from "../game/constants";
 import { contributionGrid } from "../field/evaluateField";
 import type { GameState, Piece, PieceType, Player } from "../game/types";
@@ -9,7 +10,7 @@ interface WaveThumbnailProps {
   pieceType: PieceType;
 }
 
-export function WaveThumbnail({ state, player, pieceType }: WaveThumbnailProps) {
+function WaveThumbnailView({ state, player, pieceType }: WaveThumbnailProps) {
   const previewPiece: Piece = {
     id: `${player}-${pieceType}-preview`,
     owner: player,
@@ -25,3 +26,14 @@ export function WaveThumbnail({ state, player, pieceType }: WaveThumbnailProps) 
     </div>
   );
 }
+
+export const WaveThumbnail = memo(WaveThumbnailView, (previous, next) => (
+  previous.player === next.player
+  && previous.pieceType === next.pieceType
+  && previous.state.components[previous.player][previous.pieceType] === next.state.components[next.player][next.pieceType]
+  && previous.state.definitions[previous.pieceType] === next.state.definitions[next.pieceType]
+  && previous.state.waveScales[previous.pieceType] === next.state.waveScales[next.pieceType]
+  && previous.state.homeEnergy[previous.pieceType] === next.state.homeEnergy[next.pieceType]
+  && previous.state.ampSquares === next.state.ampSquares
+  && previous.state.variant === next.state.variant
+));
