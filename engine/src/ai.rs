@@ -42,7 +42,14 @@ const HARD_CONVERSION_TIEBREAKER_SCALE: f64 = 0.2;
 type SearchStartedAt = Instant;
 
 #[cfg(target_arch = "wasm32")]
-type SearchStartedAt = ();
+type SearchStartedAt = f64;
+
+#[cfg(target_arch = "wasm32")]
+#[wasm_bindgen::prelude::wasm_bindgen]
+extern "C" {
+    #[wasm_bindgen::prelude::wasm_bindgen(js_namespace = Date, js_name = now)]
+    fn date_now() -> f64;
+}
 
 #[cfg(not(target_arch = "wasm32"))]
 fn search_started_at() -> SearchStartedAt {
@@ -50,7 +57,9 @@ fn search_started_at() -> SearchStartedAt {
 }
 
 #[cfg(target_arch = "wasm32")]
-fn search_started_at() -> SearchStartedAt {}
+fn search_started_at() -> SearchStartedAt {
+    date_now()
+}
 
 #[cfg(not(target_arch = "wasm32"))]
 fn deadline_reached(started_at: &SearchStartedAt, deadline: Duration) -> bool {
@@ -58,8 +67,8 @@ fn deadline_reached(started_at: &SearchStartedAt, deadline: Duration) -> bool {
 }
 
 #[cfg(target_arch = "wasm32")]
-fn deadline_reached(_started_at: &SearchStartedAt, _deadline: Duration) -> bool {
-    false
+fn deadline_reached(started_at: &SearchStartedAt, deadline: Duration) -> bool {
+    date_now() - started_at >= deadline.as_secs_f64() * 1_000.0
 }
 
 #[derive(Clone, Copy, Debug)]
