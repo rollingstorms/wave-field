@@ -2,6 +2,7 @@ import { BOARD_CENTER, BOARD_SIZE, DEBUG_COMPONENT_COUNT_LIMITS } from "../game/
 import { evaluateComponentBasis } from "../field/kernels";
 import { PIECE_TYPES, pieceName } from "../game/pieceLabels";
 import type { BasisDefinition, Coefficient, ComponentDefinitions, FormulaPreset, PieceType } from "../game/types";
+import { ContinuousPattern } from "./ContinuousPattern";
 
 const pieceTypes: PieceType[] = PIECE_TYPES;
 const presets: FormulaPreset[] = [
@@ -235,8 +236,9 @@ export function WaveEditor({ definitions, componentCounts, selected, onSelect, o
         </div>
         <div>
           <h3>Kernel preview</h3>
-          <div className="kernel">
-            {grid.map((row, y) => row.map((value, x) => (
+          <div className="kernel kernel-pattern">
+            <ContinuousPattern values={grid} normalize />
+            {[...grid].reverse().map((row, y) => row.map((value, x) => (
               <span className={value > 0 ? "red" : value < 0 ? "blue" : "neutral"} key={`${x}-${y}`}>{definition.kind === "grid" ? valueLabel(value) : label(value)}</span>
             )))}
           </div>

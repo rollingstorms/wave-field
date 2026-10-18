@@ -1111,22 +1111,26 @@ h1 {
 .wave-thumbnail {
   width: 30px;
   aspect-ratio: 1;
-  display: grid;
-  grid-template-columns: repeat(var(--board-size, 7), 1fr);
+  position: relative;
   border: 1px solid var(--line);
   background: #101212;
 }
 
-.wave-thumbnail-cell {
+.continuous-pattern {
   display: block;
-  border-right: 1px solid rgba(17, 19, 19, 0.18);
-  border-bottom: 1px solid rgba(17, 19, 19, 0.18);
+  width: 100%;
+  height: 100%;
 }
 
-.wave-thumbnail-cell.red { background: var(--red); }
-.wave-thumbnail-cell.neutral { background: #686964; }
-.wave-thumbnail-cell.blue { background: var(--blue); }
-.wave-thumbnail-cell.origin { box-shadow: inset 0 0 0 1px var(--text); }
+.wave-thumbnail-origin {
+  position: absolute;
+  left: calc(100% * 3 / 7);
+  top: calc(100% * 3 / 7);
+  width: calc(100% / 7);
+  height: calc(100% / 7);
+  box-shadow: inset 0 0 0 1px var(--text);
+  pointer-events: none;
+}
 
 .coefficient-row {
   display: grid;
@@ -1544,6 +1548,26 @@ h1 {
   place-items: center;
   background: #101212;
   font-size: 0.82rem;
+}
+
+.kernel-pattern {
+  position: relative;
+  aspect-ratio: 1;
+  grid-template-rows: repeat(var(--board-size, 7), 1fr);
+  gap: 0;
+  padding: 0;
+}
+
+.kernel-pattern .continuous-pattern {
+  position: absolute;
+  inset: 0;
+}
+
+.kernel-pattern span {
+  position: relative;
+  min-height: 0;
+  background: transparent;
+  text-shadow: 0 1px 2px #101212, 0 -1px 2px #101212;
 }
 
 details {
