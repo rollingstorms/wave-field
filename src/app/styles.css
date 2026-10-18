@@ -219,7 +219,6 @@ h1 {
   border-right: 0;
   border-bottom: 0;
   background-color: transparent;
-  pointer-events: none;
   cursor: crosshair;
 }
 
