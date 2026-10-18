@@ -10,8 +10,10 @@ import type {
   SquareInfluenceContributors,
 } from "./types";
 
+declare const __ENGINE_BUILD_ID__: string;
+
 interface RustBindings {
-  default: () => Promise<unknown>;
+  default: (options?: { module_or_path: string }) => Promise<unknown>;
   apply_closest_playable_hint_json: (state: string) => string;
   apply_move_json: (pieceId: string, x: number, y: number, state: string, analyzeCheckmate: boolean) => string;
   apply_tuning_json: (player: Player, pieceType: PieceType, componentIndex: number, value: Coefficient, state: string) => string;
@@ -64,10 +66,10 @@ export async function initializeRustEngine(): Promise<void> {
     return;
   }
   const baseUrl = import.meta.env.BASE_URL.endsWith("/") ? import.meta.env.BASE_URL : `${import.meta.env.BASE_URL}/`;
-  const modulePath = `${baseUrl}engine/pkg/wave_field_engine.js`;
+  const modulePath = `${baseUrl}engine/pkg/wave_field_engine.js?v=${__ENGINE_BUILD_ID__}`;
   try {
     const loaded = await import(/* @vite-ignore */ modulePath) as RustBindings;
-    await loaded.default();
+    await loaded.default({ module_or_path: `${baseUrl}engine/pkg/wave_field_engine_bg.wasm?v=${__ENGINE_BUILD_ID__}` });
     bindings = loaded;
     document.documentElement.dataset.ruleEngine = "rust-wasm";
     console.info("Wave Field: Rust rule engine active");
