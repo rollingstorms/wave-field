@@ -2,7 +2,7 @@ import { BOARD_SIZE, PIECE_STRENGTH, tuningStrengthFor } from "./constants";
 import { evaluateField } from "../field/evaluateField";
 import { createInitialState } from "./initialState";
 import { getLegalMoves } from "./movement";
-import { applyMove, opponent } from "./rules";
+import { applyMove, getPlayableMoves, opponent } from "./rules";
 import type { BasisDefinition, Coefficient, ComponentDefinitions, GameState, HomeEnergy, Piece, PieceType, Player, PlayerComponents, Position, WaveScales } from "./types";
 import { evaluateComponentBasis } from "../field/kernels";
 import { evaluatePieceContribution } from "../field/evaluateField";
@@ -94,6 +94,17 @@ export interface ProfileMobilityDiagnostics {
   deadOrigins: number;
   minFirstSteps: number;
   maxFirstSteps: number;
+}
+
+export interface PositionProfileMobility {
+  pieceType: PieceType;
+  player: Player;
+  profile: Coefficient[];
+  pieces: number;
+  reachableMoves: number;
+  playableMoves: number;
+  safeMoves: number;
+  piecesWithoutSafeMoves: number;
 }
 
 export interface HomeEnergySearchResult {
@@ -741,6 +752,47 @@ export function profileMobilityDiagnostics(state: GameState = createInitialState
   );
 }
 
+// Use complete positions as a second gate: a basis can have open rays in
+// isolation while every move in a real position abandons an allied piece.
+export function positionProfileMobilityDiagnostics(
+  positionsToAudit: GameState[] = [createInitialState()],
+): PositionProfileMobility[] {
+  return pieceTypes.flatMap((pieceType) =>
+    (["blue", "red"] as Player[]).flatMap((player) =>
+      enumerateProfiles(pieceType).map((profile) => {
+        let pieces = 0;
+        let reachableMoves = 0;
+        let playableMoves = 0;
+        let safeMoves = 0;
+        let piecesWithoutSafeMoves = 0;
+        for (const position of positionsToAudit) {
+          const state = structuredClone(position);
+          state.currentPlayer = player;
+          state.components[player][pieceType] = [...profile];
+          const field = evaluateField(state);
+          for (const piece of state.pieces.filter((candidate) => candidate.owner === player && candidate.type === pieceType)) {
+            pieces += 1;
+            reachableMoves += getLegalMoves(piece.id, state, field).length;
+            const moves = getPlayableMoves(piece.id, state, field);
+            playableMoves += moves.length;
+            const ownIds = new Set(state.pieces.filter((candidate) => candidate.owner === player).map((candidate) => candidate.id));
+            let pieceSafeMoves = 0;
+            for (const destination of moves) {
+              const result = applyMove(piece.id, destination, state, { analyzeCheckmate: false });
+              if (result.ok && [...ownIds].every((id) => result.state.pieces.some((survivor) => survivor.id === id))) {
+                pieceSafeMoves += 1;
+              }
+            }
+            safeMoves += pieceSafeMoves;
+            if (pieceSafeMoves === 0) piecesWithoutSafeMoves += 1;
+          }
+        }
+        return { pieceType, player, profile, pieces, reachableMoves, playableMoves, safeMoves, piecesWithoutSafeMoves };
+      }),
+    ),
+  );
+}
+
 export function componentPatternMetrics(state: GameState = createInitialState()): ComponentPatternMetrics[] {
   const boardPositions = positions();
   return pieceTypes.flatMap((pieceType) =>
@@ -880,8 +932,8 @@ export function candidateDefinitionVariants(pieceType: PieceType, componentIndex
     }
   }
 
-  if (current.kind === "ring") {
-    const length = current.ringValues.length;
+  if (current.kind === "ring" || current.kind === "preset") {
+    const length = current.kind === "ring" ? current.ringValues.length : 4;
     const templates: Coefficient[][] = [
       [0, -1, 1, -1],
       [0, 1, -1, -1],
@@ -899,12 +951,17 @@ export function candidateDefinitionVariants(pieceType: PieceType, componentIndex
     ];
     for (const template of templates) {
       add({
-        ...current,
+        kind: "ring",
         name: `${current.name} variant ${template.join("/")}`,
+        geometry: "chebyshev",
         ringValues: Array.from({ length }, (_, index) => template[index % template.length]) as Coefficient[],
+        repeat: true,
+        decayBase: current.decayBase,
+        originScale: current.originScale,
       });
     }
-  } else if (current.kind === "preset") {
+  }
+  if (current.kind === "preset") {
     for (const preset of [
       "checkerboard",
       "diagonal-stripes",

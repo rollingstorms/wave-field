@@ -60,7 +60,7 @@ export function App() {
   const [state, dispatch] = useReducer(gameReducer, undefined, createArenaInitialState);
   const [duelSeed, setDuelSeed] = useState(() => Math.floor(Math.random() * 1_000_000_000));
   const [developerMode, setDeveloperMode] = useState(false);
-  const [continuousField, setContinuousField] = useState(continuousRouteEnabled);
+  const [continuousField, setContinuousField] = useState(true);
   const [showTypeSums, setShowTypeSums] = useState(false);
   const [energyView, setEnergyView] = useState(false);
   const [energyChannels, setEnergyChannels] = useState<EnergyChannelState>({ ...ALL_ENERGY_CHANNELS });

@@ -148,6 +148,10 @@ describe("stability and victory", () => {
     state.components.blue.pawn = [0];
     state.components.blue.spy = [1];
     state.components.red.rook = [0, 1];
+    state.definitions.rook[1] = {
+      kind: "ring", name: "Hostile fixture", geometry: "chebyshev",
+      ringValues: [0, 1, 0, -1], repeat: true, decayBase: 2, originScale: 1,
+    };
 
     const result = applyMove("blue-spy", { x: 0, y: 3 }, state);
 

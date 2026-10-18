@@ -12,6 +12,7 @@ import {
   evaluateWaveScaleSet,
   findComboOutliers,
   profileMobilityDiagnostics,
+  positionProfileMobilityDiagnostics,
   profilePowerMetrics,
   searchDefaultComponentSets,
   searchCombinedParameterCandidates,
@@ -39,16 +40,20 @@ describe("mechanics analysis", () => {
   it("diagnoses raw component patterns and first-step mobility", () => {
     const patterns = componentPatternMetrics();
     const mobility = profileMobilityDiagnostics();
-    const deadRook = mobility.find((row) =>
-      row.pieceType === "rook" && row.profile.every((value) => value === -1));
+    const rookProfiles = mobility.filter((row) => row.pieceType === "rook");
 
     expect(patterns).toHaveLength(6);
     expect(patterns.some((metric) => metric.adjacentPositive + metric.adjacentNegative + metric.adjacentZero > 0)).toBe(true);
     expect(mobility).toHaveLength(12);
-    expect(deadRook?.averageMoves).toBeGreaterThan(10);
-    expect(deadRook?.deadOrigins).toBe(0);
-    expect(mobility.find((row) =>
-      row.pieceType === "rook" && row.profile.join(",") === "1,-1")?.deadOrigins).toBe(49);
+    expect(rookProfiles.every((row) => row.deadOrigins === 0)).toBe(true);
+    expect(Math.min(...rookProfiles.map((row) => row.averageMoves))).toBeGreaterThanOrEqual(6);
+  });
+
+  it("separates reachable, playable, and safe moves in complete positions", () => {
+    const rows = positionProfileMobilityDiagnostics();
+    expect(rows).toHaveLength(24);
+    expect(rows.every((row) => row.reachableMoves >= row.playableMoves && row.playableMoves >= row.safeMoves)).toBe(true);
+    expect(rows.filter((row) => row.pieceType === "rook").every((row) => row.safeMoves === 8)).toBe(true);
   });
 
   it("finds pairwise field outliers", () => {

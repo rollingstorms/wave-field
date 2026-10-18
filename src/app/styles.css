@@ -234,7 +234,8 @@ h1 {
   position: absolute;
   inset: 0;
   z-index: 0;
-  border: 0;
+  border-right: 1px solid rgba(15, 15, 15, 0.34);
+  border-bottom: 1px solid rgba(15, 15, 15, 0.34);
   pointer-events: none;
 }
 

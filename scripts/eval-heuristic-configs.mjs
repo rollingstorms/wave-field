@@ -45,14 +45,16 @@ await build({
       function ringReplacement(pieceType, componentIndex, values, name) {
         const definitions = cloneDefinitions();
         const current = definitions[pieceType][componentIndex];
-        if (current.kind !== "ring") throw new Error(pieceType + " C" + componentIndex + " is not a ring definition");
         return {
           pieceType,
           componentIndex,
           definition: {
             ...current,
             name,
+            kind: "ring",
+            geometry: "chebyshev",
             ringValues: values,
+            repeat: true,
           },
         };
       }

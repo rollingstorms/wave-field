@@ -18,6 +18,7 @@
     "selfplay:decisiveness": "node scripts/probe-decisiveness.mjs",
     "selfplay:hard-study": "node scripts/study-hard-converter.mjs",
     "selfplay:hard-sweep": "node scripts/sweep-hard-params.mjs",
+    "patterns:audit": "node scripts/audit-pattern-mobility.mjs",
     "search:optim": "node scripts/search-optim-configs.mjs",
     "build": "npm run engine:build && tsc && vite build && node scripts/copy-arena-entry.mjs && node scripts/create-sites-worker.mjs",
     "test": "cargo build --manifest-path engine/Cargo.toml && vitest run",

@@ -9,7 +9,8 @@ import type {
 import { BOARD_SIZE } from "../game/constants";
 import { createCmykEnergyGrid, ENERGY_CHANNELS } from "../field/cmykEnergy";
 import type { EnergyChannelState } from "../field/cmykEnergy";
-import { continuousFieldColor } from "../field/continuousColor";
+import { boardDisplayColor, continuousFieldColor } from "../field/continuousColor";
+import { sampleBoardDisplay } from "../field/boardDisplay";
 import { contributionGrid, evaluateContinuousField, evaluateField, evaluateTypeFields } from "../field/evaluateField";
 import type { TypeFields } from "../field/evaluateField";
 import { projectFieldValue } from "../field/projection";
@@ -133,8 +134,14 @@ export function Board({ state, field, typeFields, continuousField, showTypeSums,
     0,
   );
   const continuousSamples = useMemo(
-    () => continuousField && !energyView ? evaluateContinuousField(previewState, CONTINUOUS_SAMPLES_PER_SQUARE) : null,
-    [continuousField, energyView, previewState],
+    () => {
+      if (!continuousField || energyView) return null;
+      return state.variant === "continuous"
+        ? evaluateContinuousField(previewState, CONTINUOUS_SAMPLES_PER_SQUARE)
+          .map((row) => row.map((sample) => ({ value: sample.value, activity: Math.abs(sample.value) })))
+        : sampleBoardDisplay(displayField, CONTINUOUS_SAMPLES_PER_SQUARE);
+    },
+    [continuousField, displayField, energyView, previewState, state.variant],
   );
   const maximumContinuousMagnitude = continuousSamples
     ? Math.max(...continuousSamples.flat().map((sample) => Math.abs(sample.value)), 0)
@@ -540,7 +547,9 @@ export function Board({ state, field, typeFields, continuousField, showTypeSums,
                 row.map((sample, x) => (
                   <span
                     key={`${x}-${rowIndex}`}
-                    style={{ backgroundColor: continuousFieldColor(sample.value, maximumContinuousMagnitude) }}
+                    style={{ backgroundColor: state.variant === "continuous"
+                      ? continuousFieldColor(sample.value, maximumContinuousMagnitude)
+                      : boardDisplayColor(sample.value, sample.activity) }}
                   />
                 )),
               )}
@@ -644,9 +653,6 @@ export function Board({ state, field, typeFields, continuousField, showTypeSums,
                   energyColor={energyView ? energy.color : undefined}
                   energySummary={energySummary}
                   energySelected={Boolean(energyView && energySelection && samePosition(energySelection, position))}
-                  continuousColor={continuousField && !energyView && !continuousSamples
-                    ? continuousFieldColor(displayField[y][x], maximumFieldMagnitude)
-                    : undefined}
                   continuousSummary={continuousField && !energyView
                     ? ` Relative field magnitude ${fieldMagnitudePercent} percent.`
                     : ""}

@@ -46,13 +46,13 @@ export const DEBUG_DEFINITIONS: ComponentDefinitions = {
   pawn: [{ kind: "preset", name: "Checkerboard", preset: "checkerboard", decayBase: 2, originScale: 1 }],
   rook: [
     { kind: "grid", name: "Tower grid", gridValues: centeredGrid(towerComponentOneGrid), decayBase: 2, originScale: 1 },
-    { kind: "ring", name: "Pull gap push", geometry: "chebyshev", ringValues: [0, 1, 0, -1], repeat: true, decayBase: 2, originScale: 1 },
+    { kind: "preset", name: "Tower directional lanes", preset: "horizontal-versus-vertical", decayBase: 2, originScale: 1 },
   ],
   spy: [
     { kind: "preset", name: "Diamond core", preset: "diamond-core", decayBase: 2, originScale: 1 },
   ],
   king: [
-    { kind: "ring", name: "Big Hat c1 rings", geometry: "chebyshev", ringValues: [-1, -1, 1, 1, -1], repeat: true, decayBase: 2, originScale: 1 },
+    { kind: "ring", name: "Big Hat nearby support", geometry: "chebyshev", ringValues: [-1, 1, 1, 1, -1], repeat: true, decayBase: 2, originScale: 1 },
     { kind: "preset", name: "Horizontal mode", preset: "horizontal-versus-vertical", decayBase: 2, originScale: 1 },
   ],
 };
