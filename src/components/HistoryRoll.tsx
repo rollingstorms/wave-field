@@ -1,3 +1,4 @@
+import { memo } from "react";
 import { buildHistoryRoll } from "../game/historyRoll";
 import type { GameState } from "../game/types";
 
@@ -5,7 +6,7 @@ interface HistoryRollProps {
   state: GameState;
 }
 
-export function HistoryRoll({ state }: HistoryRollProps) {
+function HistoryRollView({ state }: HistoryRollProps) {
   const entries = buildHistoryRoll(state).reverse();
   return (
     <section className="history-roll" aria-labelledby="history-roll-title">
@@ -35,3 +36,13 @@ export function HistoryRoll({ state }: HistoryRollProps) {
     </section>
   );
 }
+
+export const HistoryRoll = memo(HistoryRollView, (previous, next) => (
+  previous.state.history === next.state.history
+  && previous.state.pieces === next.state.pieces
+  && previous.state.components === next.state.components
+  && previous.state.currentPlayer === next.state.currentPlayer
+  && previous.state.turnNumber === next.state.turnNumber
+  && previous.state.status === next.state.status
+  && previous.state.message === next.state.message
+));

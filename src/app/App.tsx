@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useReducer, useState } from "react";
+import { useEffect, useMemo, useReducer, useRef, useState } from "react";
 import { AiDuelPanel } from "../components/AiDuelPanel";
 import { Board } from "../components/Board";
 import { ComponentControls } from "../components/ComponentControls";
@@ -12,6 +12,7 @@ import { ALL_ENERGY_CHANNELS } from "../field/cmykEnergy";
 import type { EnergyChannelState } from "../field/cmykEnergy";
 import { evaluateField, evaluateTypeFields } from "../field/evaluateField";
 import { playEasyTurn, playHardTurn, playHeuristicTurn } from "../game/ai";
+import { requestBrowserAiTurn } from "../game/browserAi";
 import { BOARD_SIZE } from "../game/constants";
 import { createInitialState } from "../game/initialState";
 import { isNeuralPolicy, policyLabel, requestNeuralTurn } from "../game/neuralAi";
@@ -70,6 +71,10 @@ export function App() {
       ? { blue: "human", red: "hard" }
       : { blue: "easy", red: "easy" }
     : { blue: "human", red: "hard" });
+  const currentStateRef = useRef(state);
+  const sidePoliciesRef = useRef(sidePolicies);
+  currentStateRef.current = state;
+  sidePoliciesRef.current = sidePolicies;
   const [duelRunning, setDuelRunning] = useState(false);
   const [duelSpeedMs, setDuelSpeedMs] = useState(450);
   const [duelMaxTurns, setDuelMaxTurns] = useState(80);
@@ -103,11 +108,14 @@ export function App() {
       if (policy === "easy" || policy === "heuristic" || policy === "hard") {
         const player = state.currentPlayer;
         const variety = policy === "heuristic" && bothAutomated ? 0.55 : 0;
-        const preview = policy === "easy"
-          ? playEasyTurn(state, player, { seed: duelSeed, variety })
-          : policy === "hard"
-            ? playHardTurn(state, player, { seed: duelSeed, variety, timeBudgetMs: 2_500 })
-            : playHeuristicTurn(state, player, { seed: duelSeed, variety });
+        const preview = typeof Worker !== "undefined" && state.variant === "classic" && !state.entropyField && state.ampSquares.length === 0
+          ? await requestBrowserAiTurn(state, player, policy, duelSeed, variety)
+          : policy === "easy"
+            ? playEasyTurn(state, player, { seed: duelSeed, variety })
+            : policy === "hard"
+              ? playHardTurn(state, player, { seed: duelSeed, variety, timeBudgetMs: 2_500 })
+              : playHeuristicTurn(state, player, { seed: duelSeed, variety });
+        if (currentStateRef.current !== state || sidePoliciesRef.current[player] !== policy) return;
         const tuneCount = componentChangeCount(state.components[player], preview.components[player]);
         setAiStats((stats) => ({
           ...stats,
@@ -117,11 +125,7 @@ export function App() {
             lastTurnTunes: tuneCount,
           },
         }));
-        if (policy === "heuristic") {
-          dispatch({ type: "ai-turn", player, seed: duelSeed, variety });
-        } else {
-          dispatch({ type: "replace-state", state: preview });
-        }
+        dispatch({ type: "replace-state", state: preview });
         return;
       }
       if (!isNeuralPolicy(policy)) return;

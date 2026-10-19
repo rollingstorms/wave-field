@@ -129,6 +129,10 @@ export function Board({ state, field, typeFields, continuousField, showTypeSums,
     kingBlockedKeys: Set<string>;
   } | null>(null);
   const selectedPiece = state.pieces.find((piece) => piece.id === state.selectedPieceId);
+  const simulationState = useMemo(
+    () => state.history.length ? { ...state, history: [] } : state,
+    [state],
+  );
   const continuousInteraction = state.variant === "continuous" && !energyView;
   const interactionPiece = energyView ? undefined : state.pieces.find((piece) => piece.id === draggingPieceId) ?? selectedPiece;
   const reachableMoves = useMemo(
@@ -146,20 +150,21 @@ export function Board({ state, field, typeFields, continuousField, showTypeSums,
   const previewState = useMemo<GameState>(() => {
     if (!draggingPieceId || !dragPreview) return state;
     const piece = state.pieces.find((candidate) => candidate.id === draggingPieceId);
-    if (piece && !samePrecisePosition(piece.position, dragPreview)) {
+    if (piece && samePrecisePosition(piece.position, dragPreview)) return state;
+    if (piece) {
       const result = continuousInteraction
-        ? applyContinuousMove(draggingPieceId, dragPreview, state)
-        : applyMove(draggingPieceId, dragPreview, state);
+        ? applyContinuousMove(draggingPieceId, dragPreview, simulationState)
+        : applyMove(draggingPieceId, dragPreview, simulationState);
       if (result.ok) return result.state;
     }
     const moved = {
-      ...state,
+      ...simulationState,
       pieces: state.pieces.map((piece) =>
         piece.id === draggingPieceId ? { ...piece, position: dragPreview } : piece,
       ),
     };
     return markInstability(moved, evaluateField(moved));
-  }, [continuousInteraction, dragPreview, draggingPieceId, state]);
+  }, [continuousInteraction, dragPreview, draggingPieceId, simulationState, state]);
   const draggingPiece = draggingPieceId
     ? state.pieces.find((piece) => piece.id === draggingPieceId)
     : undefined;
@@ -218,8 +223,8 @@ export function Board({ state, field, typeFields, continuousField, showTypeSums,
         const riskyLossCounts = new Map<string, number>();
         for (const move of playableMoves) {
           const result = continuousInteraction
-            ? applyKnownLegalMove(piece.id, move, state, { analyzeCheckmate: false })
-            : applyMove(piece.id, move, state, { analyzeCheckmate: false });
+            ? applyKnownLegalMove(piece.id, move, simulationState, { analyzeCheckmate: false })
+            : applyMove(piece.id, move, simulationState, { analyzeCheckmate: false });
           if (!result.ok) continue;
           const survivingOwnIds = new Set(result.state.pieces.filter((candidate) => candidate.owner === piece.owner).map((candidate) => candidate.id));
           const lossCount = [...ownPieceIds].filter((id) => !survivingOwnIds.has(id)).length;
@@ -231,7 +236,7 @@ export function Board({ state, field, typeFields, continuousField, showTypeSums,
           for (const move of reachableMoves) {
             const key = preciseKey(move);
             if (playableKeys.has(key)) continue;
-            const result = applyMove(piece.id, move, state, { analyzeCheckmate: false });
+            const result = applyMove(piece.id, move, simulationState, { analyzeCheckmate: false });
             if (result.reason?.toLowerCase().includes("big hat unprotected") || result.reason?.toLowerCase().includes("king unprotected")) {
               kingBlockedKeys.add(key);
             }
@@ -245,7 +250,7 @@ export function Board({ state, field, typeFields, continuousField, showTypeSums,
       globalThis.cancelAnimationFrame(frame);
       if (timer !== undefined) globalThis.clearTimeout(timer);
     };
-  }, [continuousInteraction, interactionPiece, locked, playableMoves, reachableMoves, state]);
+  }, [continuousInteraction, interactionPiece, locked, playableMoves, reachableMoves, simulationState, state]);
   const currentMoveAnalysis = moveAnalysis?.state === state && moveAnalysis.pieceId === interactionPiece?.id ? moveAnalysis : null;
   const riskyMoveLossCounts = currentMoveAnalysis?.riskyLossCounts ?? new Map<string, number>();
   const legalMoves = playableMoves;

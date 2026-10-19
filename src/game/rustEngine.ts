@@ -48,6 +48,11 @@ interface RustBindings {
 
 let bindings: RustBindings | null = null;
 
+function reportRuleEngine(name: "rust-wasm" | "typescript", message: string): void {
+  if (typeof document !== "undefined") document.documentElement.dataset.ruleEngine = name;
+  console.info(message);
+}
+
 function requestedRuleEngine(): "rust" | "ts" {
   if (BOARD_SIZE !== 7) return "ts";
   const routePath = globalThis.location?.pathname.replace(/\/$/, "") ?? "";
@@ -61,8 +66,7 @@ function requestedRuleEngine(): "rust" | "ts" {
 export async function initializeRustEngine(): Promise<void> {
   if (bindings) return;
   if (requestedRuleEngine() === "ts") {
-    document.documentElement.dataset.ruleEngine = "typescript";
-    console.info("Wave Field: TypeScript rule engine active");
+    reportRuleEngine("typescript", "Wave Field: TypeScript rule engine active");
     return;
   }
   const baseUrl = import.meta.env.BASE_URL.endsWith("/") ? import.meta.env.BASE_URL : `${import.meta.env.BASE_URL}/`;
@@ -71,10 +75,9 @@ export async function initializeRustEngine(): Promise<void> {
     const loaded = await import(/* @vite-ignore */ modulePath) as RustBindings;
     await loaded.default({ module_or_path: `${baseUrl}engine/pkg/wave_field_engine_bg.wasm?v=${__ENGINE_BUILD_ID__}` });
     bindings = loaded;
-    document.documentElement.dataset.ruleEngine = "rust-wasm";
-    console.info("Wave Field: Rust rule engine active");
+    reportRuleEngine("rust-wasm", "Wave Field: Rust rule engine active");
   } catch (error) {
-    document.documentElement.dataset.ruleEngine = "typescript";
+    if (typeof document !== "undefined") document.documentElement.dataset.ruleEngine = "typescript";
     console.warn("Wave Field: Rust rule engine unavailable; TypeScript rule engine active", error);
   }
 }
@@ -87,6 +90,12 @@ function stateJson(state: GameState): string {
   return JSON.stringify(state);
 }
 
+// Board queries depend on the current position, not the undo timeline. Sending
+// every snapshot makes selection progressively slower as a game grows.
+function positionJson(state: GameState): string {
+  return JSON.stringify(state.history.length ? { ...state, history: [] } : state);
+}
+
 function callRust<T>(operation: () => T): T | null {
   if (!bindings) return null;
   try {
@@ -94,7 +103,7 @@ function callRust<T>(operation: () => T): T | null {
   } catch (error) {
     console.warn("Wave Field: Rust rule engine failed; falling back to TypeScript.", error);
     bindings = null;
-    document.documentElement.dataset.ruleEngine = "typescript";
+    if (typeof document !== "undefined") document.documentElement.dataset.ruleEngine = "typescript";
     return null;
   }
 }
@@ -105,7 +114,7 @@ function supportsRustState(state: GameState): boolean {
 
 export function rustEvaluateField(state: GameState): number[][] | null {
   if (!supportsRustState(state)) return null;
-  return callRust(() => JSON.parse(bindings!.evaluate_field_json(stateJson(state))) as number[][]);
+  return callRust(() => JSON.parse(bindings!.evaluate_field_json(positionJson(state))) as number[][]);
 }
 
 export function rustInfluenceContributors(position: Position, state: GameState): SquareInfluenceContributors | null {
@@ -128,12 +137,12 @@ export function rustInstabilityInfluenceLinks(threshold: number, state: GameStat
 
 export function rustLegalMoves(pieceId: string, state: GameState): Position[] | null {
   if (!supportsRustState(state)) return null;
-  return callRust(() => JSON.parse(bindings!.legal_moves_json(pieceId, stateJson(state))) as Position[]);
+  return callRust(() => JSON.parse(bindings!.legal_moves_json(pieceId, positionJson(state))) as Position[]);
 }
 
 export function rustPlayableMoves(pieceId: string, state: GameState): Position[] | null {
   if (!supportsRustState(state)) return null;
-  return callRust(() => JSON.parse(bindings!.playable_moves_json(pieceId, stateJson(state))) as Position[]);
+  return callRust(() => JSON.parse(bindings!.playable_moves_json(pieceId, positionJson(state))) as Position[]);
 }
 
 export function rustClosestPlayableConfiguration<T>(player: Player, state: GameState): T | null {
