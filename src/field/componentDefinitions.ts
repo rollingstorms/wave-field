@@ -52,7 +52,7 @@ export const DEBUG_DEFINITIONS: ComponentDefinitions = {
     { kind: "preset", name: "Diamond core", preset: "diamond-core", decayBase: 2, originScale: 1 },
   ],
   king: [
-    { kind: "ring", name: "Big Hat nearby support", geometry: "chebyshev", ringValues: [-1, 1, 1, 1, -1], repeat: true, decayBase: 2, originScale: 1 },
+    { kind: "ring", name: "Big Hat balanced support", geometry: "chebyshev", ringValues: [-1, 1, -1, 0, -1], repeat: true, decayBase: 2, originScale: 1 },
     { kind: "preset", name: "Horizontal mode", preset: "horizontal-versus-vertical", decayBase: 2, originScale: 1 },
   ],
 };

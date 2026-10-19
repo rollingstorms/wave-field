@@ -26,6 +26,10 @@ rendering tests separate: field shading should sample the same field used by
 the game's movement rules.
 
 The current Tower redesign replaces its second ring with directional lanes.
-The Big Hat's first pattern now supports nearby allied pieces. Together they
-remove the Tower's zero-move isolated phase and give every Tower phase safe
-opening moves without changing the opening's red, neutral, and blue rows.
+The Big Hat's first pattern balances nearby support against its own movement.
+Together they remove the Tower's zero-move isolated phase and give every Tower
+phase safe opening moves without changing the opening's red, neutral, and blue
+rows. Compare all Big Hat phases in played positions before changing the first
+ring: `[-1, 1, 1, 1, -1]` preserved Tower safety but sharply reduced Big Hat
+safe moves in the `--` phase. The current `[-1, 1, -1, 0, -1]` ring improved
+the weakest phase in a paired sample of 108 positions.
