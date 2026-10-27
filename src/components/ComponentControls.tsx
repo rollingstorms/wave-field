@@ -1,4 +1,5 @@
 import { Dices, RotateCcw } from "lucide-react";
+import { sparsePatternDescription } from "../field/sparsePattern";
 import { tuningStrengthFor } from "../game/constants";
 import { PIECE_INITIALS, pieceName } from "../game/pieceLabels";
 import { getTuningLoad } from "../game/tuning";
@@ -24,8 +25,8 @@ function PieceLegend({ player, pieceType }: { player: Player; pieceType: PieceTy
   );
 }
 
-export function coefficientLabel(player: Player, value: Coefficient) {
-  const fieldSign = player === "blue" ? -value : value;
+export function coefficientLabel(player: Player, value: Coefficient, sparse = false) {
+  const fieldSign = sparse ? value : player === "blue" ? -value : value;
   return fieldSign === 1 ? "+" : fieldSign === -1 ? "-" : "0";
 }
 
@@ -41,7 +42,7 @@ export function ComponentControls({ state, locked = false, onTune, onRandomize, 
   const player = state.currentPlayer;
   const controlsAtDefaults = JSON.stringify(state.components[player]) === JSON.stringify(state.defaultComponents);
   const renderPieceControls = (pieceType: PieceType) => (
-    <section className={`component-group components-${state.components[player][pieceType].length}`} key={pieceType}>
+    <section className={`component-group components-${state.components[player][pieceType].length}${state.variant === "sparse" ? " sparse-components" : ""}`} key={pieceType}>
       <div className="piece-heading">
         <WaveThumbnail state={state} player={player} pieceType={pieceType} />
         <PieceLegend player={player} pieceType={pieceType} />
@@ -69,13 +70,18 @@ export function ComponentControls({ state, locked = false, onTune, onRandomize, 
               }
               onClick={() => onTune(pieceType, index, value)}
               aria-pressed={coefficient === value}
-              aria-label={`${player} ${pieceName(pieceType)} component ${index + 1} set to ${coefficientLabel(player, value)}`}
+              aria-label={`${player} ${pieceName(pieceType)} component ${index + 1} set to ${coefficientLabel(player, value, state.variant === "sparse")}`}
             >
-              {coefficientLabel(player, value)}
+              {coefficientLabel(player, value, state.variant === "sparse")}
             </button>
           ))}
         </div>
       ))}
+      {state.variant === "sparse" && (
+        <span className="sparse-pattern-label">
+          {sparsePatternDescription(pieceType, state.components[player][pieceType])}
+        </span>
+      )}
     </section>
   );
 

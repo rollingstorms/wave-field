@@ -1142,6 +1142,33 @@ h1 {
   background: #101212;
 }
 
+.sparse-thumbnail-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  grid-template-rows: repeat(7, 1fr);
+  width: 100%;
+  height: 100%;
+  gap: 1px;
+}
+
+.sparse-thumbnail-cell.red.weak { background: rgba(238, 111, 101, 0.58); }
+.sparse-thumbnail-cell.red.strong { background: #ee6f65; }
+.sparse-thumbnail-cell.blue.weak { background: rgba(105, 159, 237, 0.58); }
+.sparse-thumbnail-cell.blue.strong { background: #699fed; }
+
+.sparse-pattern-label {
+  grid-column: 1 / -1;
+  grid-row: 2;
+  color: var(--muted);
+  font-size: 0.67rem;
+  line-height: 1.1;
+}
+
+.sparse-components.components-1 { grid-template-columns: 98px minmax(0, 1fr); }
+.sparse-components.components-2 { grid-template-columns: 98px repeat(2, minmax(0, 1fr)); }
+.sparse-components .piece-heading { grid-template-columns: 42px 17px minmax(0, 1fr); }
+.sparse-components .wave-thumbnail { width: 42px; }
+
 .continuous-pattern {
   display: block;
   width: 100%;

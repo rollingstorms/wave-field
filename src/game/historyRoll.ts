@@ -18,8 +18,8 @@ function playerName(player: Player) {
   return player === "blue" ? "Blue" : "Red";
 }
 
-function signLabel(player: Player, coefficient: Coefficient) {
-  const fieldSign = player === "blue" ? -coefficient : coefficient;
+function signLabel(player: Player, coefficient: Coefficient, sparse: boolean) {
+  const fieldSign = sparse ? coefficient : player === "blue" ? -coefficient : coefficient;
   return fieldSign === 1 ? "+" : fieldSign === -1 ? "-" : "0";
 }
 
@@ -42,7 +42,7 @@ function describeTransition(before: GameSnapshot, after: GameSnapshot, number: n
         const next = after.components[player][pieceType][index];
         if (coefficient === next) return;
         tuningChanges += 1;
-        details.push(`${playerName(player)} ${pieceNameLower(pieceType)} C${index + 1} ${signLabel(player, coefficient)}→${signLabel(player, next)}`);
+        details.push(`${playerName(player)} ${pieceNameLower(pieceType)} C${index + 1} ${signLabel(player, coefficient, before.variant === "sparse")}→${signLabel(player, next, before.variant === "sparse")}`);
       });
     }
   }

@@ -16,6 +16,13 @@ describe("debug history roll", () => {
     expect(entries[0].details).toContain("Blue round hat C1 -→+");
   });
 
+  it("describes sparse pattern signs as shown in the controls", () => {
+    const state = createInitialState();
+    state.variant = "sparse";
+    const tuned = gameReducer(state, { type: "tune", pieceType: "pawn", componentIndex: 0, value: -1 });
+    expect(buildHistoryRoll(tuned)[0].details).toContain("Blue round hat C1 +→-");
+  });
+
   it("describes moves with board coordinates", () => {
     const state = createInitialState();
     const destination = getLegalMoves("blue-pawn-1", state, evaluateField(state))[0];

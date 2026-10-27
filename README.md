@@ -14,9 +14,9 @@ emergent-pattern research notes.
 
 **[Play Wave Field](https://rollingstorms.github.io/wave-field/)**
 
-The experimental [`/sparse` variant](./docs/SPARSE_VARIANT.md) thresholds each
-piece's existing wave into small integer contributions and shows Red and Blue
-team totals on the board.
+The experimental [`/sparse` variant](./docs/SPARSE_VARIANT.md) gives every piece
+a discrete support pattern. Tuning trades wider 1-point coverage for focused
+2-point coverage, and the board shows Red and Blue team totals.
 
 ## Objective
 

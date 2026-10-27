@@ -1,36 +1,42 @@
 # Sparse variant
 
-The `/sparse` route is an experimental 7×7 version of Wave Field. It keeps the
-current piece patterns, movement, shared tuning controls, instability, and Big
-Hat rescue rules. The default route retains the original field rules.
+The `/sparse` route is an experimental 7×7 version of Wave Field. It keeps
+movement, shared tuning controls, instability, and Big Hat rescue rules. The
+default route retains the original wave field.
 
-## Field rule
+## Discrete support patterns
 
-For each piece and square, first calculate that piece's ordinary signed wave
-contribution using its current tuning, pattern, strength, and scales. Then:
+Every piece gives support only to its own team. Each tuning profile selects a
+fixed footprint centered on that piece. A covered square receives either 1 or
+2 support; all other squares receive 0. The pattern reaches at most two squares
+away. Tuning trades broad 1-point coverage for fewer 2-point squares.
 
-- On the piece's own square, its contribution is `+1` for its owner.
-- Elsewhere, values below `1`, including all negative lobes, become `0`.
-  Values from `1` to below `2` become `1`, and values `2` or greater become `2`.
-- Add contributions from Red pieces to get `R`, and from Blue pieces to get
-  `B`. Both totals are nonnegative. The field is `R - B`: the higher count owns
-  the square, and a tie is Neutral.
+| Piece | `+` or `++` | `-` or `+-` | `-+` | `--` |
+| --- | --- | --- | --- | --- |
+| Round Hat | Cross, two steps, 1 each | Four adjacent diagonals, 2 each | — | — |
+| Triangle Hat | Diamond, two steps, 1 each | Four adjacent orthogonal squares, 2 each | — | — |
+| Tower | Cross and diagonal rays, two steps, 1 each | Cross, two steps, 2 each | Diagonal rays, two steps, 2 each | Four adjacent orthogonal squares, 2 each |
+| Big Hat | Full square, two steps, 1 each | Diamond, two steps, 2 each | Diagonal rays, two steps, 2 each | Four adjacent orthogonal squares, 2 each |
 
-The board shows `R` and `B` on each square by default. Moving a piece
-recomputes the field from current positions, so its old contribution is erased
-and its pattern is applied at its destination. This also happens in the
-original game; it is not a new sparse rule.
+Each piece supports its own square by its base strength: Round Hat and Triangle
+Hat give 1; Tower and Big Hat give 2. For both teams, the controls show these
+pattern signs directly. The small preview and its caption show the chosen
+footprint and support per covered square.
 
-The cutoff, maximum stamp, and home-square strength are constants in
-`src/game/constants.ts`. They can be tuned for this variant without changing
-the default game.
+Add the Red pieces to get `R` and Blue pieces to get `B`. Both totals are
+nonnegative. The field is `R - B`: the higher total owns the square; a tie is
+Neutral. The board shows `R` and `B` on every square. Moving a piece removes
+its old pattern and applies the same pattern at its destination.
+
+The sparse footprints are defined in `src/field/sparsePattern.ts`. The classic
+route continues to use its existing wave definitions and scales.
 
 ## Shelved idea: per-piece tuning on move
 
 A later experiment could replace free, shared tuning with a choice attached to
 the moved piece, such as rotating a Tower's pattern as part of its move. That
 would make the resulting field change local to one piece and help players
-predict it. It is intentionally not active in `/sparse`: this first experiment
-tests the effect of sparse, integer contributions while keeping the current
-turn and tuning rules. Implementing per-piece tuning would need a piece-level
-profile in game state, move UI, undo history, AI actions, and Rust parity.
+predict it. It is intentionally not active in `/sparse`: this experiment keeps
+the current turn and tuning rules. Implementing per-piece tuning would need a
+piece-level profile in game state, move UI, undo history, AI actions, and Rust
+parity.

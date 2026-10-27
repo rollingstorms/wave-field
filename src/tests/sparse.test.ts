@@ -11,18 +11,56 @@ function sparseState() {
 }
 
 describe("sparse variant", () => {
-  it("thresholds existing waves per piece into small integers and anchors the home square", () => {
-    const state = sparseState();
-    const piece = state.pieces.find((candidate) => candidate.id === "red-pawn-1")!;
-    piece.position = { x: 3, y: 3 };
-    state.pieces = [piece];
+  it("gives every piece a discrete wide and focused footprint", () => {
+    const cases = [
+      { type: "pawn" as const, wide: [1], focused: [-1], wideCount: 8, focusedCount: 4, home: 1 },
+      { type: "spy" as const, wide: [1], focused: [-1], wideCount: 12, focusedCount: 4, home: 1 },
+      { type: "rook" as const, wide: [1, 1], focused: [-1, -1], wideCount: 16, focusedCount: 4, home: 2 },
+      { type: "king" as const, wide: [1, 1], focused: [-1, -1], wideCount: 24, focusedCount: 4, home: 2 },
+    ];
+    for (const entry of cases) {
+      const state = sparseState();
+      const piece = state.pieces.find((candidate) => candidate.owner === "red" && candidate.type === entry.type)!;
+      piece.position = { x: 3, y: 3 };
+      state.pieces = [piece];
+      const count = (coefficients: number[]) => {
+        state.components.red[entry.type] = coefficients as (1 | -1)[];
+        const values = Array.from({ length: 7 }, (_, y) => Array.from({ length: 7 }, (_, x) => evaluatePieceContribution(piece, { x, y }, state)));
+        expect(values[3][3]).toBe(entry.home);
+        expect(values.flat().every((value) => Number.isInteger(value) && value >= 0 && value <= 2)).toBe(true);
+        return values.flat().filter((value, index) => index !== 24 && value > 0);
+      };
+      const wide = count(entry.wide);
+      const focused = count(entry.focused);
+      expect(wide).toHaveLength(entry.wideCount);
+      expect(wide.every((value) => value === 1)).toBe(true);
+      expect(focused).toHaveLength(entry.focusedCount);
+      expect(focused.every((value) => value === 2)).toBe(true);
+    }
+  });
 
-    expect(evaluatePieceContribution(piece, { x: 3, y: 3 }, state)).toBe(1);
-    expect(evaluatePieceContribution(piece, { x: 4, y: 3 }, state)).toBe(0);
-    expect(evaluatePieceContribution(piece, { x: 4, y: 4 }, state)).toBe(2);
-    expect(evaluatePieceContribution(piece, { x: 5, y: 3 }, state)).toBe(1);
-    expect(evaluatePieceContribution(piece, { x: 6, y: 3 }, state)).toBe(0);
-    expect(evaluatePieceContribution(piece, { x: 2, y: 3 }, state)).toBe(0);
+  it("maps the mixed two-control modes to distinct, narrower shapes", () => {
+    for (const type of ["rook", "king"] as const) {
+      const state = sparseState();
+      const piece = state.pieces.find((candidate) => candidate.owner === "red" && candidate.type === type)!;
+      piece.position = { x: 3, y: 3 };
+      state.pieces = [piece];
+      const footprint = (profile: (1 | -1)[]) => {
+        state.components.red[type] = profile;
+        const values = Array.from({ length: 7 }, (_, y) => Array.from({ length: 7 }, (_, x) => evaluatePieceContribution(piece, { x, y }, state)));
+        return { count: values.flat().filter((value, index) => index !== 24 && value > 0).length, values };
+      };
+      const wide = footprint([1, 1]);
+      const mixedCross = footprint([1, -1]);
+      const mixedDiagonal = footprint([-1, 1]);
+      const tight = footprint([-1, -1]);
+      expect(wide.count).toBeGreaterThan(mixedCross.count);
+      expect(mixedCross.count).toBeGreaterThanOrEqual(mixedDiagonal.count);
+      expect(mixedDiagonal.count).toBeGreaterThan(tight.count);
+      expect(mixedCross.values[3][4]).toBe(2);
+      expect(mixedDiagonal.values[4][4]).toBe(2);
+      expect(tight.values[3][5]).toBe(0);
+    }
   });
 
   it("shows team totals that exactly explain territory and removes a moved pattern from its old origin", () => {

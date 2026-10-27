@@ -1,9 +1,10 @@
-import { BOARD_SIZE, PIECE_STRENGTH, SPARSE_CONTRIBUTION_THRESHOLD, SPARSE_HOME_STRENGTH, SPARSE_MAX_CONTRIBUTION } from "../game/constants";
+import { BOARD_SIZE, PIECE_STRENGTH } from "../game/constants";
 import type { ComponentDefinitions, GameState, Piece, PieceType, Position, PrecisePosition } from "../game/types";
 import { rustEvaluateField } from "../game/rustEngine";
 import { isAmpSquare } from "../game/variants";
 import { offset } from "./distance";
 import { evaluateComponentBasis } from "./kernels";
+import { evaluateSparsePattern } from "./sparsePattern";
 
 const AMP_MULTIPLIER = 2;
 
@@ -41,11 +42,8 @@ export function evaluatePieceContribution(
   definitions: ComponentDefinitions = state.definitions,
 ): number {
   const delta = offset(piece.position, square);
-  const raw = evaluatePieceContributionAtOffset(piece, delta, state, definitions);
-  if (state.variant !== "sparse") return raw;
-  if (delta.x === 0 && delta.y === 0) return SPARSE_HOME_STRENGTH;
-  if (raw < SPARSE_CONTRIBUTION_THRESHOLD) return 0;
-  return Math.min(SPARSE_MAX_CONTRIBUTION, Math.floor(raw));
+  if (state.variant === "sparse") return evaluateSparsePattern(piece.type, state.components[piece.owner][piece.type], delta);
+  return evaluatePieceContributionAtOffset(piece, delta, state, definitions);
 }
 
 export function evaluateSignedPieceContribution(

@@ -12,9 +12,6 @@ export const BOARD_CENTER = Math.floor(BOARD_SIZE / 2);
 export const FIELD_EPSILON = 1e-9;
 export const WAVE_DECAY_BASE = 2;
 export const WAVE_ORIGIN_SCALE = 1;
-export const SPARSE_CONTRIBUTION_THRESHOLD = 1;
-export const SPARSE_MAX_CONTRIBUTION = 2;
-export const SPARSE_HOME_STRENGTH = 1;
 
 export const PIECE_STRENGTH = {
   pawn: 1,

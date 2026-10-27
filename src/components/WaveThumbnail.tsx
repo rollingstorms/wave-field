@@ -20,8 +20,14 @@ function WaveThumbnailView({ state, player, pieceType }: WaveThumbnailProps) {
   };
   const values = contributionGrid(previewPiece, state);
   return (
-    <div className="wave-thumbnail" aria-label={`${player} ${pieceType} wave preview`}>
-      <ContinuousPattern values={values} samplesPerSquare={4} />
+    <div className="wave-thumbnail" aria-label={`${player} ${pieceType} ${state.variant === "sparse" ? "support" : "wave"} preview`}>
+      {state.variant === "sparse" ? (
+        <div className="sparse-thumbnail-grid" aria-hidden="true">
+          {values.flat().map((value, index) => (
+            <span key={index} className={`sparse-thumbnail-cell ${Math.abs(value) >= 2 ? "strong" : Math.abs(value) >= 1 ? "weak" : "empty"} ${player}`} />
+          ))}
+        </div>
+      ) : <ContinuousPattern values={values} samplesPerSquare={4} />}
       <span className="wave-thumbnail-origin" aria-hidden="true" />
     </div>
   );

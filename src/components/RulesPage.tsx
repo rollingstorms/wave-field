@@ -26,6 +26,13 @@ const pieceQuickNotes: Record<PieceType, string> = {
   king: "Must always end in stable territory.",
 };
 
+const sparsePieceQuickNotes: Record<PieceType, string> = {
+  pawn: "Cross at 1 support, or four diagonal squares at 2.",
+  rook: "Wide rays, focused cross or diagonals, or a tight cross.",
+  spy: "Wide or focused diamond; can move through hostile territory.",
+  king: "Wide square, focused diamond or diagonals, or tight cross.",
+};
+
 const setupPieces: PieceModel[] = [
   { id: "blue-rook-1", owner: "blue", type: "rook", position: { x: 2, y: 0 }, unstable: false },
   { id: "blue-king-1", owner: "blue", type: "king", position: { x: 3, y: 0 }, unstable: false },
@@ -170,7 +177,7 @@ export function RulesPage({ onBack, sparse = false }: RulesPageProps) {
         <div className="rules-copy">
           <h2>Trap the opposing Big Hat.</h2>
           {sparse ? (
-            <p>Each piece uses the positive parts of its usual wave pattern. Contributions smaller than 1 disappear; the rest become 1 or 2 support for that piece's team. Count Red and Blue separately on each square. The higher count owns it; a tie is Neutral.</p>
+            <p>Each piece stamps a small, exact pattern of 1 or 2 support for its team. Tuning trades wider coverage for stronger support on fewer squares. Count Red and Blue separately: the higher total owns a square, and a tie is Neutral.</p>
           ) : (
             <p>Every piece emits an invisible wave of energy across the board. Red and Blue use opposite sign orientations, and each square is the sum of every active wave reaching it. A single wave can contribute both signs in different places.</p>
           )}
@@ -199,13 +206,13 @@ export function RulesPage({ onBack, sparse = false }: RulesPageProps) {
         <article className="rules-panel rules-piece-panel">
           <Sparkles size={22} />
           <h2>Pieces</h2>
-          <p>A piece's energy is a mixture of positive and negative values across its wave pattern.</p>
+          <p>{sparse ? "Each piece has a footprint that extends at most two squares. The control preview shows its exact covered squares." : "A piece's energy is a mixture of positive and negative values across its wave pattern."}</p>
           <div className="piece-rules">
             {PIECE_TYPES.map((type) => (
               <div className="piece-rule" key={type}>
                 <span className="mini-piece-slot"><MiniPiece owner="blue" type={type} /></span>
                 <strong>{pieceName(type)}</strong>
-                <small>{pieceQuickNotes[type]}</small>
+                <small>{sparse ? sparsePieceQuickNotes[type] : pieceQuickNotes[type]}</small>
               </div>
             ))}
           </div>
@@ -218,14 +225,16 @@ export function RulesPage({ onBack, sparse = false }: RulesPageProps) {
             <li>Tune any of your piece-type wave controls, or leave them as they are.</li>
             <li>Move one piece to commit the field and end the turn.</li>
           </ol>
-          <p>Tuning is shared by type, so both of your Towers use the same Tower settings. The + and - controls activate a component in that orientation or flip an active component. At the active limit, choosing another component replaces the least recently pressed one. The dice randomizes a valid profile.</p>
+          <p>{sparse
+            ? "Tuning is shared by type, so both of your Towers use the same pattern. A + profile spreads 1 support farther. Changing a control to − focuses 2 support on fewer squares; −− is the tightest two-control pattern. The dice randomizes a valid profile."
+            : "Tuning is shared by type, so both of your Towers use the same Tower settings. The + and - controls activate a component in that orientation or flip an active component. At the active limit, choosing another component replaces the least recently pressed one. The dice randomizes a valid profile."}</p>
         </article>
 
         <article className="rules-panel">
           <Waves size={22} />
           <h2>Territory</h2>
           <p>{sparse
-            ? "Negative lobes give no support. The little R and B numbers are each team's support total; the higher number owns the square. Every piece gives 1 support on its own square. Moving removes its old contribution and places it at the new origin."
+            ? "The little R and B numbers are each team's support total; the higher number owns the square. Round and Triangle Hats give 1 support on their own square; Towers and Big Hats give 2. Moving removes the old footprint and places it at the new origin."
             : "Each component pattern can contain both positive and negative cells. Add all piece waves together; the final sign decides who controls the square. Moving a piece relocates its wave origin, so one move can reshape distant territory."}</p>
           <div className="territory-rule">
             <span className="swatch red" /> <strong>Red</strong> <small>total above 0</small>
