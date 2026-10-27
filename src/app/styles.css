@@ -614,6 +614,38 @@ h1 {
   height: 56%;
 }
 
+.team-sums {
+  position: absolute;
+  inset: 0;
+  z-index: 6;
+  pointer-events: none;
+}
+
+.team-sum {
+  position: absolute;
+  top: 3px;
+  min-width: 1.8em;
+  padding: 2px 3px;
+  border-radius: 3px;
+  background: rgba(9, 11, 11, 0.76);
+  color: white;
+  font-size: clamp(0.48rem, 1.3vw, 0.68rem);
+  font-style: normal;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.team-sum.red { left: 3px; color: #ff978d; }
+.team-sum.blue { right: 3px; color: #8bc4ff; }
+
+.variant-label {
+  display: inline-block;
+  margin-left: 0.6em;
+  font-size: 0.32em;
+  letter-spacing: 0.12em;
+  vertical-align: middle;
+}
+
 .legal-dot {
   position: absolute;
   inset: 34%;

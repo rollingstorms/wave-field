@@ -18,6 +18,7 @@ interface SquareProps {
   influenceTerritory: Territory | null;
   influenceOpacity: number;
   typeSums: Record<PieceType, number> | null;
+  teamSums?: { red: number; blue: number } | null;
   amp: boolean;
   lossPop: boolean;
   energyColor?: string;
@@ -36,7 +37,7 @@ function formatSigned(value: number) {
   return `${value > 0 ? "+" : ""}${magnitude.replace(".0", "")}`;
 }
 
-export function Square({ position, territory, fieldValue, piece, legal, risky, kingBlocked, selected, dragging, dragPreview, influenceTerritory, influenceOpacity, typeSums, amp, lossPop, energyColor, energySummary = "", energySelected = false, continuousColor, continuousSummary = "", hidePiece = false, passive = false, onClick }: SquareProps) {
+export function Square({ position, territory, fieldValue, piece, legal, risky, kingBlocked, selected, dragging, dragPreview, influenceTerritory, influenceOpacity, typeSums, teamSums, amp, lossPop, energyColor, energySummary = "", energySelected = false, continuousColor, continuousSummary = "", hidePiece = false, passive = false, onClick }: SquareProps) {
   const renderedColor = energyColor ?? continuousColor;
   const coordinate = `${String.fromCharCode(65 + position.x)}${BOARD_SIZE - position.y}`;
   const influenceSummary = influenceTerritory
@@ -45,9 +46,10 @@ export function Square({ position, territory, fieldValue, piece, legal, risky, k
   const typeSummary = typeSums
     ? ` Total ${formatSigned(fieldValue)}. ${PIECE_DISPLAY_NAMES.pawn} ${formatSigned(typeSums.pawn)}, ${PIECE_DISPLAY_NAMES.rook} ${formatSigned(typeSums.rook)}, ${PIECE_DISPLAY_NAMES.spy} ${formatSigned(typeSums.spy)}, ${PIECE_DISPLAY_NAMES.king} ${formatSigned(typeSums.king)}.`
     : "";
+  const teamSummary = teamSums ? ` Red team ${teamSums.red}, Blue team ${teamSums.blue}.` : "";
   const className = `square ${territory} ${amp ? "amp-square" : ""} ${energyColor ? "energy-square" : ""} ${continuousColor ? "continuous-square" : ""} ${energySelected ? "energy-selected" : ""} ${legal ? "legal" : ""} ${risky ? "risky-move" : ""} ${selected ? "selected-square" : ""} ${dragPreview ? "drag-preview-square" : ""} ${typeSums ? "type-sums-visible" : ""}`;
   const style = renderedColor ? { backgroundColor: renderedColor } : undefined;
-  const label = `Square ${coordinate}. ${territory} territory. Field ${fieldValue.toFixed(3)}.${amp ? " Amp square, pieces here project double wave strength." : ""}${energySummary}${continuousSummary}${risky ? " Moving here loses a piece." : ""}${kingBlocked ? " Reachable, but blocked because it would leave your Big Hat unprotected." : ""}${influenceSummary}${typeSummary}`;
+  const label = `Square ${coordinate}. ${territory} territory. Field ${fieldValue.toFixed(3)}.${teamSummary}${amp ? " Amp square, pieces here project double wave strength." : ""}${energySummary}${continuousSummary}${risky ? " Moving here loses a piece." : ""}${kingBlocked ? " Reachable, but blocked because it would leave your Big Hat unprotected." : ""}${influenceSummary}${typeSummary}`;
   const content: ReactNode = (
     <>
       {influenceOpacity > 0 && influenceTerritory !== "neutral" && (
@@ -77,6 +79,12 @@ export function Square({ position, territory, fieldValue, piece, legal, risky, k
           <i className="type-sum-value total">{formatSigned(fieldValue)}</i>
           <i className="type-sum-value spy">{formatSigned(typeSums.spy)}</i>
           <i className="type-sum-value king">{formatSigned(typeSums.king)}</i>
+        </span>
+      )}
+      {teamSums && (
+        <span className="team-sums" aria-hidden="true">
+          <i className="team-sum red">R {teamSums.red}</i>
+          <i className="team-sum blue">B {teamSums.blue}</i>
         </span>
       )}
     </>

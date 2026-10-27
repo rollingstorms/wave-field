@@ -10,6 +10,7 @@ import { Piece } from "./Piece";
 
 interface RulesPageProps {
   onBack: () => void;
+  sparse?: boolean;
 }
 
 const playerLabel: Record<Player, string> = {
@@ -41,8 +42,9 @@ const setupPieces: PieceModel[] = [
 ];
 const selectedMovementPieceId = "rules-blue-spy";
 
-function createMovementDemoState() {
+function createMovementDemoState(sparse = false) {
   const state = createInitialState();
+  if (sparse) state.variant = "sparse";
   state.currentPlayer = "blue";
   state.selectedPieceId = selectedMovementPieceId;
   state.pieces = [
@@ -88,8 +90,8 @@ function SetupBoard() {
   );
 }
 
-function MovementBoard() {
-  const state = createMovementDemoState();
+function MovementBoard({ sparse = false }: { sparse?: boolean }) {
+  const state = createMovementDemoState(sparse);
   const field = evaluateField(state);
   const playable = new Set(getPlayableMoves(selectedMovementPieceId, state, field).map((move) => `${move.x},${move.y}`));
   const reachable = getLegalMoves(selectedMovementPieceId, state, field);
@@ -135,14 +137,14 @@ function MovementBoard() {
   );
 }
 
-function ToolbarKey() {
+function ToolbarKey({ sparse = false }: { sparse?: boolean }) {
   return (
     <div className="toolbar-key" aria-label="Bottom toolbar key">
       <span><CircleHelp size={18} /> How to play</span>
       <span><Undo2 size={18} /> Undo</span>
       <span><RotateCcw size={18} /> Restart</span>
       <span><Wrench size={18} /> Developer tools</span>
-      <span><Grid2X2 size={18} /> Piece-type sums</span>
+      <span><Grid2X2 size={18} /> {sparse ? "Red and Blue team sums" : "Piece-type sums"}</span>
       <span><Palette size={18} /> CMYK energy view</span>
       <span><Bot size={18} /> AI mode</span>
       <span><i className="gradient-swatch" aria-hidden="true" /> Continuous field shading</span>
@@ -150,13 +152,13 @@ function ToolbarKey() {
   );
 }
 
-export function RulesPage({ onBack }: RulesPageProps) {
+export function RulesPage({ onBack, sparse = false }: RulesPageProps) {
   return (
     <main className="app rules-page">
       <header className="rules-header">
         <div>
           <p className="side-label blue">HOW TO PLAY</p>
-          <h1>Wave Field</h1>
+          <h1>Wave Field{ sparse && <small className="variant-label">SPARSE</small>}</h1>
         </div>
         <button className="secondary back-button" onClick={onBack}>
           <ArrowLeft size={18} />
@@ -167,11 +169,11 @@ export function RulesPage({ onBack }: RulesPageProps) {
       <section className="rules-hero">
         <div className="rules-copy">
           <h2>Trap the opposing Big Hat.</h2>
-          <p>
-            Every piece emits an invisible wave of energy across the board. Red and Blue
-            use opposite sign orientations, and each square is the sum of every active
-            wave reaching it. A single wave can contribute both signs in different places.
-          </p>
+          {sparse ? (
+            <p>Each piece uses the positive parts of its usual wave pattern. Contributions smaller than 1 disappear; the rest become 1 or 2 support for that piece's team. Count Red and Blue separately on each square. The higher count owns it; a tie is Neutral.</p>
+          ) : (
+            <p>Every piece emits an invisible wave of energy across the board. Red and Blue use opposite sign orientations, and each square is the sum of every active wave reaching it. A single wave can contribute both signs in different places.</p>
+          )}
         </div>
         <SetupBoard />
       </section>
@@ -189,7 +191,7 @@ export function RulesPage({ onBack }: RulesPageProps) {
         </div>
         <div>
           <strong>Bottom toolbar</strong>
-          <ToolbarKey />
+          <ToolbarKey sparse={sparse} />
         </div>
       </section>
 
@@ -222,7 +224,9 @@ export function RulesPage({ onBack }: RulesPageProps) {
         <article className="rules-panel">
           <Waves size={22} />
           <h2>Territory</h2>
-          <p>Each component pattern can contain both positive and negative cells. Add all piece waves together; the final sign decides who controls the square. Moving a piece relocates its wave origin, so one move can reshape distant territory.</p>
+          <p>{sparse
+            ? "Negative lobes give no support. The little R and B numbers are each team's support total; the higher number owns the square. Every piece gives 1 support on its own square. Moving removes its old contribution and places it at the new origin."
+            : "Each component pattern can contain both positive and negative cells. Add all piece waves together; the final sign decides who controls the square. Moving a piece relocates its wave origin, so one move can reshape distant territory."}</p>
           <div className="territory-rule">
             <span className="swatch red" /> <strong>Red</strong> <small>total above 0</small>
             <span className="swatch neutral" /> <strong>Neutral</strong> <small>total equals 0</small>
@@ -251,7 +255,7 @@ export function RulesPage({ onBack }: RulesPageProps) {
             <li>A yellow dot warns that one of your pieces may be lost.</li>
           </ul>
         </div>
-        <MovementBoard />
+        <MovementBoard sparse={sparse} />
       </section>
 
       <section className="rules-panel">

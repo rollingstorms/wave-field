@@ -12,6 +12,7 @@ interface GameActionsProps {
   developerMode: boolean;
   continuousField: boolean;
   showTypeSums: boolean;
+  sparse: boolean;
   energyView: boolean;
   aiEnabled: boolean;
   onUndo: () => void;
@@ -24,7 +25,7 @@ interface GameActionsProps {
   onShowRules: () => void;
 }
 
-export function GameActions({ developerMode, continuousField, showTypeSums, energyView, aiEnabled, onUndo, onRestart, onToggleDeveloper, onToggleContinuousField, onToggleTypeSums, onToggleEnergyView, onToggleAi, onShowRules }: GameActionsProps) {
+export function GameActions({ developerMode, continuousField, showTypeSums, sparse, energyView, aiEnabled, onUndo, onRestart, onToggleDeveloper, onToggleContinuousField, onToggleTypeSums, onToggleEnergyView, onToggleAi, onShowRules }: GameActionsProps) {
   return (
     <div className="actions">
       <button title="How to play" aria-label="How to play" onClick={onShowRules}><CircleHelp size={18} /></button>
@@ -33,8 +34,8 @@ export function GameActions({ developerMode, continuousField, showTypeSums, ener
       <button className={developerMode ? "active" : ""} title="Developer mode" aria-label="Developer mode" onClick={onToggleDeveloper}><Wrench size={18} /></button>
       <button
         className={showTypeSums ? "active" : ""}
-        title="Piece-type field sums"
-        aria-label="Piece-type field sums"
+        title={sparse ? "Red and Blue team sums" : "Piece-type field sums"}
+        aria-label={sparse ? "Red and Blue team sums" : "Piece-type field sums"}
         aria-pressed={showTypeSums}
         onClick={onToggleTypeSums}
       >
@@ -78,7 +79,7 @@ export function TurnStatus({ state, aiThinking, actions }: TurnStatusProps) {
     <header className="topbar">
       <div>
         <p className={`side-label ${state.currentPlayer}`}>{state.currentPlayer.toUpperCase()}</p>
-        <h1>Wave ± Field</h1>
+        <h1>Wave ± Field{state.variant === "sparse" && <small className="variant-label">SPARSE</small>}</h1>
       </div>
       <div className="topbar-right">
         <div className="turn-block">

@@ -9,6 +9,7 @@ const routePath = globalThis.location?.pathname.replace(/\/$/, "") ?? "";
 const ampRouteEnabled = routePath.endsWith("/amp");
 const entropyRouteEnabled = routePath.endsWith("/entropy");
 const continuousRouteEnabled = routePath.endsWith("/continuous");
+const sparseRouteEnabled = routePath.endsWith("/sparse");
 
 function piece(owner: Player, type: PieceType, x: number, y: number, n: number): Piece {
   return { id: `${owner}-${type}-${n}`, owner, type, position: { x, y }, unstable: false };
@@ -42,7 +43,7 @@ export function createInitialState(
   waveScales: WaveScales = structuredClone(DEFAULT_WAVE_SCALES),
   homeEnergy: HomeEnergy = structuredClone(DEFAULT_HOME_ENERGY),
   ampSquares = ampRouteEnabled ? createAmpSquares() : [],
-  variant: GameVariant = continuousRouteEnabled ? "continuous" : "classic",
+  variant: GameVariant = continuousRouteEnabled ? "continuous" : sparseRouteEnabled ? "sparse" : "classic",
 ): GameState {
   const components = {
     blue: structuredClone(defaultComponents),

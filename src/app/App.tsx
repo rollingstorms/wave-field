@@ -61,8 +61,8 @@ export function App() {
   const [state, dispatch] = useReducer(gameReducer, undefined, createArenaInitialState);
   const [duelSeed, setDuelSeed] = useState(() => Math.floor(Math.random() * 1_000_000_000));
   const [developerMode, setDeveloperMode] = useState(false);
-  const [continuousField, setContinuousField] = useState(true);
-  const [showTypeSums, setShowTypeSums] = useState(false);
+  const [continuousField, setContinuousField] = useState(!routePath.endsWith("/sparse"));
+  const [showTypeSums, setShowTypeSums] = useState(routePath.endsWith("/sparse"));
   const [energyView, setEnergyView] = useState(false);
   const [energyChannels, setEnergyChannels] = useState<EnergyChannelState>({ ...ALL_ENERGY_CHANNELS });
   const [showRules, setShowRules] = useState(false);
@@ -235,7 +235,7 @@ export function App() {
   }
 
   if (showRules) {
-    return <RulesPage onBack={() => setShowRules(false)} />;
+    return <RulesPage onBack={() => setShowRules(false)} sparse={state.variant === "sparse"} />;
   }
 
   return (
@@ -248,6 +248,7 @@ export function App() {
             developerMode={developerMode}
             continuousField={continuousField}
             showTypeSums={showTypeSums}
+            sparse={state.variant === "sparse"}
             energyView={energyView}
             aiEnabled={sidePolicies.blue !== "human" || sidePolicies.red !== "human"}
             onUndo={undo}

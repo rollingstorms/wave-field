@@ -14,6 +14,10 @@ emergent-pattern research notes.
 
 **[Play Wave Field](https://rollingstorms.github.io/wave-field/)**
 
+The experimental [`/sparse` variant](./docs/SPARSE_VARIANT.md) thresholds each
+piece's existing wave into small integer contributions and shows Red and Blue
+team totals on the board.
+
 ## Objective
 
 Win by **trapping the opposing Big Hat**. A Big Hat is trapped when its square is

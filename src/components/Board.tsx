@@ -11,7 +11,7 @@ import { createCmykEnergyGrid, ENERGY_CHANNELS } from "../field/cmykEnergy";
 import type { EnergyChannelState } from "../field/cmykEnergy";
 import { boardDisplayColor, continuousFieldColor } from "../field/continuousColor";
 import { sampleBoardDisplay } from "../field/boardDisplay";
-import { contributionGrid, evaluateContinuousField, evaluateField, evaluateTypeFields } from "../field/evaluateField";
+import { contributionGrid, evaluateContinuousField, evaluateField, evaluateTeamFields, evaluateTypeFields } from "../field/evaluateField";
 import type { TypeFields } from "../field/evaluateField";
 import { projectFieldValue } from "../field/projection";
 import { getContinuousLegalMoves, getLegalMoves, getPieceAt, getPieceAtPrecise, samePosition, samePrecisePosition } from "../game/movement";
@@ -176,6 +176,10 @@ export function Board({ state, field, typeFields, continuousField, showTypeSums,
   const displayTypeFields = useMemo(
     () => previewing ? evaluateTypeFields(previewState) : typeFields,
     [previewState, previewing, typeFields],
+  );
+  const displayTeamFields = useMemo(
+    () => state.variant === "sparse" && showTypeSums ? evaluateTeamFields(previewState) : null,
+    [previewState, showTypeSums, state.variant],
   );
   const maximumFieldMagnitude = Math.max(
     ...displayField.flat().map((value) => Math.abs(value)),
@@ -559,12 +563,12 @@ export function Board({ state, field, typeFields, continuousField, showTypeSums,
         </div>
       )}
       {showTypeSums && (
-        <div className="type-sum-key" aria-label="Type sum corner key">
-          <strong>TYPE SUMS</strong>
-          <span>{PIECE_INITIALS.pawn} ↖</span>
-          <span>{PIECE_INITIALS.rook} ↗</span>
-          <span>{PIECE_INITIALS.spy} ↙</span>
-          <span>{PIECE_INITIALS.king} ↘</span>
+        <div className="type-sum-key" aria-label={state.variant === "sparse" ? "Team support key" : "Type sum corner key"}>
+          {state.variant === "sparse" ? (
+            <><strong>TEAM SUPPORT</strong><span>R = Red</span><span>B = Blue</span><span>Higher count owns the square</span></>
+          ) : (
+            <><strong>TYPE SUMS</strong><span>{PIECE_INITIALS.pawn} ↖</span><span>{PIECE_INITIALS.rook} ↗</span><span>{PIECE_INITIALS.spy} ↙</span><span>{PIECE_INITIALS.king} ↘</span></>
+          )}
         </div>
       )}
       <div className="files top">{FILE_LABELS.map((file) => <span key={file}>{file}</span>)}</div>
@@ -671,11 +675,15 @@ export function Board({ state, field, typeFields, continuousField, showTypeSums,
                   influenceOpacity={!energyView && maximumInfluence > 0 && influence > 0
                     ? 0.45 + (influence / maximumInfluence) * 0.55
                     : 0}
-                  typeSums={!energyView && showTypeSums ? {
+                  typeSums={!energyView && showTypeSums && state.variant !== "sparse" ? {
                     pawn: displayTypeFields.pawn[y][x],
                     rook: displayTypeFields.rook[y][x],
                     spy: displayTypeFields.spy[y][x],
                     king: displayTypeFields.king[y][x],
+                  } : null}
+                  teamSums={!energyView && displayTeamFields ? {
+                    red: displayTeamFields.red[y][x],
+                    blue: displayTeamFields.blue[y][x],
                   } : null}
                   amp={isAmpSquare(position, state.ampSquares)}
                   lossPop={lossPopKeys.has(preciseKey(position))}

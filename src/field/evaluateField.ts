@@ -1,4 +1,4 @@
-import { BOARD_SIZE, PIECE_STRENGTH } from "../game/constants";
+import { BOARD_SIZE, PIECE_STRENGTH, SPARSE_CONTRIBUTION_THRESHOLD, SPARSE_HOME_STRENGTH, SPARSE_MAX_CONTRIBUTION } from "../game/constants";
 import type { ComponentDefinitions, GameState, Piece, PieceType, Position, PrecisePosition } from "../game/types";
 import { rustEvaluateField } from "../game/rustEngine";
 import { isAmpSquare } from "../game/variants";
@@ -41,7 +41,11 @@ export function evaluatePieceContribution(
   definitions: ComponentDefinitions = state.definitions,
 ): number {
   const delta = offset(piece.position, square);
-  return evaluatePieceContributionAtOffset(piece, delta, state, definitions);
+  const raw = evaluatePieceContributionAtOffset(piece, delta, state, definitions);
+  if (state.variant !== "sparse") return raw;
+  if (delta.x === 0 && delta.y === 0) return SPARSE_HOME_STRENGTH;
+  if (raw < SPARSE_CONTRIBUTION_THRESHOLD) return 0;
+  return Math.min(SPARSE_MAX_CONTRIBUTION, Math.floor(raw));
 }
 
 export function evaluateSignedPieceContribution(
@@ -151,6 +155,19 @@ export function evaluateField(state: GameState, definitions: ComponentDefinition
 }
 
 export type TypeFields = Record<PieceType, number[][]>;
+
+export function evaluateTeamFields(state: GameState): Record<"red" | "blue", number[][]> {
+  return {
+    red: Array.from({ length: BOARD_SIZE }, (_, y) => Array.from({ length: BOARD_SIZE }, (_, x) =>
+      state.pieces.filter((piece) => piece.owner === "red")
+        .reduce((total, piece) => total + evaluatePieceContribution(piece, { x, y }, state), 0),
+    )),
+    blue: Array.from({ length: BOARD_SIZE }, (_, y) => Array.from({ length: BOARD_SIZE }, (_, x) =>
+      state.pieces.filter((piece) => piece.owner === "blue")
+        .reduce((total, piece) => total + evaluatePieceContribution(piece, { x, y }, state), 0),
+    )),
+  };
+}
 
 export function evaluateTypeFields(
   state: GameState,

@@ -3,7 +3,7 @@ export type PieceType = "pawn" | "rook" | "spy" | "king";
 export type Territory = "red" | "neutral" | "blue";
 export type Coefficient = -1 | 0 | 1;
 export type GameStatus = "playing" | "red-won" | "blue-won";
-export type GameVariant = "classic" | "continuous";
+export type GameVariant = "classic" | "continuous" | "sparse";
 export type FormulaPreset =
   | "checkerboard"
   | "diagonal-stripes"
