@@ -2,6 +2,7 @@ import type { Coefficient, PieceType, Position } from "../game/types";
 
 const WIDE_SUPPORT = 1;
 const FOCUSED_SUPPORT = 2;
+const TIGHT_SUPPORT = 4;
 const HOME_SUPPORT: Record<PieceType, number> = { pawn: 0, spy: 1, rook: 0, king: 0 };
 
 function onAxis(x: number, y: number): boolean {
@@ -24,13 +25,13 @@ export function sparsePatternDescription(pieceType: PieceType, coefficients: rea
     if (key === "++") return "Wide rays · 1";
     if (key === "+-") return "Focused cross · 2";
     if (key === "-+") return "Focused diagonals · 2";
-    if (key === "--") return "Tight cross · 2";
+    if (key === "--") return "Tight cross · 4";
   }
   if (pieceType === "king") {
     if (key === "++") return "Wide square · 1";
     if (key === "+-") return "Focused diamond · 2";
     if (key === "-+") return "Focused diagonals · 2";
-    if (key === "--") return "Tight cross · 2";
+    if (key === "--") return "Tight cross · 4";
   }
   return "Partial pattern";
 }
@@ -64,7 +65,7 @@ export function evaluateSparsePattern(pieceType: PieceType, coefficients: readon
     return diamond ? FOCUSED_SUPPORT : 0;
   }
   if (key === "-+") return diagonal ? FOCUSED_SUPPORT : 0;
-  if (key === "--") return axis && radius === 1 ? FOCUSED_SUPPORT : 0;
+  if (key === "--") return axis && radius === 1 ? TIGHT_SUPPORT : 0;
 
   // Developer profiles with a disabled component retain one visible stencil.
   if (coefficients[0] !== 0) return axis ? WIDE_SUPPORT : 0;

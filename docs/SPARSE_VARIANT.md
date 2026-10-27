@@ -7,16 +7,16 @@ default route retains the original wave field.
 ## Discrete support patterns
 
 Every piece gives support only to its own team. Each tuning profile selects a
-fixed footprint centered on that piece. A covered square receives either 1 or
-2 support; all other squares receive 0. The pattern reaches at most two squares
-away. Tuning trades broad 1-point coverage for fewer 2-point squares.
+fixed footprint centered on that piece. A covered square receives 1, 2, or 4
+support; all other squares receive 0. The pattern reaches at most two squares
+away. Tuning trades broad 1-point coverage for fewer stronger squares.
 
 | Piece | `+` or `++` | `-` or `+-` | `-+` | `--` |
 | --- | --- | --- | --- | --- |
 | Round Hat | Cross, two steps, 1 each | Four adjacent diagonals, 2 each | — | — |
 | Triangle Hat | Diamond, two steps, 1 each | Four adjacent orthogonal squares, 2 each | — | — |
-| Tower | Cross and diagonal rays, two steps, 1 each | Cross, two steps, 2 each | Diagonal rays, two steps, 2 each | Four adjacent orthogonal squares, 2 each |
-| Big Hat | Full square, two steps, 1 each | Diamond, two steps, 2 each | Diagonal rays, two steps, 2 each | Four adjacent orthogonal squares, 2 each |
+| Tower | Cross and diagonal rays, two steps, 1 each | Cross, two steps, 2 each | Diagonal rays, two steps, 2 each | Four adjacent orthogonal squares, 4 each |
+| Big Hat | Full square, two steps, 1 each | Diamond, two steps, 2 each | Diagonal rays, two steps, 2 each | Four adjacent orthogonal squares, 4 each |
 
 The origin square receives 0 support from its own piece, except the Triangle
 Hat, which gives 1. This keeps the original game's special Triangle Hat origin

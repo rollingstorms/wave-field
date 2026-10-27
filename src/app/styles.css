@@ -1153,8 +1153,10 @@ h1 {
 
 .sparse-thumbnail-cell.red.weak { background: rgba(238, 111, 101, 0.58); }
 .sparse-thumbnail-cell.red.strong { background: #ee6f65; }
+.sparse-thumbnail-cell.red.tight { background: #fff1cb; box-shadow: inset 0 0 0 1px #ee6f65; }
 .sparse-thumbnail-cell.blue.weak { background: rgba(105, 159, 237, 0.58); }
 .sparse-thumbnail-cell.blue.strong { background: #699fed; }
+.sparse-thumbnail-cell.blue.tight { background: #ecf5ff; box-shadow: inset 0 0 0 1px #699fed; }
 
 .sparse-pattern-label {
   grid-column: 1 / -1;

@@ -13,10 +13,10 @@ function sparseState() {
 describe("sparse variant", () => {
   it("gives every piece a discrete wide and focused footprint", () => {
     const cases = [
-      { type: "pawn" as const, wide: [1], focused: [-1], wideCount: 8, focusedCount: 4, home: 0 },
-      { type: "spy" as const, wide: [1], focused: [-1], wideCount: 12, focusedCount: 4, home: 1 },
-      { type: "rook" as const, wide: [1, 1], focused: [-1, -1], wideCount: 16, focusedCount: 4, home: 0 },
-      { type: "king" as const, wide: [1, 1], focused: [-1, -1], wideCount: 24, focusedCount: 4, home: 0 },
+      { type: "pawn" as const, wide: [1], focused: [-1], wideCount: 8, focusedCount: 4, focusedStrength: 2, home: 0 },
+      { type: "spy" as const, wide: [1], focused: [-1], wideCount: 12, focusedCount: 4, focusedStrength: 2, home: 1 },
+      { type: "rook" as const, wide: [1, 1], focused: [-1, -1], wideCount: 16, focusedCount: 4, focusedStrength: 4, home: 0 },
+      { type: "king" as const, wide: [1, 1], focused: [-1, -1], wideCount: 24, focusedCount: 4, focusedStrength: 4, home: 0 },
     ];
     for (const entry of cases) {
       const state = sparseState();
@@ -27,7 +27,7 @@ describe("sparse variant", () => {
         state.components.red[entry.type] = coefficients as (1 | -1)[];
         const values = Array.from({ length: 7 }, (_, y) => Array.from({ length: 7 }, (_, x) => evaluatePieceContribution(piece, { x, y }, state)));
         expect(values[3][3]).toBe(entry.home);
-        expect(values.flat().every((value) => Number.isInteger(value) && value >= 0 && value <= 2)).toBe(true);
+        expect(values.flat().every((value) => Number.isInteger(value) && value >= 0 && value <= 4)).toBe(true);
         return values.flat().filter((value, index) => index !== 24 && value > 0);
       };
       const wide = count(entry.wide);
@@ -35,7 +35,7 @@ describe("sparse variant", () => {
       expect(wide).toHaveLength(entry.wideCount);
       expect(wide.every((value) => value === 1)).toBe(true);
       expect(focused).toHaveLength(entry.focusedCount);
-      expect(focused.every((value) => value === 2)).toBe(true);
+      expect(focused.every((value) => value === entry.focusedStrength)).toBe(true);
     }
   });
 
@@ -59,6 +59,8 @@ describe("sparse variant", () => {
       expect(mixedDiagonal.count).toBeGreaterThan(tight.count);
       expect(mixedCross.values[3][4]).toBe(2);
       expect(mixedDiagonal.values[4][4]).toBe(2);
+      expect(tight.values[3][4]).toBe(4);
+      expect(tight.values[4][4]).toBe(0);
       expect(tight.values[3][5]).toBe(0);
     }
   });

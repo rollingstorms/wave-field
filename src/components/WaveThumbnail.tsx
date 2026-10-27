@@ -24,7 +24,7 @@ function WaveThumbnailView({ state, player, pieceType }: WaveThumbnailProps) {
       {state.variant === "sparse" ? (
         <div className="sparse-thumbnail-grid" aria-hidden="true">
           {values.flat().map((value, index) => (
-            <span key={index} className={`sparse-thumbnail-cell ${Math.abs(value) >= 2 ? "strong" : Math.abs(value) >= 1 ? "weak" : "empty"} ${player}`} />
+            <span key={index} className={`sparse-thumbnail-cell ${Math.abs(value) >= 4 ? "tight" : Math.abs(value) >= 2 ? "strong" : Math.abs(value) >= 1 ? "weak" : "empty"} ${player}`} />
           ))}
         </div>
       ) : <ContinuousPattern values={values} samplesPerSquare={4} />}

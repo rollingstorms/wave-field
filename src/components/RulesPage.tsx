@@ -28,9 +28,9 @@ const pieceQuickNotes: Record<PieceType, string> = {
 
 const sparsePieceQuickNotes: Record<PieceType, string> = {
   pawn: "Cross at 1 support, or four diagonal squares at 2.",
-  rook: "Wide rays, focused cross or diagonals, or a tight cross.",
+  rook: "Wide rays, focused cross or diagonals, or a tight cross at 4.",
   spy: "Wide or focused diamond; can move through hostile territory.",
-  king: "Wide square, focused diamond or diagonals, or tight cross.",
+  king: "Wide square, focused diamond or diagonals, or tight cross at 4.",
 };
 
 const setupPieces: PieceModel[] = [
@@ -177,7 +177,7 @@ export function RulesPage({ onBack, sparse = false }: RulesPageProps) {
         <div className="rules-copy">
           <h2>Trap the opposing Big Hat.</h2>
           {sparse ? (
-            <p>Each piece stamps a small, exact pattern of 1 or 2 support for its team. Tuning trades wider coverage for stronger support on fewer squares. Count Red and Blue separately: the higher total owns a square, and a tie is Neutral.</p>
+            <p>Each piece stamps a small, exact pattern of 1, 2, or 4 support for its team. Tuning trades wider coverage for stronger support on fewer squares. Count Red and Blue separately: the higher total owns a square, and a tie is Neutral.</p>
           ) : (
             <p>Every piece emits an invisible wave of energy across the board. Red and Blue use opposite sign orientations, and each square is the sum of every active wave reaching it. A single wave can contribute both signs in different places.</p>
           )}
@@ -226,7 +226,7 @@ export function RulesPage({ onBack, sparse = false }: RulesPageProps) {
             <li>Move one piece to commit the field and end the turn.</li>
           </ol>
           <p>{sparse
-            ? "Tuning is shared by type, so both of your Towers use the same pattern. A + profile spreads 1 support farther. Changing a control to − focuses 2 support on fewer squares; −− is the tightest two-control pattern. The dice randomizes a valid profile."
+            ? "Tuning is shared by type, so both of your Towers use the same pattern. A + profile spreads 1 support farther. Changing a control to − focuses 2 support on fewer squares; −− puts 4 support on the four adjacent cross squares. The dice randomizes a valid profile."
             : "Tuning is shared by type, so both of your Towers use the same Tower settings. The + and - controls activate a component in that orientation or flip an active component. At the active limit, choosing another component replaces the least recently pressed one. The dice randomizes a valid profile."}</p>
         </article>
 
