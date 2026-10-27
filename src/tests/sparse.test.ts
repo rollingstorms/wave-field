@@ -13,10 +13,10 @@ function sparseState() {
 describe("sparse variant", () => {
   it("gives every piece a discrete wide and focused footprint", () => {
     const cases = [
-      { type: "pawn" as const, wide: [1], focused: [-1], wideCount: 8, focusedCount: 4, home: 1 },
+      { type: "pawn" as const, wide: [1], focused: [-1], wideCount: 8, focusedCount: 4, home: 0 },
       { type: "spy" as const, wide: [1], focused: [-1], wideCount: 12, focusedCount: 4, home: 1 },
-      { type: "rook" as const, wide: [1, 1], focused: [-1, -1], wideCount: 16, focusedCount: 4, home: 2 },
-      { type: "king" as const, wide: [1, 1], focused: [-1, -1], wideCount: 24, focusedCount: 4, home: 2 },
+      { type: "rook" as const, wide: [1, 1], focused: [-1, -1], wideCount: 16, focusedCount: 4, home: 0 },
+      { type: "king" as const, wide: [1, 1], focused: [-1, -1], wideCount: 24, focusedCount: 4, home: 0 },
     ];
     for (const entry of cases) {
       const state = sparseState();
@@ -78,10 +78,12 @@ describe("sparse variant", () => {
 
     const piece = state.pieces.find((candidate) => candidate.id === "blue-pawn-1")!;
     const origin = { ...piece.position };
+    const oldPatternSquare = { x: origin.x + 1, y: origin.y };
     const moved = structuredClone(state);
     moved.pieces.find((candidate) => candidate.id === piece.id)!.position = { x: 0, y: 6 };
-    expect(evaluatePieceContribution(piece, origin, state)).toBe(1);
-    expect(evaluatePieceContribution(moved.pieces.find((candidate) => candidate.id === piece.id)!, origin, moved)).toBe(0);
+    expect(evaluatePieceContribution(piece, origin, state)).toBe(0);
+    expect(evaluatePieceContribution(piece, oldPatternSquare, state)).toBe(1);
+    expect(evaluatePieceContribution(moved.pieces.find((candidate) => candidate.id === piece.id)!, oldPatternSquare, moved)).toBe(0);
   });
 
   it("has a playable opening and preserves the variant on restart", () => {

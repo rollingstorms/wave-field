@@ -18,10 +18,11 @@ away. Tuning trades broad 1-point coverage for fewer 2-point squares.
 | Tower | Cross and diagonal rays, two steps, 1 each | Cross, two steps, 2 each | Diagonal rays, two steps, 2 each | Four adjacent orthogonal squares, 2 each |
 | Big Hat | Full square, two steps, 1 each | Diamond, two steps, 2 each | Diagonal rays, two steps, 2 each | Four adjacent orthogonal squares, 2 each |
 
-Each piece supports its own square by its base strength: Round Hat and Triangle
-Hat give 1; Tower and Big Hat give 2. For both teams, the controls show these
-pattern signs directly. The small preview and its caption show the chosen
-footprint and support per covered square.
+The origin square receives 0 support from its own piece, except the Triangle
+Hat, which gives 1. This keeps the original game's special Triangle Hat origin
+in a discrete form. For both teams, the controls show pattern signs directly.
+The small preview and its caption show the chosen footprint and support per
+covered square.
 
 Add the Red pieces to get `R` and Blue pieces to get `B`. Both totals are
 nonnegative. The field is `R - B`: the higher total owns the square; a tie is

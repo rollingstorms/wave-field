@@ -2,7 +2,7 @@ import type { Coefficient, PieceType, Position } from "../game/types";
 
 const WIDE_SUPPORT = 1;
 const FOCUSED_SUPPORT = 2;
-const HOME_SUPPORT: Record<PieceType, number> = { pawn: 1, spy: 1, rook: 2, king: 2 };
+const HOME_SUPPORT: Record<PieceType, number> = { pawn: 0, spy: 1, rook: 0, king: 0 };
 
 function onAxis(x: number, y: number): boolean {
   return (x === 0) !== (y === 0);

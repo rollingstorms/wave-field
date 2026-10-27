@@ -234,7 +234,7 @@ export function RulesPage({ onBack, sparse = false }: RulesPageProps) {
           <Waves size={22} />
           <h2>Territory</h2>
           <p>{sparse
-            ? "The little R and B numbers are each team's support total; the higher number owns the square. Round and Triangle Hats give 1 support on their own square; Towers and Big Hats give 2. Moving removes the old footprint and places it at the new origin."
+            ? "The little R and B numbers are each team's support total; the higher number owns the square. A piece gives no support on its own square, except the Triangle Hat, which gives 1. Moving removes the old footprint and places it at the new origin."
             : "Each component pattern can contain both positive and negative cells. Add all piece waves together; the final sign decides who controls the square. Moving a piece relocates its wave origin, so one move can reshape distant territory."}</p>
           <div className="territory-rule">
             <span className="swatch red" /> <strong>Red</strong> <small>total above 0</small>
