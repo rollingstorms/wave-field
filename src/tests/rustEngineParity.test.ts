@@ -2,7 +2,7 @@ import { spawnSync } from "node:child_process";
 import { describe, expect, it } from "vitest";
 import { evaluateField } from "../field/evaluateField";
 import { playHeuristicTurn } from "../game/ai";
-import { createInitialState } from "../game/initialState";
+import { createClassicInitialState as createInitialState, createInitialState as createDefaultInitialState } from "../game/initialState";
 import { getLegalMoves } from "../game/movement";
 import {
   applyClosestPlayableHint,
@@ -14,10 +14,57 @@ import {
   resetTuning,
   resignInCheck,
 } from "../game/rules";
-import type { GameState, PieceType, Player, Position } from "../game/types";
+import type { Coefficient, GameState, PieceType, Player, Position } from "../game/types";
 import { getUnstablePieces, isKingUnprotected } from "../game/victory";
 
 const engineBinary = "engine/target/debug/wave-field-engine";
+
+describe("default discrete Rust rules", () => {
+  it("matches every piece profile, owner, and clipped board-edge footprint", () => {
+    const profiles: Record<PieceType, Coefficient[][]> = {
+      pawn: [[1], [-1], [0]],
+      spy: [[1], [-1], [0]],
+      rook: [[1, 1], [1, -1], [-1, 1], [-1, -1], [1, 0], [0, 1], [0, 0]],
+      king: [[1, 1], [1, -1], [-1, 1], [-1, -1], [1, 0], [0, 1], [0, 0]],
+    };
+    for (const type of Object.keys(profiles) as PieceType[]) {
+      for (const profile of profiles[type]) {
+        for (const owner of ["red", "blue"] as const) {
+          for (const position of [{ x: 3, y: 3 }, { x: 0, y: 6 }]) {
+            const state = createDefaultInitialState();
+            state.pieces = [{ id: "test-piece", owner, type, position, unstable: false }];
+            state.components[owner][type] = profile;
+            expect(rust<number[][]>("evaluateField", state)).toEqual(evaluateField(state));
+          }
+        }
+      }
+    }
+  });
+
+  it("matches default movement, tuning, rescue analysis, and move resolution", () => {
+    let state = createDefaultInitialState();
+    expect(state.variant).toBe("sparse");
+    for (const piece of state.pieces.filter((piece) => piece.owner === "blue")) {
+      expect(rust<Position[]>("playableMoves", state, { pieceId: piece.id })).toEqual(getPlayableMoves(piece.id, state));
+    }
+    const expected = applyTuning("blue", "king", 0, -1, state);
+    expect(rust("applyTuning", state, { player: "blue", pieceType: "king", componentIndex: 0, value: -1 })).toEqual(expected);
+    state = expected.state;
+    const destination = getPlayableMoves("blue-spy-1", state)[0];
+    expect(destination).toBeDefined();
+    expect(rust("applyMove", state, { pieceId: "blue-spy-1", destination })).toEqual(applyMove("blue-spy-1", destination, state));
+  });
+
+  it("completes a native AI turn using the default rules", () => {
+    const state = createDefaultInitialState();
+    const result = rust<GameState>("playHardTurn", state, { player: "blue", seed: 17, timeBudgetMs: 100 });
+    expect(result.variant).toBe("sparse");
+    expect(result.currentPlayer).toBe("red");
+    expect(result.turnNumber).toBe(state.turnNumber);
+    expect(result.status).toBe("playing");
+    expect(movedPiece(state, result)).toBeDefined();
+  });
+});
 
 function rust<T>(method: string, state: GameState, params: Record<string, unknown> = {}): T {
   const result = spawnSync(engineBinary, {

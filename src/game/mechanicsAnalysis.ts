@@ -1,6 +1,6 @@
 import { BOARD_SIZE, PIECE_STRENGTH, tuningStrengthFor } from "./constants";
 import { evaluateField } from "../field/evaluateField";
-import { createInitialState } from "./initialState";
+import { createClassicInitialState, createInitialState } from "./initialState";
 import { getLegalMoves } from "./movement";
 import { applyMove, getPlayableMoves, opponent } from "./rules";
 import type { BasisDefinition, Coefficient, ComponentDefinitions, GameState, HomeEnergy, Piece, PieceType, Player, PlayerComponents, Position, WaveScales } from "./types";
@@ -290,7 +290,7 @@ function fieldDelta(before: number[][], after: number[][]): { signChanges: numbe
   return { signChanges, l1Delta };
 }
 
-export function mobilitySummary(state: GameState = createInitialState(), field = evaluateField(state)): MobilitySummary {
+export function mobilitySummary(state: GameState = createClassicInitialState(), field = evaluateField(state)): MobilitySummary {
   const pieces = state.pieces.map((piece) => ({
     pieceId: piece.id,
     owner: piece.owner,
@@ -314,7 +314,7 @@ export function mobilitySummary(state: GameState = createInitialState(), field =
   };
 }
 
-export function fragmentationMetrics(state: GameState = createInitialState(), field = evaluateField(state)): FragmentationMetrics {
+export function fragmentationMetrics(state: GameState = createClassicInitialState(), field = evaluateField(state)): FragmentationMetrics {
   const signs = field.map((row) => row.map(fieldSign));
   let redCells = 0;
   let blueCells = 0;
@@ -375,7 +375,7 @@ function inBoundsPosition(position: Position): boolean {
   return position.x >= 0 && position.x < BOARD_SIZE && position.y >= 0 && position.y < BOARD_SIZE;
 }
 
-export function lossMobilityImpacts(state: GameState = createInitialState()): LossMobilityImpact[] {
+export function lossMobilityImpacts(state: GameState = createClassicInitialState()): LossMobilityImpact[] {
   const beforeField = evaluateField(state);
   const beforeMobility = mobilitySummary(state, beforeField);
   const beforeUnstable = unstableCount(state, beforeField);
@@ -403,7 +403,7 @@ export function lossMobilityImpacts(state: GameState = createInitialState()): Lo
     });
 }
 
-export function moveConsequenceMetrics(state: GameState = createInitialState()): MoveConsequenceMetric[] {
+export function moveConsequenceMetrics(state: GameState = createClassicInitialState()): MoveConsequenceMetric[] {
   if (state.status !== "playing") return [];
   const player = state.currentPlayer;
   const enemy = opponent(player);
@@ -460,7 +460,7 @@ export function moveConsequenceMetrics(state: GameState = createInitialState()):
     );
 }
 
-export function complexitySnapshot(state: GameState = createInitialState(), limit = 8): ComplexitySnapshot {
+export function complexitySnapshot(state: GameState = createClassicInitialState(), limit = 8): ComplexitySnapshot {
   const field = evaluateField(state);
   const mobility = mobilitySummary(state, field);
   const margins = mobility.pieces.map((piece) => piece.safetyMargin);
@@ -491,7 +491,7 @@ export function complexitySnapshot(state: GameState = createInitialState(), limi
 }
 
 export function enumerateProfiles(pieceType: PieceType): Coefficient[][] {
-  const count = createInitialState().components.red[pieceType].length;
+  const count = createClassicInitialState().components.red[pieceType].length;
   const activeLimit = tuningStrengthFor(pieceType, count);
   const profiles: Coefficient[][] = [];
 
@@ -557,7 +557,7 @@ function summarizeGrid(grid: number[][]) {
   };
 }
 
-export function profilePowerMetrics(state: GameState = createInitialState()): ProfilePowerMetrics[] {
+export function profilePowerMetrics(state: GameState = createClassicInitialState()): ProfilePowerMetrics[] {
   const boardPositions = positions();
   return pieceTypes.flatMap((pieceType) =>
     enumerateProfiles(pieceType).map((profile) => {
@@ -661,7 +661,7 @@ function comboMetrics(first: ComboPiece, second: ComboPiece, state: GameState): 
 }
 
 export function findComboOutliers(
-  state: GameState = createInitialState(),
+  state: GameState = createClassicInitialState(),
   limit = 12,
   options: { positions?: Position[]; pieceTypes?: PieceType[] } = {},
 ): Record<"reinforcement" | "cancellation" | "fragmentation" | "bias", ComboOutlier[]> {
@@ -701,7 +701,7 @@ export function findComboOutliers(
   return outliers;
 }
 
-export function legalMoveMobilityForProfile(pieceType: PieceType, profile: Coefficient[], state: GameState = createInitialState()): number {
+export function legalMoveMobilityForProfile(pieceType: PieceType, profile: Coefficient[], state: GameState = createClassicInitialState()): number {
   return positions().reduce((total, position) => {
     const singleton = singletonState(pieceType, profile, position, state);
     const field = Array.from({ length: BOARD_SIZE }, (_, y) =>
@@ -713,7 +713,7 @@ export function legalMoveMobilityForProfile(pieceType: PieceType, profile: Coeff
   }, 0);
 }
 
-export function profileMobilityDiagnostics(state: GameState = createInitialState()): ProfileMobilityDiagnostics[] {
+export function profileMobilityDiagnostics(state: GameState = createClassicInitialState()): ProfileMobilityDiagnostics[] {
   const boardPositions = positions();
   return pieceTypes.flatMap((pieceType) =>
     enumerateProfiles(pieceType).map((profile) => {
@@ -755,7 +755,7 @@ export function profileMobilityDiagnostics(state: GameState = createInitialState
 // Use complete positions as a second gate: a basis can have open rays in
 // isolation while every move in a real position abandons an allied piece.
 export function positionProfileMobilityDiagnostics(
-  positionsToAudit: GameState[] = [createInitialState()],
+  positionsToAudit: GameState[] = [createClassicInitialState()],
 ): PositionProfileMobility[] {
   return pieceTypes.flatMap((pieceType) =>
     (["blue", "red"] as Player[]).flatMap((player) =>
@@ -793,7 +793,7 @@ export function positionProfileMobilityDiagnostics(
   );
 }
 
-export function componentPatternMetrics(state: GameState = createInitialState()): ComponentPatternMetrics[] {
+export function componentPatternMetrics(state: GameState = createClassicInitialState()): ComponentPatternMetrics[] {
   const boardPositions = positions();
   return pieceTypes.flatMap((pieceType) =>
     state.definitions[pieceType].map((definition, componentIndex) => {
@@ -876,7 +876,7 @@ export function evaluateDefinitionVariant(
   pieceType: PieceType,
   componentIndex: number,
   definition: BasisDefinition,
-  baseState: GameState = createInitialState(),
+  baseState: GameState = createClassicInitialState(),
 ): DefinitionVariantSearchResult {
   const state = stateWithDefinition(pieceType, componentIndex, definition, baseState);
   const powerMetrics = profilePowerMetrics(state).filter((metric) => metric.pieceType === pieceType);
@@ -919,7 +919,7 @@ export function evaluateDefinitionVariant(
   };
 }
 
-export function candidateDefinitionVariants(pieceType: PieceType, componentIndex: number, baseState: GameState = createInitialState()): BasisDefinition[] {
+export function candidateDefinitionVariants(pieceType: PieceType, componentIndex: number, baseState: GameState = createClassicInitialState()): BasisDefinition[] {
   const current = baseState.definitions[pieceType][componentIndex];
   const variants: BasisDefinition[] = [structuredClone(current)];
   const seen = new Set([JSON.stringify(current)]);
@@ -984,7 +984,7 @@ export function candidateDefinitionVariants(pieceType: PieceType, componentIndex
 export function searchDefinitionVariants(
   targets: Array<{ pieceType: PieceType; componentIndex: number }>,
   limit = 12,
-  baseState: GameState = createInitialState(),
+  baseState: GameState = createClassicInitialState(),
 ): DefinitionVariantSearchResult[] {
   return targets
     .flatMap((target) =>
@@ -996,7 +996,7 @@ export function searchDefinitionVariants(
 
 export function evaluateDefinitionSetVariant(
   replacements: Array<{ pieceType: PieceType; componentIndex: number; definition: BasisDefinition }>,
-  baseState: GameState = createInitialState(),
+  baseState: GameState = createClassicInitialState(),
 ): DefinitionSetVariantSearchResult {
   const state = stateWithDefinitions(replacements, baseState);
   const affectedPieceTypes = [...new Set(replacements.map((replacement) => replacement.pieceType))];
@@ -1053,7 +1053,7 @@ export function evaluateDefinitionSetVariant(
 export function searchDefinitionSetVariants(
   targetSets: Array<Array<{ pieceType: PieceType; componentIndex: number }>>,
   limit = 12,
-  baseState: GameState = createInitialState(),
+  baseState: GameState = createClassicInitialState(),
 ): DefinitionSetVariantSearchResult[] {
   const results: DefinitionSetVariantSearchResult[] = [];
 
@@ -1089,7 +1089,7 @@ function profileLabelKey(pieceType: PieceType, profile: readonly Coefficient[], 
 
 export function evaluateWaveScaleSet(
   scales: WaveScales,
-  baseState: GameState = createInitialState(),
+  baseState: GameState = createClassicInitialState(),
   mobilityCache = new Map<string, number>(),
 ): WaveScaleSearchResult {
   const state = { ...baseState, waveScales: structuredClone(scales) };
@@ -1140,7 +1140,7 @@ export function evaluateWaveScaleSet(
 export function searchWaveScaleOptions(
   options: WaveScaleOptions,
   limit = 12,
-  baseState: GameState = createInitialState(),
+  baseState: GameState = createClassicInitialState(),
 ): WaveScaleSearchResult[] {
   const results: WaveScaleSearchResult[] = [];
   const mobilityCache = new Map<string, number>();
@@ -1181,7 +1181,7 @@ export function enumerateDefaultComponentSets(): PlayerComponents[] {
 
 export function evaluateDefaultComponentSet(
   components: PlayerComponents,
-  baseState: GameState = createInitialState(),
+  baseState: GameState = createClassicInitialState(),
   mobilityCache = new Map<string, number>(),
 ): DefaultComponentSearchResult {
   const state = createInitialState(
@@ -1189,6 +1189,8 @@ export function evaluateDefaultComponentSet(
     structuredClone(baseState.definitions),
     structuredClone(baseState.waveScales),
     structuredClone(baseState.homeEnergy),
+    baseState.ampSquares,
+    baseState.variant,
   );
   const field = evaluateField(state);
   const openingMoves = { red: 0, blue: 0 };
@@ -1230,7 +1232,7 @@ export function evaluateDefaultComponentSet(
 
 export function searchDefaultComponentSets(
   limit = 12,
-  baseState: GameState = createInitialState(),
+  baseState: GameState = createClassicInitialState(),
   candidates: PlayerComponents[] = enumerateDefaultComponentSets(),
 ): DefaultComponentSearchResult[] {
   const mobilityCache = new Map<string, number>();
@@ -1242,13 +1244,15 @@ export function searchDefaultComponentSets(
 
 export function evaluateHomeEnergySet(
   homeEnergy: HomeEnergy,
-  baseState: GameState = createInitialState(),
+  baseState: GameState = createClassicInitialState(),
 ): HomeEnergySearchResult {
   const state = createInitialState(
     structuredClone(baseState.defaultComponents),
     structuredClone(baseState.definitions),
     structuredClone(baseState.waveScales),
     structuredClone(homeEnergy),
+    baseState.ampSquares,
+    baseState.variant,
   );
   const field = evaluateField(state);
   const margins = state.pieces.map((piece) => ({
@@ -1288,7 +1292,7 @@ export function evaluateHomeEnergySet(
 export function searchHomeEnergyOptions(
   options: HomeEnergyOptions,
   limit = 12,
-  baseState: GameState = createInitialState(),
+  baseState: GameState = createClassicInitialState(),
 ): HomeEnergySearchResult[] {
   const results: HomeEnergySearchResult[] = [];
   for (const pawn of options.pawn) {
@@ -1307,7 +1311,7 @@ export function searchHomeEnergyOptions(
 
 export function evaluateCombinedParameterCandidate(
   candidate: CombinedParameterCandidate,
-  baseState: GameState = createInitialState(),
+  baseState: GameState = createClassicInitialState(),
 ): CombinedParameterSearchResult {
   const definitions = candidate.replacements
     ? stateWithDefinitions(candidate.replacements, baseState).definitions
@@ -1315,7 +1319,7 @@ export function evaluateCombinedParameterCandidate(
   const components = structuredClone(candidate.components ?? baseState.defaultComponents);
   const scales = structuredClone(candidate.scales ?? baseState.waveScales);
   const homeEnergy = structuredClone(candidate.homeEnergy ?? baseState.homeEnergy);
-  const state = createInitialState(components, definitions, scales, homeEnergy);
+  const state = createInitialState(components, definitions, scales, homeEnergy, baseState.ampSquares, baseState.variant);
   const wave = evaluateWaveScaleSet(scales, state);
   const defaults = evaluateDefaultComponentSet(components, state);
   const home = evaluateHomeEnergySet(homeEnergy, state);
@@ -1343,7 +1347,7 @@ export function evaluateCombinedParameterCandidate(
 export function searchCombinedParameterCandidates(
   candidates: CombinedParameterCandidate[],
   limit = 12,
-  baseState: GameState = createInitialState(),
+  baseState: GameState = createClassicInitialState(),
 ): CombinedParameterSearchResult[] {
   return candidates
     .map((candidate) => evaluateCombinedParameterCandidate(candidate, baseState))

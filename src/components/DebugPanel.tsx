@@ -274,9 +274,11 @@ export function DebugPanel({ state, field, onUpdateDefault, onUpdateWaveScale, o
         onReset={onResetDefaults}
         onRestart={onRestart}
       />
-      <WaveScaleEditor scales={state.waveScales} onUpdate={onUpdateWaveScale} onReset={onResetWaveScales} />
-      <HomeEnergyEditor homeEnergy={state.homeEnergy} onUpdate={onUpdateHomeEnergy} onReset={onResetHomeEnergy} />
-      <PatternCountEditor state={state} onUpdate={onSetComponentCount} />
+      {state.variant !== "sparse" && <>
+        <WaveScaleEditor scales={state.waveScales} onUpdate={onUpdateWaveScale} onReset={onResetWaveScales} />
+        <HomeEnergyEditor homeEnergy={state.homeEnergy} onUpdate={onUpdateHomeEnergy} onReset={onResetHomeEnergy} />
+        <PatternCountEditor state={state} onUpdate={onSetComponentCount} />
+      </>}
       <PressurePanel state={state} />
       <HistoryRoll state={state} />
       <div className="field-table" aria-label="Raw field values">

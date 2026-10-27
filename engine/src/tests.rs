@@ -5,6 +5,29 @@ fn fixture() -> GameState {
 }
 
 #[test]
+fn new_game_api_uses_discrete_rules_and_legacy_states_keep_classic_rules() {
+    let state: GameState = serde_json::from_str(&crate::api::new_game_json().unwrap()).unwrap();
+    assert_eq!(state.variant, GameVariant::Sparse);
+    assert_eq!(fixture().variant, GameVariant::Classic);
+    for piece in &state.pieces {
+        assert_eq!(
+            evaluate_piece_contribution(piece, piece.position, &state),
+            if piece.piece_type == PieceType::Spy {
+                1.0
+            } else {
+                0.0
+            }
+        );
+    }
+    assert!(
+        evaluate_field(&state)
+            .iter()
+            .flatten()
+            .all(|value| value.fract() == 0.0)
+    );
+}
+
+#[test]
 fn initial_state_uses_inverted_hat_tower_grid() {
     let state = fixture();
     let BasisDefinition::Grid {

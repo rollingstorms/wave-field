@@ -8,6 +8,73 @@ fn piece_strength(piece_type: PieceType) -> f64 {
     }
 }
 
+fn sparse_pattern(piece_type: PieceType, coefficients: &[i8], delta: Position) -> f64 {
+    let Position { x, y } = delta;
+    if x == 0 && y == 0 {
+        return if piece_type == PieceType::Spy {
+            1.0
+        } else {
+            0.0
+        };
+    }
+    let radius = x.abs().max(y.abs());
+    if radius > 2 {
+        return 0.0;
+    }
+    let axis = (x == 0) != (y == 0);
+    let diagonal = x != 0 && x.abs() == y.abs();
+    let diamond = x.abs() + y.abs() <= 2;
+    let first = coefficients.first().copied().unwrap_or(0).signum();
+    let second = coefficients.get(1).copied().unwrap_or(0).signum();
+    match piece_type {
+        PieceType::Pawn => match (coefficients.len(), first) {
+            (1, 1) if axis => 1.0,
+            (1, -1) if diagonal && radius == 1 => 2.0,
+            _ => 0.0,
+        },
+        PieceType::Spy => match (coefficients.len(), first) {
+            (1, 1) if diamond => 1.0,
+            (1, -1) if axis && radius == 1 => 2.0,
+            _ => 0.0,
+        },
+        PieceType::Rook | PieceType::King => match (coefficients.len(), first, second) {
+            (2, 1, 1) => {
+                if piece_type == PieceType::King || axis || diagonal {
+                    1.0
+                } else {
+                    0.0
+                }
+            }
+            (2, 1, -1) => {
+                if (piece_type == PieceType::Rook && axis)
+                    || (piece_type == PieceType::King && diamond)
+                {
+                    2.0
+                } else {
+                    0.0
+                }
+            }
+            (2, -1, 1) => {
+                if diagonal {
+                    2.0
+                } else {
+                    0.0
+                }
+            }
+            (2, -1, -1) => {
+                if axis && radius == 1 {
+                    4.0
+                } else {
+                    0.0
+                }
+            }
+            _ if first != 0 && axis => 1.0,
+            _ if first == 0 && second != 0 && diagonal => 1.0,
+            _ => 0.0,
+        },
+    }
+}
+
 fn amp_multiplier(piece: &Piece, state: &GameState) -> f64 {
     if state
         .amp_squares
@@ -311,6 +378,13 @@ pub fn evaluate_piece_contribution(piece: &Piece, square: Position, state: &Game
         x: square.x - piece.position.x,
         y: square.y - piece.position.y,
     };
+    if state.variant == GameVariant::Sparse {
+        return sparse_pattern(
+            piece.piece_type,
+            state.components.get(piece.owner).get(piece.piece_type),
+            delta,
+        );
+    }
     if delta.x == 0 && delta.y == 0 {
         return *state.home_energy.get(piece.piece_type);
     }
@@ -430,6 +504,31 @@ pub fn instability_influence_links(
 
 pub fn evaluate_field(state: &GameState) -> Field {
     let mut field = [[0.0; BOARD_LEN]; BOARD_LEN];
+    if state.variant == GameVariant::Sparse {
+        for piece in &state.pieces {
+            let sign = if piece.owner == Player::Red {
+                1.0
+            } else {
+                -1.0
+            };
+            let coefficients = state.components.get(piece.owner).get(piece.piece_type);
+            for dy in -2..=2 {
+                for dx in -2..=2 {
+                    let x = piece.position.x + dx;
+                    let y = piece.position.y + dy;
+                    if (0..BOARD_SIZE).contains(&x) && (0..BOARD_SIZE).contains(&y) {
+                        field[y as usize][x as usize] += sign
+                            * sparse_pattern(
+                                piece.piece_type,
+                                coefficients,
+                                Position { x: dx, y: dy },
+                            );
+                    }
+                }
+            }
+        }
+        return field;
+    }
     for piece in &state.pieces {
         let sign = if piece.owner == Player::Red {
             1.0

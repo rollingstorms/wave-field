@@ -280,16 +280,18 @@ pub enum GameStatus {
 pub enum GameVariant {
     Classic,
     Continuous,
+    Sparse,
 }
 
-fn default_variant() -> GameVariant {
+// Missing variants identify legacy wave-game saves. New games explicitly use Sparse.
+fn legacy_variant() -> GameVariant {
     GameVariant::Classic
 }
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct GameSnapshot {
-    #[serde(default = "default_variant")]
+    #[serde(default = "legacy_variant")]
     pub variant: GameVariant,
     pub pieces: Vec<Piece>,
     pub current_player: Player,
@@ -308,7 +310,7 @@ pub struct GameSnapshot {
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct GameState {
-    #[serde(default = "default_variant")]
+    #[serde(default = "legacy_variant")]
     pub variant: GameVariant,
     pub pieces: Vec<Piece>,
     pub current_player: Player,

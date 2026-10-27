@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { evaluateField } from "../field/evaluateField";
 import { buildHistoryRoll } from "../game/historyRoll";
-import { createInitialState } from "../game/initialState";
+import { createClassicInitialState as createInitialState } from "../game/initialState";
 import { getLegalMoves } from "../game/movement";
 import { gameReducer } from "../game/reducer";
 

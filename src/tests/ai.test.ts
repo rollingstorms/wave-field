@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { playEasyTurn, playHardTurn, playHeuristicTurn } from "../game/ai";
-import { createInitialState, snapshot } from "../game/initialState";
+import { createClassicInitialState as createInitialState, snapshot } from "../game/initialState";
 import { applyMove } from "../game/rules";
 import type { GameState, PieceType } from "../game/types";
 import { evaluateField } from "../field/evaluateField";

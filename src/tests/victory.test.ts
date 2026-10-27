@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { isKingUnprotected, getUnstablePieces, removeUnrescuedPieces } from "../game/victory";
-import { createInitialState } from "../game/initialState";
+import { createClassicInitialState as createInitialState } from "../game/initialState";
 import { applyClosestPlayableHint, applyHintSearch, applyMove, beginTurn, findClosestPlayableConfiguration, getPlayableMoves, resignInCheck } from "../game/rules";
 import type { GameState } from "../game/types";
 import { evaluateField } from "../field/evaluateField";

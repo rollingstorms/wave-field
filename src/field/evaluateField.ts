@@ -4,9 +4,21 @@ import { rustEvaluateField } from "../game/rustEngine";
 import { isAmpSquare } from "../game/variants";
 import { offset } from "./distance";
 import { evaluateComponentBasis } from "./kernels";
-import { evaluateSparsePattern } from "./sparsePattern";
+import { evaluateSparsePattern, sparsePatternCells } from "./sparsePattern";
 
 const AMP_MULTIPLIER = 2;
+
+function emptyField(): number[][] {
+  return Array.from({ length: BOARD_SIZE }, () => Array<number>(BOARD_SIZE).fill(0));
+}
+
+function stampSparsePiece(field: number[][], piece: Piece, state: GameState, sign = 1): void {
+  for (const cell of sparsePatternCells(piece.type, state.components[piece.owner][piece.type])) {
+    const x = piece.position.x + cell.x;
+    const y = piece.position.y + cell.y;
+    if (x >= 0 && x < BOARD_SIZE && y >= 0 && y < BOARD_SIZE) field[y][x] += sign * cell.support;
+  }
+}
 
 function lerp(start: number, end: number, amount: number): number {
   return start + (end - start) * amount;
@@ -95,6 +107,11 @@ export function evaluateInstantField(state: GameState, definitions: ComponentDef
     const rustField = rustEvaluateField(state);
     if (rustField) return rustField;
   }
+  if (state.variant === "sparse") {
+    const field = emptyField();
+    for (const piece of state.pieces) stampSparsePiece(field, piece, state, piece.owner === "red" ? 1 : -1);
+    return field;
+  }
   return Array.from({ length: BOARD_SIZE }, (_, y) =>
     Array.from({ length: BOARD_SIZE }, (_, x) =>
       state.variant === "continuous"
@@ -155,6 +172,11 @@ export function evaluateField(state: GameState, definitions: ComponentDefinition
 export type TypeFields = Record<PieceType, number[][]>;
 
 export function evaluateTeamFields(state: GameState): Record<"red" | "blue", number[][]> {
+  if (state.variant === "sparse") {
+    const fields = { red: emptyField(), blue: emptyField() };
+    for (const piece of state.pieces) stampSparsePiece(fields[piece.owner], piece, state);
+    return fields;
+  }
   return {
     red: Array.from({ length: BOARD_SIZE }, (_, y) => Array.from({ length: BOARD_SIZE }, (_, x) =>
       state.pieces.filter((piece) => piece.owner === "red")

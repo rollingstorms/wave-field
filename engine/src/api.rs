@@ -6,8 +6,8 @@ pub type ApiResult = Result<String, String>;
 const PRODUCT_INITIAL_STATE: &str = include_str!("../tests/product-initial-state.json");
 
 fn parse_state(json: &str) -> Result<GameState, String> {
-    let mut state: GameState = serde_json::from_str(json)
-        .map_err(|error| format!("invalid game state JSON: {error}"))?;
+    let mut state: GameState =
+        serde_json::from_str(json).map_err(|error| format!("invalid game state JSON: {error}"))?;
     triangle_policy::normalize(&mut state)?;
     Ok(state)
 }
@@ -47,6 +47,7 @@ pub fn undo_json(state_json: &str) -> ApiResult {
     };
 
     state.pieces = previous.pieces;
+    state.variant = previous.variant;
     state.current_player = previous.current_player;
     state.components = previous.components;
     state.activation_orders = previous.activation_orders;

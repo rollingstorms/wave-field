@@ -14,7 +14,7 @@ import { evaluateField, evaluateTypeFields } from "../field/evaluateField";
 import { playEasyTurn, playHardTurn, playHeuristicTurn } from "../game/ai";
 import { requestBrowserAiTurn } from "../game/browserAi";
 import { BOARD_SIZE } from "../game/constants";
-import { createInitialState } from "../game/initialState";
+import { createClassicInitialState, createInitialState } from "../game/initialState";
 import { isNeuralPolicy, policyLabel, requestNeuralTurn } from "../game/neuralAi";
 import type { AiPolicy } from "../game/neuralAi";
 import { createGameVariantConfig } from "../game/optimizedConfig";
@@ -36,13 +36,13 @@ type SidePolicy = AiPolicy | "human";
 type AiStats = Record<Player, { turns: number; tuneActions: number; lastTurnTunes: number }>;
 const pieceTypes: PieceType[] = ["pawn", "rook", "spy", "king"];
 const createArenaInitialState = () => localNeuralArenaEnabled
-  ? createInitialState()
+  ? createClassicInitialState()
   : optimTestEnabled || easyTestEnabled || lowRescueTestEnabled
     ? (() => {
       const config = createGameVariantConfig(
         lowRescueTestEnabled ? "low-rescue" : easyTestEnabled ? "easy-mobility" : "balanced-pressure",
       );
-      return createInitialState(config.components, config.definitions, config.waveScales, config.homeEnergy);
+      return createClassicInitialState(config.components, config.definitions, config.waveScales, config.homeEnergy);
     })()
   : createInitialState();
 
@@ -61,8 +61,8 @@ export function App() {
   const [state, dispatch] = useReducer(gameReducer, undefined, createArenaInitialState);
   const [duelSeed, setDuelSeed] = useState(() => Math.floor(Math.random() * 1_000_000_000));
   const [developerMode, setDeveloperMode] = useState(false);
-  const [continuousField, setContinuousField] = useState(!routePath.endsWith("/sparse"));
-  const [showTypeSums, setShowTypeSums] = useState(routePath.endsWith("/sparse"));
+  const [continuousField, setContinuousField] = useState(state.variant !== "sparse");
+  const [showTypeSums, setShowTypeSums] = useState(state.variant === "sparse");
   const [energyView, setEnergyView] = useState(false);
   const [energyChannels, setEnergyChannels] = useState<EnergyChannelState>({ ...ALL_ENERGY_CHANNELS });
   const [showRules, setShowRules] = useState(false);
@@ -108,7 +108,7 @@ export function App() {
       if (policy === "easy" || policy === "heuristic" || policy === "hard") {
         const player = state.currentPlayer;
         const variety = policy === "heuristic" && bothAutomated ? 0.55 : 0;
-        const preview = typeof Worker !== "undefined" && state.variant === "classic" && !state.entropyField && state.ampSquares.length === 0
+        const preview = typeof Worker !== "undefined" && state.variant !== "continuous" && !state.entropyField && state.ampSquares.length === 0
           ? await requestBrowserAiTurn(state, player, policy, duelSeed, variety)
           : policy === "easy"
             ? playEasyTurn(state, player, { seed: duelSeed, variety })
@@ -346,7 +346,7 @@ export function App() {
             onResetDefaults={() => dispatch({ type: "reset-default-components" })}
             onRestart={() => dispatch({ type: "restart", keepDefinitions: true })}
           />
-          <WaveEditor
+          {state.variant !== "sparse" && <WaveEditor
             definitions={state.definitions}
             componentCounts={{
               pawn: state.components[state.currentPlayer].pawn.length,
@@ -361,8 +361,8 @@ export function App() {
             onResetSelected={resetSelectedDefinition}
             onResetAll={() => dispatch({ type: "reset-definitions" })}
             onImport={(payload) => dispatch({ type: "import-definitions", payload })}
-          />
-          <button className="secondary" onClick={() => dispatch({ type: "restart", keepDefinitions: false })}>Restart and reset definitions</button>
+          />}
+          {state.variant !== "sparse" && <button className="secondary" onClick={() => dispatch({ type: "restart", keepDefinitions: false })}>Restart and reset definitions</button>}
         </div>
       )}
     </main>

@@ -79,7 +79,7 @@ export function TurnStatus({ state, aiThinking, actions }: TurnStatusProps) {
     <header className="topbar">
       <div>
         <p className={`side-label ${state.currentPlayer}`}>{state.currentPlayer.toUpperCase()}</p>
-        <h1>Wave ± Field{state.variant === "sparse" && <small className="variant-label">SPARSE</small>}</h1>
+        <h1>Wave ± Field{state.variant === "classic" && <small className="variant-label">CLASSIC</small>}</h1>
       </div>
       <div className="topbar-right">
         <div className="turn-block">

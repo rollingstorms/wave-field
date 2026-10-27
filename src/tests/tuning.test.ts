@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { createInitialState } from "../game/initialState";
+import { createClassicInitialState as createInitialState } from "../game/initialState";
 import { canSetComponentValue, getTuningLoad, isTuningAtStrength, isTuningWithinStrength } from "../game/tuning";
 import { coefficientLabel } from "../components/ComponentControls";
 import { applyTuning, randomizeTuning, resetTuning } from "../game/rules";

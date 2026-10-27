@@ -3,7 +3,7 @@ import { DEFAULT_DEFINITIONS, validateDefinition } from "../field/componentDefin
 import { evaluateContinuousField, evaluateContinuousPieceContribution, evaluateField, evaluatePieceContribution, evaluateTypeFields } from "../field/evaluateField";
 import { evaluateBasis, evaluateComponentBasis } from "../field/kernels";
 import { DEFAULT_HOME_ENERGY, FIELD_EPSILON } from "../game/constants";
-import { createInitialState } from "../game/initialState";
+import { createClassicInitialState as createInitialState } from "../game/initialState";
 import { createAmpSquares } from "../game/variants";
 import type { BasisDefinition, Coefficient, FormulaPreset, GameState, PieceType } from "../game/types";
 

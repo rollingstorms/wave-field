@@ -2,7 +2,7 @@ import { cloneDefinitions, DEFAULT_COMPONENTS } from "../field/componentDefiniti
 import { evaluateField } from "../field/evaluateField";
 import { projectFieldValue } from "../field/projection";
 import { DEFAULT_HOME_ENERGY, DEFAULT_WAVE_SCALES } from "./constants";
-import { createInitialState } from "./initialState";
+import { createClassicInitialState as createInitialState } from "./initialState";
 import type { ComponentDefinitions, HomeEnergy, PlayerComponents, WaveScales } from "./types";
 
 export interface OptimizedGameConfig {

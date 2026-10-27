@@ -48,6 +48,8 @@ export const DEFAULT_HOME_ENERGY = {
   king: 0,
 } as const;
 
+export const SPARSE_HOME_ENERGY = { pawn: 0, rook: 0, spy: 1, king: 0 } as const;
+
 export const DEFAULT_WAVE_SCALES = {
   pawn: { friendly: 4, hostile: 1 },
   rook: { friendly: 3, hostile: 1 },

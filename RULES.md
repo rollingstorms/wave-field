@@ -11,40 +11,34 @@ undo.
 
 ## How You Play
 
-Every piece emits an invisible wave of energy across the board. Red and Blue
-use opposite sign orientations, and each square is the sum of all waves from
-all pieces. A single pattern can contribute both positive and negative energy
-on different squares.
+Every piece contributes a small, exact pattern of support to its own team.
+Tuning trades wider 1-point coverage for focused 2-point coverage. Towers and
+Big Hats can concentrate 4 support on the four adjacent cross squares.
 
-On your turn you may tune your wave controls, then move one piece. You can play
-without tuning, but tuning is often how you rescue endangered pieces, protect
-your Big Hat, and reshape the board before committing a move. Click a piece to see
-legal destinations, or drag it to move.
-
-The `+` and `-` controls activate a component with that field orientation, or
-reverse the polarity of an active component. Round Hats have one checkerboard-like
-pattern. Towers combine two overlapping patterns. Triangle Hats use only the
-Diamond core pattern, with two opposite phases. Big Hats keep two of three patterns active.
+On your turn you may tune your pattern controls, then move one piece. Click a
+piece to see legal destinations, or drag it to move. Tuning is shared by type:
+both of your Towers use the same profile, and the opponent controls theirs.
 
 ## Field
 
-Every piece emits a controllable wave pattern. A pattern is not simply "good"
-or "bad" energy: each component can contain both positive and negative energy
-across different squares. Tuning changes which components are active and which
-orientation they use, so the same piece type can reshape the field in several
-ways.
+Add Red support and Blue support separately on each square. The higher total
+owns it; equal totals are Neutral. A piece cannot contribute to the opponent.
+The board shows both team totals, and the signed field is `Red − Blue`.
 
-The board adds all active piece patterns together. The final total on each
-square decides territory:
+Each pattern reaches at most two squares from its piece. Moving removes the
+piece's old footprint and adds it at the destination. Its own square receives
+0 from that piece, except the Triangle Hat, which gives itself 1 support.
+Other pieces can still support that square.
 
-| Field total | Territory |
-|---|---|
-| Greater than zero | Red |
-| Zero | Neutral |
-| Less than zero | Blue |
+The `+` and `−` controls select the same profiles for both teams. Round Hats
+switch between a wide cross and focused diagonals. Triangle Hats switch
+between a wide diamond and a focused small diamond. Towers and Big Hats have
+wide, mixed, and tight modes; `−−` is the tight cross at 4 per adjacent square.
+See the [complete pattern table](docs/SPARSE_VARIANT.md).
 
-Moving a piece changes the origin of its pattern, so one move can change
-territory far away from the moved piece.
+The original wave rules are available at `/classic` and documented in
+[Classic Rules](docs/CLASSIC_RULES.md). `/sparse` remains an alias for the default
+rules.
 
 ## Setup
 
@@ -53,19 +47,19 @@ first.
 
 ```text
         Blue
-    . . P B P . .
-    . . S T S . .
+    . . T B T . .
+    . . R A R . .
     . . . . . . .
     . . . . . . .
     . . . . . . .
-    . . S T S . .
-    . . P B P . .
+    . . R A R . .
+    . . T B T . .
          Red
 ```
 
 ## Turn
 
-On a turn, a player may tune their wave controls any number of times, then move
+On a turn, a player may tune their pattern controls any number of times, then move
 one piece. Moving ends the turn. Tuning by itself does not.
 
 A tuning change may temporarily make the player's own Big Hat unstable. The
@@ -96,7 +90,7 @@ A Big Hat on hostile territory is an unstable trapped Big Hat. When a move traps
 opposing Big Hat, the opponent gets a rescue turn.
 
 The rescue can come from tuning, from moving the Big Hat, or from moving another
-piece whose relocated wave makes the Big Hat's square friendly or Neutral. The
+piece whose relocated pattern makes the Big Hat's square friendly or Neutral. The
 Hint control searches for a nearby rescue profile and move. If no rescue is
 found, the trapped player still controls the turn and may keep searching,
 resign, or undo.

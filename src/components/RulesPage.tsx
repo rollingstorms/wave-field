@@ -51,7 +51,7 @@ const selectedMovementPieceId = "rules-blue-spy";
 
 function createMovementDemoState(sparse = false) {
   const state = createInitialState();
-  if (sparse) state.variant = "sparse";
+  state.variant = sparse ? "sparse" : "classic";
   state.currentPlayer = "blue";
   state.selectedPieceId = selectedMovementPieceId;
   state.pieces = [
@@ -165,7 +165,7 @@ export function RulesPage({ onBack, sparse = false }: RulesPageProps) {
       <header className="rules-header">
         <div>
           <p className="side-label blue">HOW TO PLAY</p>
-          <h1>Wave Field{ sparse && <small className="variant-label">SPARSE</small>}</h1>
+          <h1>Wave Field{ !sparse && <small className="variant-label">CLASSIC</small>}</h1>
         </div>
         <button className="secondary back-button" onClick={onBack}>
           <ArrowLeft size={18} />

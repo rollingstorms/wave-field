@@ -1,16 +1,27 @@
 import { describe, expect, it } from "vitest";
 import { evaluateField, evaluatePieceContribution, evaluateTeamFields } from "../field/evaluateField";
-import { createInitialState } from "../game/initialState";
+import { createInitialState, fromSnapshot, snapshot } from "../game/initialState";
+import { playHeuristicTurn } from "../game/ai";
 import { getLegalMoves } from "../game/movement";
 import { gameReducer } from "../game/reducer";
 
 function sparseState() {
-  const state = createInitialState();
-  state.variant = "sparse";
-  return state;
+  return createInitialState();
 }
 
 describe("sparse variant", () => {
+  it("is the engine default and preserves the ruleset through undo and restart", () => {
+    const state = sparseState();
+    expect(state.variant).toBe("sparse");
+    expect(state.homeEnergy).toEqual({ pawn: 0, rook: 0, spy: 1, king: 0 });
+    const tuned = gameReducer(state, { type: "tune", pieceType: "rook", componentIndex: 0, value: -1 });
+    expect(gameReducer(tuned, { type: "undo" }).variant).toBe("sparse");
+    expect(gameReducer(tuned, { type: "restart" }).variant).toBe("sparse");
+    const legacy = snapshot(state);
+    delete (legacy as Partial<typeof legacy>).variant;
+    expect(fromSnapshot(legacy).variant).toBe("classic");
+  });
+
   it("gives every piece a discrete wide and focused footprint", () => {
     const cases = [
       { type: "pawn" as const, wide: [1], focused: [-1], wideCount: 8, focusedCount: 4, focusedStrength: 2, home: 0 },
@@ -95,5 +106,18 @@ describe("sparse variant", () => {
       .flatMap((piece) => getLegalMoves(piece.id, state, evaluateField(state)));
     expect(openingMoves.length).toBeGreaterThan(0);
     expect(gameReducer(state, { type: "restart", keepDefinitions: true }).variant).toBe("sparse");
+  });
+
+  it("lets the fallback AI complete a turn under the default rules", () => {
+    const state = sparseState();
+    const result = playHeuristicTurn(state, "blue", { seed: 17, timeBudgetMs: 1_000 });
+    expect(result.variant).toBe("sparse");
+    expect(result.currentPlayer).toBe("red");
+    expect(result.turnNumber).toBe(state.turnNumber);
+    expect(result.status).toBe("playing");
+    expect(result.pieces.some((piece) => {
+      const before = state.pieces.find((candidate) => candidate.id === piece.id)!;
+      return before.position.x !== piece.position.x || before.position.y !== piece.position.y;
+    })).toBe(true);
   });
 });

@@ -1,9 +1,9 @@
 import type { Coefficient, PieceType, Position } from "../game/types";
+import { SPARSE_HOME_ENERGY } from "../game/constants";
 
 const WIDE_SUPPORT = 1;
 const FOCUSED_SUPPORT = 2;
 const TIGHT_SUPPORT = 4;
-const HOME_SUPPORT: Record<PieceType, number> = { pawn: 0, spy: 1, rook: 0, king: 0 };
 
 function onAxis(x: number, y: number): boolean {
   return (x === 0) !== (y === 0);
@@ -36,9 +36,9 @@ export function sparsePatternDescription(pieceType: PieceType, coefficients: rea
   return "Partial pattern";
 }
 
-export function evaluateSparsePattern(pieceType: PieceType, coefficients: readonly Coefficient[], delta: Position): number {
+function supportAtOffset(pieceType: PieceType, coefficients: readonly Coefficient[], delta: Position): number {
   const { x, y } = delta;
-  if (x === 0 && y === 0) return HOME_SUPPORT[pieceType];
+  if (x === 0 && y === 0) return SPARSE_HOME_ENERGY[pieceType];
   const radius = Math.max(Math.abs(x), Math.abs(y));
   if (radius > 2) return 0;
   const axis = onAxis(x, y);
@@ -71,4 +71,42 @@ export function evaluateSparsePattern(pieceType: PieceType, coefficients: readon
   if (coefficients[0] !== 0) return axis ? WIDE_SUPPORT : 0;
   if (coefficients[1] !== 0) return diagonal ? WIDE_SUPPORT : 0;
   return 0;
+}
+
+export interface SparsePatternCell extends Position {
+  support: number;
+}
+
+interface SparsePattern {
+  cells: readonly SparsePatternCell[];
+  values: readonly number[];
+}
+
+const patterns = new Map<string, SparsePattern>();
+
+function patternFor(pieceType: PieceType, coefficients: readonly Coefficient[]): SparsePattern {
+  const key = `${pieceType}:${profileKey(coefficients)}`;
+  const cached = patterns.get(key);
+  if (cached) return cached;
+  const cells: SparsePatternCell[] = [];
+  const values: number[] = [];
+  for (let y = -2; y <= 2; y += 1) {
+    for (let x = -2; x <= 2; x += 1) {
+      const support = supportAtOffset(pieceType, coefficients, { x, y });
+      values.push(support);
+      if (support > 0) cells.push({ x, y, support });
+    }
+  }
+  const pattern = { cells, values };
+  patterns.set(key, pattern);
+  return pattern;
+}
+
+export function sparsePatternCells(pieceType: PieceType, coefficients: readonly Coefficient[]): readonly SparsePatternCell[] {
+  return patternFor(pieceType, coefficients).cells;
+}
+
+export function evaluateSparsePattern(pieceType: PieceType, coefficients: readonly Coefficient[], delta: Position): number {
+  if (Math.abs(delta.x) > 2 || Math.abs(delta.y) > 2) return 0;
+  return patternFor(pieceType, coefficients).values[(delta.y + 2) * 5 + delta.x + 2] ?? 0;
 }

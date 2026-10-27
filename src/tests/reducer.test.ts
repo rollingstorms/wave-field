@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { evaluateField, evaluateInstantField } from "../field/evaluateField";
 import { gameReducer } from "../game/reducer";
-import { createInitialState } from "../game/initialState";
+import { createClassicInitialState as createInitialState } from "../game/initialState";
 import { getLegalMoves } from "../game/movement";
 import { beginTurn, getContinuousPlayableMoves } from "../game/rules";
 import type { GameState } from "../game/types";

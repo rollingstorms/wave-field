@@ -20,3 +20,5 @@ await mkdir("dist/wavefielder", { recursive: true });
 await copyFile("dist/index.html", "dist/wavefielder/index.html");
 await mkdir("dist/sparse", { recursive: true });
 await copyFile("dist/index.html", "dist/sparse/index.html");
+await mkdir("dist/classic", { recursive: true });
+await copyFile("dist/index.html", "dist/classic/index.html");

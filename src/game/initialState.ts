@@ -1,6 +1,6 @@
 import { cloneDefinitions, DEFAULT_COMPONENTS } from "../field/componentDefinitions";
 import { evaluateInstantField } from "../field/evaluateField";
-import { BOARD_CENTER, BOARD_SIZE, DEFAULT_HOME_ENERGY, DEFAULT_WAVE_SCALES } from "./constants";
+import { BOARD_CENTER, BOARD_SIZE, DEFAULT_HOME_ENERGY, DEFAULT_WAVE_SCALES, SPARSE_HOME_ENERGY } from "./constants";
 import { activationOrdersForPlayers } from "./tuning";
 import { createAmpSquares } from "./variants";
 import type { ComponentDefinitions, GameSnapshot, GameState, GameVariant, HomeEnergy, Piece, Player, PlayerComponents, PieceType, WaveScales } from "./types";
@@ -9,7 +9,9 @@ const routePath = globalThis.location?.pathname.replace(/\/$/, "") ?? "";
 const ampRouteEnabled = routePath.endsWith("/amp");
 const entropyRouteEnabled = routePath.endsWith("/entropy");
 const continuousRouteEnabled = routePath.endsWith("/continuous");
-const sparseRouteEnabled = routePath.endsWith("/sparse");
+const classicRoutes = ["classic", "amp", "entropy", "big", "wavefielder", "local-arena", "optim-test", "easy-test", "low-rescue-test"];
+const routeVariant: GameVariant = continuousRouteEnabled ? "continuous"
+  : classicRoutes.some((route) => routePath.endsWith(`/${route}`)) ? "classic" : "sparse";
 
 function piece(owner: Player, type: PieceType, x: number, y: number, n: number): Piece {
   return { id: `${owner}-${type}-${n}`, owner, type, position: { x, y }, unstable: false };
@@ -41,9 +43,9 @@ export function createInitialState(
   defaultComponents: PlayerComponents = DEFAULT_COMPONENTS,
   definitions: ComponentDefinitions = cloneDefinitions(),
   waveScales: WaveScales = structuredClone(DEFAULT_WAVE_SCALES),
-  homeEnergy: HomeEnergy = structuredClone(DEFAULT_HOME_ENERGY),
+  homeEnergy?: HomeEnergy,
   ampSquares = ampRouteEnabled ? createAmpSquares() : [],
-  variant: GameVariant = continuousRouteEnabled ? "continuous" : sparseRouteEnabled ? "sparse" : "classic",
+  variant: GameVariant = routeVariant,
 ): GameState {
   const components = {
     blue: structuredClone(defaultComponents),
@@ -58,7 +60,7 @@ export function createInitialState(
     defaultComponents: structuredClone(defaultComponents),
     definitions: structuredClone(definitions),
     waveScales: structuredClone(waveScales),
-    homeEnergy: structuredClone(homeEnergy),
+    homeEnergy: structuredClone(homeEnergy ?? (variant === "sparse" ? SPARSE_HOME_ENERGY : DEFAULT_HOME_ENERGY)),
     ampSquares: structuredClone(ampSquares),
     selectedPieceId: null,
     status: "playing",
@@ -67,6 +69,16 @@ export function createInitialState(
     message: "Blue to move",
   };
   return entropyRouteEnabled ? { ...state, entropyField: evaluateInstantField(state) } : state;
+}
+
+export function createClassicInitialState(
+  defaultComponents?: PlayerComponents,
+  definitions?: ComponentDefinitions,
+  waveScales?: WaveScales,
+  homeEnergy?: HomeEnergy,
+  ampSquares = ampRouteEnabled ? createAmpSquares() : [],
+): GameState {
+  return createInitialState(defaultComponents, definitions, waveScales, homeEnergy, ampSquares, "classic");
 }
 
 export function snapshot(state: GameState): GameSnapshot {
@@ -95,6 +107,7 @@ export function fromSnapshot(
 ): GameState {
   return {
     ...structuredClone(snap),
+    // Missing variants belong to saves created before discrete rules became the default.
     variant: snap.variant ?? "classic",
     activationOrders: structuredClone(snap.activationOrders ?? activationOrdersForPlayers(snap.components)),
     waveScales: structuredClone(snap.waveScales ?? DEFAULT_WAVE_SCALES),
