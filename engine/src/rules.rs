@@ -192,7 +192,7 @@ pub struct PlayableConfigurationHint {
     pub changed_components: usize,
 }
 
-fn all_component_options(state: &GameState, player: Player) -> Vec<PlayerComponents> {
+pub(crate) fn all_component_options(state: &GameState, player: Player) -> Vec<PlayerComponents> {
     let current = state.components.get(player);
     let pawn = component_options(PieceType::Pawn, current.pawn.len());
     let rook = component_options(PieceType::Rook, current.rook.len());

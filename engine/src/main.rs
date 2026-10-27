@@ -251,6 +251,7 @@ struct TeacherTurnsProfile {
     applied_candidates: u64,
     rejected_candidates: u64,
     tuning_profiles: u64,
+    root_tuning_profiles: u64,
     alpha_beta_cutoffs: u64,
     deadline_cutoffs: u64,
     max_completed_depth: u8,
@@ -343,6 +344,7 @@ fn handle_teacher_turns(request: &serde_json::Value) -> TeacherTurnsResult {
                     profile.applied_candidates += result.profile.applied_candidates;
                     profile.rejected_candidates += result.profile.rejected_candidates;
                     profile.tuning_profiles += result.profile.tuning_profiles;
+                    profile.root_tuning_profiles += result.profile.root_tuning_profiles;
                     profile.alpha_beta_cutoffs += result.profile.alpha_beta_cutoffs;
                     profile.deadline_cutoffs += result.profile.deadline_cutoffs;
                     profile.max_completed_depth = profile

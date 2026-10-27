@@ -1,0 +1,331 @@
+{
+  "activationOrders": {
+    "blue": {
+      "king": [
+        0,
+        1
+      ],
+      "pawn": [
+        0
+      ],
+      "rook": [
+        0,
+        1
+      ],
+      "spy": [
+        0
+      ]
+    },
+    "red": {
+      "king": [
+        0,
+        1
+      ],
+      "pawn": [
+        0
+      ],
+      "rook": [
+        0,
+        1
+      ],
+      "spy": [
+        0
+      ]
+    }
+  },
+  "ampSquares": [],
+  "components": {
+    "blue": {
+      "king": [
+        -1,
+        1
+      ],
+      "pawn": [
+        -1
+      ],
+      "rook": [
+        -1,
+        -1
+      ],
+      "spy": [
+        -1
+      ]
+    },
+    "red": {
+      "king": [
+        1,
+        -1
+      ],
+      "pawn": [
+        1
+      ],
+      "rook": [
+        1,
+        1
+      ],
+      "spy": [
+        1
+      ]
+    }
+  },
+  "currentPlayer": "blue",
+  "defaultComponents": {
+    "king": [
+      1,
+      1
+    ],
+    "pawn": [
+      1
+    ],
+    "rook": [
+      1,
+      1
+    ],
+    "spy": [
+      1
+    ]
+  },
+  "definitions": {
+    "king": [
+      {
+        "decayBase": 2.0,
+        "geometry": "chebyshev",
+        "kind": "ring",
+        "name": "Big Hat c1 rings",
+        "originScale": 1.0,
+        "repeat": true,
+        "ringValues": [
+          -1,
+          -1,
+          1,
+          1,
+          -1
+        ]
+      },
+      {
+        "decayBase": 2.0,
+        "kind": "preset",
+        "name": "Horizontal mode",
+        "originScale": 1.0,
+        "preset": "horizontal-versus-vertical"
+      }
+    ],
+    "pawn": [
+      {
+        "decayBase": 2.0,
+        "kind": "preset",
+        "name": "Checkerboard",
+        "originScale": 1.0,
+        "preset": "checkerboard"
+      }
+    ],
+    "rook": [
+      {
+        "decayBase": 2.0,
+        "gridValues": [
+          [
+            1,
+            1,
+            1,
+            -1,
+            1,
+            1,
+            1
+          ],
+          [
+            1,
+            1,
+            -1,
+            0,
+            -1,
+            1,
+            1
+          ],
+          [
+            1,
+            -1,
+            0,
+            -1,
+            0,
+            -1,
+            1
+          ],
+          [
+            -1,
+            0,
+            -1,
+            0,
+            -1,
+            0,
+            -1
+          ],
+          [
+            1,
+            -1,
+            0,
+            -1,
+            0,
+            -1,
+            0
+          ],
+          [
+            1,
+            1,
+            -1,
+            0,
+            -1,
+            1,
+            1
+          ],
+          [
+            1,
+            1,
+            1,
+            -1,
+            1,
+            1,
+            1
+          ]
+        ],
+        "kind": "grid",
+        "name": "Tower grid",
+        "originScale": 1.0
+      },
+      {
+        "decayBase": 2.0,
+        "geometry": "chebyshev",
+        "kind": "ring",
+        "name": "Pull gap push",
+        "originScale": 1.0,
+        "repeat": true,
+        "ringValues": [
+          0,
+          1,
+          0,
+          -1
+        ]
+      }
+    ],
+    "spy": [
+      {
+        "decayBase": 2.0,
+        "kind": "preset",
+        "name": "Diamond core",
+        "originScale": 1.0,
+        "preset": "diamond-core"
+      }
+    ]
+  },
+  "history": [],
+  "homeEnergy": {
+    "king": 0.0,
+    "pawn": 0.0,
+    "rook": 0.0,
+    "spy": 1.0
+  },
+  "message": "Blue to move",
+  "pieces": [
+    {
+      "id": "blue-rook-1",
+      "owner": "blue",
+      "position": {
+        "x": 3,
+        "y": 0
+      },
+      "type": "rook",
+      "unstable": true
+    },
+    {
+      "id": "blue-king-1",
+      "owner": "blue",
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "type": "king",
+      "unstable": true
+    },
+    {
+      "id": "blue-pawn-2",
+      "owner": "blue",
+      "position": {
+        "x": 4,
+        "y": 2
+      },
+      "type": "pawn",
+      "unstable": true
+    },
+    {
+      "id": "red-pawn-1",
+      "owner": "red",
+      "position": {
+        "x": 3,
+        "y": 4
+      },
+      "type": "pawn",
+      "unstable": false
+    },
+    {
+      "id": "red-spy-1",
+      "owner": "red",
+      "position": {
+        "x": 1,
+        "y": 0
+      },
+      "type": "spy",
+      "unstable": false
+    },
+    {
+      "id": "red-pawn-2",
+      "owner": "red",
+      "position": {
+        "x": 2,
+        "y": 2
+      },
+      "type": "pawn",
+      "unstable": true
+    },
+    {
+      "id": "red-rook-1",
+      "owner": "red",
+      "position": {
+        "x": 1,
+        "y": 2
+      },
+      "type": "rook",
+      "unstable": false
+    },
+    {
+      "id": "red-king-1",
+      "owner": "red",
+      "position": {
+        "x": 4,
+        "y": 3
+      },
+      "type": "king",
+      "unstable": false
+    }
+  ],
+  "selectedPieceId": null,
+  "status": "playing",
+  "turnNumber": 1,
+  "variant": "sparse",
+  "waveScales": {
+    "king": {
+      "friendly": 4.0,
+      "hostile": 2.0
+    },
+    "pawn": {
+      "friendly": 4.0,
+      "hostile": 1.0
+    },
+    "rook": {
+      "friendly": 3.0,
+      "hostile": 1.0
+    },
+    "spy": {
+      "friendly": 3.0,
+      "hostile": 0.0
+    }
+  }
+}
