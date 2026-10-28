@@ -7,16 +7,20 @@ turn rules. The original wave field is available at `/classic`.
 ## Discrete support patterns
 
 Every piece gives support only to its own team. Each tuning profile selects a
-fixed footprint centered on that piece. A covered square receives 1, 2, or 4
+fixed footprint centered on that piece. A covered square receives 1, 2, 3, 4, or 6
 support; all other squares receive 0. The pattern reaches at most two squares
 away. Tuning trades broad 1-point coverage for fewer stronger squares.
 
 | Piece | `+` or `++` | `-` or `+-` | `-+` | `--` |
 | --- | --- | --- | --- | --- |
 | Round Hat | Cross, two steps, 1 each | Four adjacent diagonals, 2 each | — | — |
-| Triangle Hat | Diamond, two steps, 1 each | Four adjacent orthogonal squares, 2 each | — | — |
+| Triangle Hat | Diamond, two steps, 1 each | Four adjacent orthogonal squares, 3 each | — | — |
 | Tower | Cross and diagonal rays, two steps, 1 each | Cross, two steps, 2 each | Diagonal rays, two steps, 2 each | Four adjacent orthogonal squares, 4 each |
-| Big Hat | Full square, two steps, 1 each | Diamond, two steps, 2 each | Diagonal rays, two steps, 2 each | Four adjacent orthogonal squares, 4 each |
+| Big Hat | Full square, two steps, 1 each | Diamond, two steps, 2 each | Diagonal rays, two steps, 3 each | Four adjacent orthogonal squares, 6 each |
+
+Every full pattern preserves its piece's total support: Round Hat 8, Triangle
+Hat 12 plus its fixed 1 at home, Tower 16, and Big Hat 24. Squares beyond the
+board edge are clipped without redistributing their support.
 
 The origin square receives 0 support from its own piece, except the Triangle
 Hat, which gives 1. This keeps the original game's special Triangle Hat origin
@@ -26,7 +30,8 @@ covered square.
 
 Add the Red pieces to get `R` and Blue pieces to get `B`. Both totals are
 nonnegative. The field is `R - B`: the higher total owns the square; a tie is
-Neutral. The board shows `R` and `B` on every square. Moving a piece removes
+Neutral. The optional numbers view shows `R` and `B` on every square; wave
+shading is enabled by default. Moving a piece removes
 its old pattern and applies the same pattern at its destination.
 
 The TypeScript footprints are defined in `src/field/sparsePattern.ts` and

@@ -34,7 +34,7 @@ fn sparse_pattern(piece_type: PieceType, coefficients: &[i8], delta: Position) -
         },
         PieceType::Spy => match (coefficients.len(), first) {
             (1, 1) if diamond => 1.0,
-            (1, -1) if axis && radius == 1 => 2.0,
+            (1, -1) if axis && radius == 1 => 3.0,
             _ => 0.0,
         },
         PieceType::Rook | PieceType::King => match (coefficients.len(), first, second) {
@@ -56,14 +56,22 @@ fn sparse_pattern(piece_type: PieceType, coefficients: &[i8], delta: Position) -
             }
             (2, -1, 1) => {
                 if diagonal {
-                    2.0
+                    if piece_type == PieceType::King {
+                        3.0
+                    } else {
+                        2.0
+                    }
                 } else {
                     0.0
                 }
             }
             (2, -1, -1) => {
                 if axis && radius == 1 {
-                    4.0
+                    if piece_type == PieceType::King {
+                        6.0
+                    } else {
+                        4.0
+                    }
                 } else {
                     0.0
                 }

@@ -20,7 +20,7 @@ function profileKey(coefficients: readonly Coefficient[]): string {
 export function sparsePatternDescription(pieceType: PieceType, coefficients: readonly Coefficient[]): string {
   const key = profileKey(coefficients);
   if (pieceType === "pawn") return key === "+" ? "Wide cross · 1" : key === "-" ? "Focused diagonals · 2" : "No outer support";
-  if (pieceType === "spy") return key === "+" ? "Wide diamond · 1" : key === "-" ? "Focused diamond · 2" : "No outer support";
+  if (pieceType === "spy") return key === "+" ? "Wide diamond · 1" : key === "-" ? "Focused diamond · 3" : "No outer support";
   if (pieceType === "rook") {
     if (key === "++") return "Wide rays · 1";
     if (key === "+-") return "Focused cross · 2";
@@ -30,8 +30,8 @@ export function sparsePatternDescription(pieceType: PieceType, coefficients: rea
   if (pieceType === "king") {
     if (key === "++") return "Wide square · 1";
     if (key === "+-") return "Focused diamond · 2";
-    if (key === "-+") return "Focused diagonals · 2";
-    if (key === "--") return "Tight cross · 4";
+    if (key === "-+") return "Focused diagonals · 3";
+    if (key === "--") return "Tight cross · 6";
   }
   return "Partial pattern";
 }
@@ -53,7 +53,7 @@ function supportAtOffset(pieceType: PieceType, coefficients: readonly Coefficien
   }
   if (pieceType === "spy") {
     if (key === "+") return diamond ? WIDE_SUPPORT : 0;
-    if (key === "-") return axis && radius === 1 ? FOCUSED_SUPPORT : 0;
+    if (key === "-") return axis && radius === 1 ? 3 : 0;
     return 0;
   }
   if (key === "++") {
@@ -64,8 +64,8 @@ function supportAtOffset(pieceType: PieceType, coefficients: readonly Coefficien
     if (pieceType === "rook") return axis ? FOCUSED_SUPPORT : 0;
     return diamond ? FOCUSED_SUPPORT : 0;
   }
-  if (key === "-+") return diagonal ? FOCUSED_SUPPORT : 0;
-  if (key === "--") return axis && radius === 1 ? TIGHT_SUPPORT : 0;
+  if (key === "-+") return diagonal ? (pieceType === "king" ? 3 : FOCUSED_SUPPORT) : 0;
+  if (key === "--") return axis && radius === 1 ? (pieceType === "king" ? 6 : TIGHT_SUPPORT) : 0;
 
   // Developer profiles with a disabled component retain one visible stencil.
   if (coefficients[0] !== 0) return axis ? WIDE_SUPPORT : 0;

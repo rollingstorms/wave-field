@@ -29,8 +29,8 @@ const pieceQuickNotes: Record<PieceType, string> = {
 const sparsePieceQuickNotes: Record<PieceType, string> = {
   pawn: "Cross at 1 support, or four diagonal squares at 2.",
   rook: "Wide rays, focused cross or diagonals, or a tight cross at 4.",
-  spy: "Wide or focused diamond; can move through hostile territory.",
-  king: "Wide square, focused diamond or diagonals, or tight cross at 4.",
+  spy: "Wide diamond at 1, or four focused squares at 3; can move through hostile territory.",
+  king: "Wide square at 1, diamond at 2, diagonals at 3, or tight cross at 6.",
 };
 
 const setupPieces: PieceModel[] = [
@@ -177,7 +177,7 @@ export function RulesPage({ onBack, sparse = false }: RulesPageProps) {
         <div className="rules-copy">
           <h2>Trap the opposing Big Hat.</h2>
           {sparse ? (
-            <p>Each piece stamps a small, exact pattern of 1, 2, or 4 support for its team. Tuning trades wider coverage for stronger support on fewer squares. Count Red and Blue separately: the higher total owns a square, and a tie is Neutral.</p>
+            <p>Each piece stamps a small, exact pattern of integer support for its team. Tuning distributes the same total support over more or fewer squares; squares outside the board are clipped. Count Red and Blue separately: the higher total owns a square, and a tie is Neutral.</p>
           ) : (
             <p>Every piece emits an invisible wave of energy across the board. Red and Blue use opposite sign orientations, and each square is the sum of every active wave reaching it. A single wave can contribute both signs in different places.</p>
           )}
