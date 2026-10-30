@@ -1,3 +1,4 @@
+import { selfplayViewerApi } from "./scripts/selfplay-viewer-api";
 import react from "@vitejs/plugin-react";
 import { sites } from "@openai/sites-vite-plugin";
 import { defineConfig } from "vite";
@@ -15,5 +16,5 @@ const engineBuildId = engineFiles.every((file) => existsSync(file))
 export default defineConfig({
   base: process.env.GITHUB_ACTIONS ? "/wave-field/" : "/",
   define: { __ENGINE_BUILD_ID__: JSON.stringify(engineBuildId) },
-  plugins: [react(), sites()],
+  plugins: [react(), sites(), selfplayViewerApi()],
 });

@@ -6,6 +6,7 @@ from pathlib import Path
 from typing import Any, Dict, Literal
 
 from .engine import RustEngine, load_initial_state
+from .encoding import tuning_limit_allows
 from .eval import aggregate, load_model
 from .mcts import MctsConfig, select_mcts_action
 from .selfplay import (
@@ -39,8 +40,8 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--temperature", type=float, default=1.0)
     parser.add_argument("--device", default="auto")
     parser.add_argument("--full-policy", action="store_true", help="Let model turns choose tuning actions before moving.")
-    parser.add_argument("--max-tuning-actions", type=int, default=3)
-    parser.add_argument("--mcts-simulations", type=int, default=32)
+    parser.add_argument("--max-tuning-actions", type=int, default=20, help="Tuning actions per turn; -1 means unlimited.")
+    parser.add_argument("--mcts-simulations", type=int, default=128)
     parser.add_argument("--mcts-top-k", type=int, default=16)
     parser.add_argument("--mcts-depth", type=int, default=16)
     parser.add_argument("--mcts-c-puct", type=float, default=1.5)
@@ -210,6 +211,7 @@ def play_match_game(
     hard_time_budget_ms: int = 1500,
     collect_metrics: bool = True,
     record_replay: bool = False,
+    models_by_player: Dict[str, Any] | None = None,
 ) -> GameRecord:
     state = load_initial_state()
     stats = GameStats()
@@ -217,12 +219,16 @@ def play_match_game(
     encoded_history = []
     if model is not None:
         model.eval()
+    default_model = model
+    for side_model in (models_by_player or {}).values():
+        side_model.eval()
 
     for ply in range(max_plies):
         if state["status"] != "playing":
             break
 
         player = state["currentPlayer"]
+        model = (models_by_player or {}).get(player, default_model)
         policy = policies[player]
         before_state = state
         explicit_actions = None
@@ -291,7 +297,7 @@ def play_match_game(
                 if explicit_actions is None:
                     explicit_actions = []
                 actions = engine.legal_actions(next_state)
-                tunes_available = len(actions) > 0 or tune_actions < config.max_tuning_actions
+                tunes_available = len(actions) > 0 or tuning_limit_allows(tune_actions, config.max_tuning_actions)
                 if not tunes_available:
                     next_state = _no_move_loss(next_state)
                     break

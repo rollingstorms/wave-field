@@ -260,6 +260,16 @@ class PolicyValueNet(nn.Module):
         hidden = self.encode_hidden(board, side, history_board=history_board, history_side=history_side)
         return self.action_kind(hidden), self.policy(hidden), self.tuning_policy(hidden)
 
+    def search_outputs(
+        self,
+        board: torch.Tensor,
+        side: torch.Tensor,
+        history_board: torch.Tensor | None = None,
+        history_side: torch.Tensor | None = None,
+    ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
+        hidden = self.encode_hidden(board, side, history_board=history_board, history_side=history_side)
+        return self.action_kind(hidden), self.policy(hidden), self.tuning_policy(hidden), self.value(hidden).squeeze(-1)
+
 
 def masked_policy_logits(logits: torch.Tensor, legal_mask: torch.Tensor) -> torch.Tensor:
     return logits.masked_fill(legal_mask <= 0, -1.0e9)

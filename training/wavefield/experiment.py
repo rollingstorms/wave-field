@@ -1,7 +1,9 @@
 from __future__ import annotations
 
 import argparse
+import copy
 import json
+import os
 import sys
 import time
 from collections import Counter
@@ -11,11 +13,13 @@ from typing import Any, Dict, Iterable, List, Tuple
 import numpy as np
 import torch
 
+from .augmentation import paired_samples
 from .eval import aggregate
 from .encoding import SIDE_SIZE, board_channels_for_view
-from .engine import RustEngine
+from .engine import INITIAL_STATE_PATH, RustEngine, load_initial_state
 from .model import PolicyValueNet
-from .mcts import MctsConfig, mcts_selfplay_records
+from .replay import ReplayBuffer
+from .mcts import MctsConfig, mcts_selfplay_records, parallel_mcts_selfplay_records
 from .scenarios import DEFAULT_SCENARIOS, build_scenario_states, scenario_names
 from .selfplay import Sample, heuristic_bootstrap_records, rust_random_training_samples, session_model_selfplay_records
 from .train import evaluate_loss, resolve_device, samples_to_tensors, train_epoch
@@ -55,12 +59,22 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--random-games-per-iteration", type=int, default=0)
     parser.add_argument("--model-games", type=int, default=100)
     parser.add_argument("--mcts-games-per-iteration", type=int, default=0)
-    parser.add_argument("--mcts-simulations", type=int, default=8)
-    parser.add_argument("--mcts-top-k", type=int, default=8)
+    parser.add_argument("--mcts-workers", type=int, default=1, help="Parallel CPU self-play games per iteration.")
+    parser.add_argument("--mcts-inference-device", choices=("local", "cpu", "mps", "cuda"), default="local", help="Shared inference backend; local keeps one CPU model per worker.")
+    parser.add_argument("--mcts-inference-max-batch", type=int, default=32)
+    parser.add_argument("--mcts-inference-wait-ms", type=float, default=2.0)
+    parser.add_argument("--mcts-simulations", type=int, default=128)
+    parser.add_argument("--mcts-top-k", type=int, default=0, help="Candidates per node; 0 keeps every legal action.")
     parser.add_argument("--mcts-min-tune-candidates", type=int, default=1)
     parser.add_argument("--mcts-min-move-candidates", type=int, default=1)
     parser.add_argument("--mcts-depth", type=int, default=6)
+    parser.add_argument("--mcts-value-discount", type=float, default=1.0, help="Outcome discount per piece move; tuning is undiscounted.")
+    parser.add_argument("--mcts-repetition-limit", type=int, choices=[0, 3], default=0,
+                        help="End self-play as a draw on the third identical turn-boundary position; 0 disables.")
     parser.add_argument("--mcts-c-puct", type=float, default=1.5)
+    parser.add_argument("--mcts-dirichlet-alpha", type=float, default=0.3)
+    parser.add_argument("--mcts-exploration-fraction", type=float, default=0.25)
+    parser.add_argument("--mcts-sample-first-plies", type=int, default=20)
     parser.add_argument(
         "--mcts-force-first-tune-prob",
         type=float,
@@ -81,7 +95,21 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--scenarios", default=",".join(DEFAULT_SCENARIOS))
     parser.add_argument("--iterations", type=int, default=1)
     parser.add_argument("--epochs", type=int, default=3)
+    parser.add_argument("--replay-capacity", type=int, default=0, help="Retained positions; 0 trains only on the latest batch.")
+    parser.add_argument("--replay-sample-size", type=int, default=4096, help="Positions drawn per iteration before epoch passes.")
+    parser.add_argument("--spatial-augmentation", action="store_true", help="Use all eight square symmetries with paired color augmentation (sparse rules only).")
+    parser.add_argument("--color-augmentation", action="store_true", help="Pair original positions with rotated, color-swapped targets within the existing row budget.")
+    parser.add_argument("--effective-batch-size", type=int, default=None, help="Positions per optimizer update, accumulated through microbatches.")
+    parser.add_argument("--target-optimizer-steps", type=int, default=0, help="Absolute optimizer-update target; 0 uses iteration count.")
+    parser.add_argument("--large-batch-start-step", type=int, default=0)
+    parser.add_argument("--recovery-checkpoints", action="store_true", help="Rotate latest/previous recovery snapshots every iteration.")
+    parser.add_argument("--milestone-every-updates", type=int, default=1000)
+    parser.add_argument("--keep-milestones", type=int, default=3)
     parser.add_argument("--batch-size", type=int, default=128)
+    parser.add_argument("--validation-games-per-batch", type=int, default=0,
+                        help="Reserve this many complete MCTS games per batch outside training replay.")
+    parser.add_argument("--validation-capacity", type=int, default=2048,
+                        help="Maximum positions in the rolling held-out game buffer.")
     parser.add_argument(
         "--validation-fraction",
         type=float,
@@ -99,8 +127,11 @@ def parse_args() -> argparse.Namespace:
         help="Training self-play probability of forcing the first eligible full-policy action to be tuning.",
     )
     parser.add_argument("--full-policy", action="store_true", help="Train model turns with learned tune/move heads.")
-    parser.add_argument("--max-tuning-actions", type=int, default=3)
+    parser.add_argument("--max-tuning-actions", type=int, default=20, help="Tuning actions per turn; -1 means unlimited.")
     parser.add_argument("--eval-every", type=int, default=1)
+    parser.add_argument("--skip-self-eval", action="store_true", help="Skip identical-network evaluation; use checkpoint opponents instead.")
+    parser.add_argument("--checkpoint-eval-games", type=int, default=0, help="Games per side against a frozen earlier self.")
+    parser.add_argument("--checkpoint-eval-temperature", type=float, default=0.3)
     parser.add_argument("--eval-games", type=int, default=25)
     parser.add_argument("--eval-max-plies", type=int, default=None, help="Override --max-plies for periodic eval.")
     parser.add_argument("--eval-temperature", type=float, default=0.0)
@@ -110,7 +141,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--baseline-opponents", default="heuristic", help="Comma-separated policies: heuristic,hard,easy,random.")
     parser.add_argument("--record-eval-replays", action="store_true", help="Write baseline eval game traces to eval_replays.jsonl.")
     parser.add_argument("--save-every", type=int, default=1)
-    parser.add_argument("--cap-value", choices=("zero", "material"), default="material")
+    parser.add_argument("--cap-value", choices=("zero", "material", "position"), default="material")
     parser.add_argument("--progress", action="store_true", help="Show compact ANSI progress lines during long runs.")
     parser.add_argument(
         "--phase-weights",
@@ -173,11 +204,12 @@ class TerminalProgress:
 
 
 class JsonlLogger:
-    def __init__(self, path: Path, progress: TerminalProgress | None = None) -> None:
+    def __init__(self, path: Path, progress: TerminalProgress | None = None, append: bool = False) -> None:
         self.path = path
         self.progress = progress
         self.path.parent.mkdir(parents=True, exist_ok=True)
-        self.path.write_text("")
+        if not append:
+            self.path.write_text("")
 
     def write(self, event: Dict[str, Any]) -> None:
         if self.progress is not None:
@@ -416,14 +448,30 @@ def generation_summary(records: List[Any], samples: List[Sample]) -> Dict[str, A
         "games": len(records),
         "samples": len(samples),
         "decisive": sum(1 for record in records if record.stats.decisive),
+        "repetition_draws": sum(record.stats.termination_reason == 'threefold_repetition' for record in records),
+        "plies_avoided_by_repetition": sum(record.stats.plies_avoided_by_repetition for record in records),
+        "tactics": {
+            "games": len(records),
+            "decisive_games": sum(record.stats.decisive for record in records),
+            "decisive_plies": sum(record.stats.plies for record in records if record.stats.decisive),
+            "rescues": sum(record.stats.rescues for record in records),
+            "rescue_opportunities": sum(record.stats.rescue_opportunities for record in records),
+            "rescues_by_player": {player: sum(record.stats.rescues_by_player[player] for record in records) for player in ('red', 'blue')},
+            "opportunities_by_player": {player: sum(record.stats.rescue_opportunities_by_player[player] for record in records) for player in ('red', 'blue')},
+            "pieces_lost": {player: sum(record.stats.losses_by_player[player] for record in records) for player in ('red', 'blue')},
+            "turns": sum(sum(record.stats.ai_turns_by_player.values()) for record in records),
+            "tuning_turns": sum(sum(record.stats.tune_turns_by_player.values()) for record in records),
+            "tuning_actions": sum(sum(record.stats.tune_actions_by_player.values()) for record in records),
+            "net_tuning_changes": sum(sum(record.stats.effective_tune_changes_by_player.values()) for record in records),
+        },
         "mean_plies": (
             sum(record.stats.plies for record in records) / len(records)
             if records
             else 0.0
         ),
         "wins": {
-            winner: sum(1 for record in records if (record.stats.winner or "capped") == winner)
-            for winner in ("red", "blue", "capped")
+            winner: sum(1 for record in records if (record.stats.winner or ("repetition_draw" if record.stats.termination_reason == 'threefold_repetition' else "capped")) == winner)
+            for winner in ("red", "blue", "capped", "repetition_draw")
         },
         "metadata": sample_metadata_summary(samples),
     }
@@ -480,6 +528,17 @@ def generate_bootstrap_mix(
     return records, samples, profile, policy_counts
 
 
+def partition_validation_games(records: List[Any], count: int, iteration: int) -> Tuple[List[Sample], List[Sample]]:
+    """Rotate held-out game slots deterministically, before replay insertion."""
+    if count < 0 or (count and count >= len(records)):
+        raise ValueError('Validation must leave at least one MCTS game for training')
+    heldout = {(iteration + offset) % len(records) for offset in range(count)}
+    training, validation = [], []
+    for index, record in enumerate(records):
+        (validation if index in heldout else training).extend(record.samples)
+    return training, validation
+
+
 def train_samples(
     model: PolicyValueNet,
     optimizer: torch.optim.Optimizer,
@@ -492,7 +551,12 @@ def train_samples(
     logger: JsonlLogger,
     progress: TerminalProgress,
     validation_fraction: float = 0.0,
-) -> None:
+    effective_batch_size: int | None = None,
+    max_optimizer_steps: int | None = None,
+    heldout_samples: List[Sample] | None = None,
+    color_augmentation: bool = False,
+    spatial_augmentation: bool = False,
+) -> int:
     if not samples:
         logger.write(
             {
@@ -502,10 +566,12 @@ def train_samples(
                 "reason": "no_samples",
             }
         )
-        return
+        return 0
 
     training_samples = samples
-    validation_samples: List[Sample] = []
+    if heldout_samples is not None and validation_fraction > 0:
+        raise ValueError('Use held-out games or a per-batch validation fraction, not both')
+    validation_samples: List[Sample] = heldout_samples or []
     if validation_fraction > 0.0 and len(samples) > 1:
         validation_count = max(1, int(round(len(samples) * validation_fraction)))
         validation_count = min(validation_count, len(samples) - 1)
@@ -515,15 +581,25 @@ def train_samples(
         validation_samples = [sample for index, sample in enumerate(samples) if index in validation_indexes]
         training_samples = [sample for index, sample in enumerate(samples) if index not in validation_indexes]
 
+    original_training_count = len(training_samples)
+    if spatial_augmentation and not color_augmentation:
+        raise ValueError("Spatial augmentation requires paired color augmentation")
+    if color_augmentation:
+        training_samples = paired_samples(training_samples, seed=20_000_000 + iteration, spatial=spatial_augmentation)
     tensors = samples_to_tensors(training_samples, device)
     validation_tensors = samples_to_tensors(validation_samples, device) if validation_samples else None
+    updates = 0
     for epoch in range(1, epochs + 1):
+        if max_optimizer_steps is not None and updates >= max_optimizer_steps:
+            break
         started_at = time.perf_counter()
         losses = train_epoch(
             model,
             optimizer,
             tensors,
             batch_size=batch_size,
+            effective_batch_size=effective_batch_size,
+            max_optimizer_steps=None if max_optimizer_steps is None else max_optimizer_steps - updates,
             progress=lambda batch, batches, totals: progress.epoch(
                 iteration,
                 phase,
@@ -534,6 +610,7 @@ def train_samples(
                 totals,
             ),
         )
+        updates += int(losses["optimizer_steps"])
         validation_losses = (
             evaluate_loss(model, validation_tensors, batch_size=batch_size)
             if validation_tensors is not None
@@ -545,9 +622,16 @@ def train_samples(
             "phase": phase,
             "iteration": iteration,
             "epoch": epoch,
-            "samples": len(training_samples),
+            "samples": int(losses["samples_processed"]),
+            "microbatch_size": batch_size,
+            "effective_batch_size": effective_batch_size or batch_size,
             "raw_samples": len(samples),
+            "color_augmentation": color_augmentation,
+            "spatial_augmentation": spatial_augmentation,
+            "augmentation_variants": 16 if spatial_augmentation else (2 if color_augmentation else 1),
+            "original_training_positions": len(training_samples) // 2 if color_augmentation else original_training_count,
             "validation_samples": len(validation_samples),
+            "validation_source": "heldout_games" if heldout_samples is not None else "batch_split",
             "seconds": round(time.perf_counter() - started_at, 3),
             "loss": round(losses["loss"], 6),
             "kind": round(losses["kind"], 6),
@@ -555,6 +639,7 @@ def train_samples(
             "tuning": round(losses["tuning"], 6),
             "value": round(losses["value"], 6),
             "history_plies": getattr(model, "history_plies", 1),
+            "optimizer_steps": int(losses["optimizer_steps"]),
         }
         if validation_losses is not None:
             event.update(
@@ -567,6 +652,54 @@ def train_samples(
                 }
             )
         logger.write(event)
+    return updates
+
+
+def run_checkpoint_eval(
+    engine: RustEngine,
+    model: PolicyValueNet,
+    opponent: PolicyValueNet,
+    args: argparse.Namespace,
+    device: torch.device,
+    iteration: int,
+    opponent_iteration: int,
+    logger: JsonlLogger,
+) -> None:
+    from .match import play_match_game
+
+    started = time.perf_counter()
+    wins = losses = capped = 0
+    # Evaluation randomness must not change the learner's training RNG stream.
+    cuda_devices = [device.index or 0] if device.type == "cuda" else []
+    with torch.random.fork_rng(devices=cuda_devices):
+        for model_side in ("blue", "red"):
+            other_side = "red" if model_side == "blue" else "blue"
+            for game in range(args.checkpoint_eval_games):
+                seed = args.seed + 200_000 + iteration * 100 + game
+                torch.manual_seed(seed)
+                record = play_match_game(
+                    engine, policies={"blue": "model", "red": "model"}, model=model,
+                    models_by_player={model_side: model, other_side: opponent},
+                    device=device, max_plies=args.eval_max_plies or args.max_plies,
+                    seed=seed, temperature=args.checkpoint_eval_temperature,
+                    input_view=args.input_view, full_policy=True,
+                    max_tuning_actions=args.max_tuning_actions, collect_metrics=False,
+                )
+                if record.stats.winner == model_side:
+                    wins += 1
+                elif record.stats.winner == other_side:
+                    losses += 1
+                else:
+                    capped += 1
+    games = wins + losses + capped
+    logger.write({
+        "event": "checkpoint_eval", "iteration": iteration,
+        "opponent_iteration": opponent_iteration, "policy": "network_without_search",
+        "temperature": args.checkpoint_eval_temperature,
+        "games": games, "wins": wins, "losses": losses, "capped": capped,
+        "score": (wins + 0.5 * capped) / games,
+        "seconds": round(time.perf_counter() - started, 3),
+    })
 
 
 def run_session_eval(
@@ -763,8 +896,16 @@ def save_checkpoint(
     logger: JsonlLogger,
     iteration: int,
     final_iteration: int,
+    replay: ReplayBuffer | None = None,
+    optimizer_steps: int = 0,
+    checkpoint_opponent: PolicyValueNet | None = None,
+    opponent_iteration: int = 0,
+    validation_replay: ReplayBuffer | None = None,
 ) -> None:
     checkpoint_path = args.run_dir / ("checkpoint.pt" if iteration == final_iteration else f"checkpoint-iter-{iteration}.pt")
+    if args.recovery_checkpoints:
+        checkpoint_path = args.run_dir / "checkpoint-latest.pt"
+    temporary_path = checkpoint_path.with_suffix(".tmp")
     torch.save(
         {
             "model": model.state_dict(),
@@ -779,10 +920,44 @@ def save_checkpoint(
             "encoder_hidden_size": getattr(model, "encoder_hidden_size", None),
             "freeze_encoder": getattr(model, "freeze_encoder", None),
             "iteration": iteration,
+            "rules_variant": load_initial_state().get("variant", "classic"),
+            "replay": replay.state_dict() if replay is not None else None,
+            "validation_replay": validation_replay.state_dict() if validation_replay is not None else None,
+            "optimizer_steps": optimizer_steps,
             "config": serializable_config(args),
+            "torch_rng_state": torch.get_rng_state(),
+            "numpy_rng_state": np.random.get_state(),
+            "checkpoint_opponent": checkpoint_opponent.state_dict() if checkpoint_opponent is not None else None,
+            "opponent_iteration": opponent_iteration,
         },
-        checkpoint_path,
+        temporary_path,
     )
+    if args.recovery_checkpoints:
+        with temporary_path.open("rb") as saved:
+            os.fsync(saved.fileno())
+    if args.recovery_checkpoints and checkpoint_path.exists():
+        previous = args.run_dir / "checkpoint-previous.pt"
+        link = previous.with_suffix(".tmp")
+        link.unlink(missing_ok=True)
+        os.link(checkpoint_path, link)
+        link.replace(previous)
+    temporary_path.replace(checkpoint_path)
+    if args.recovery_checkpoints:
+        metadata = {"iteration": iteration, "optimizer_steps": optimizer_steps,
+                    "large_batch_updates": max(0, optimizer_steps - args.large_batch_start_step),
+                    "checkpoint": str(checkpoint_path)}
+        manifest = args.run_dir / "checkpoint-latest.json"
+        temp = manifest.with_suffix(".tmp")
+        temp.write_text(json.dumps(metadata) + "\n")
+        temp.replace(manifest)
+        existing = sorted(args.run_dir.glob("checkpoint-update-*.pt"))
+        latest_step = max((int(path.stem.split("-")[-1]) for path in existing), default=0)
+        effective_updates = metadata["large_batch_updates"]
+        if args.milestone_every_updates > 0 and effective_updates - latest_step >= args.milestone_every_updates:
+            os.link(checkpoint_path, args.run_dir / f"checkpoint-update-{effective_updates:09d}.pt")
+            existing = sorted(args.run_dir.glob("checkpoint-update-*.pt"))
+            for old in existing[:-args.keep_milestones]:
+                old.unlink()
     logger.write({"event": "saved", "iteration": iteration, "checkpoint": str(checkpoint_path)})
 
 
@@ -807,6 +982,8 @@ def main() -> None:
         or args.random_games_per_iteration > 0
     ):
         raise ValueError(f"{args.model_arch} currently does not support Rust random encoded batches.")
+    if args.cap_value == "position" and (args.pretrain_random_games > 0 or args.random_games_per_iteration > 0):
+        raise ValueError("--cap-value position requires Python self-play; Rust random batches do not support positional adjudication.")
     if args.encoder_checkpoint is not None and args.model_arch != "encoder_sequence":
         raise ValueError("--encoder-checkpoint requires --model-arch encoder_sequence.")
     if args.model_arch == "encoder_sequence" and args.encoder_checkpoint is None and not args.unfreeze_encoder:
@@ -815,19 +992,60 @@ def main() -> None:
         raise ValueError("--force-first-tune-prob must be between 0 and 1.")
     if not 0.0 <= args.validation_fraction < 1.0:
         raise ValueError("--validation-fraction must be at least 0 and less than 1.")
+    if args.validation_games_per_batch < 0 or args.validation_capacity < 1:
+        raise ValueError('Validation game count must be nonnegative and capacity positive')
+    if args.validation_games_per_batch and (args.validation_games_per_batch >= args.mcts_games_per_iteration or args.validation_fraction):
+        raise ValueError('Held-out games require remaining MCTS training games and validation-fraction 0')
     if not 0.0 <= args.mcts_force_first_tune_prob <= 1.0:
         raise ValueError("--mcts-force-first-tune-prob must be between 0 and 1.")
     if not 0.0 <= args.mcts_force_tune_prob <= 1.0:
         raise ValueError("--mcts-force-tune-prob must be between 0 and 1.")
+    if args.mcts_dirichlet_alpha < 0.0:
+        raise ValueError("--mcts-dirichlet-alpha must be nonnegative.")
+    if not 0.0 <= args.mcts_exploration_fraction <= 1.0:
+        raise ValueError("--mcts-exploration-fraction must be between 0 and 1.")
+    if args.mcts_sample_first_plies < 0:
+        raise ValueError("--mcts-sample-first-plies must be nonnegative.")
+    if not 0 < args.mcts_value_discount <= 1:
+        raise ValueError("--mcts-value-discount must be in (0, 1].")
+    if args.mcts_inference_max_batch < 1 or args.mcts_inference_wait_ms < 0:
+        raise ValueError("Inference batch size must be positive and wait time nonnegative.")
+    if args.mcts_workers < 1:
+        raise ValueError("--mcts-workers must be at least 1.")
+    if args.mcts_workers > 1 and device.type != "cpu":
+        raise ValueError("--mcts-workers > 1 currently requires --device cpu.")
+    if args.replay_capacity < 0 or args.replay_sample_size < 1:
+        raise ValueError("Replay capacity must be nonnegative and replay sample size positive.")
+    if args.checkpoint_eval_games < 0:
+        raise ValueError("--checkpoint-eval-games must be nonnegative.")
+    if args.checkpoint_eval_temperature < 0 or args.mcts_top_k < 0:
+        raise ValueError("Evaluation temperature and MCTS candidate limit must be nonnegative.")
+    if args.effective_batch_size is not None and args.effective_batch_size < args.batch_size:
+        raise ValueError("Effective batch size must be at least the microbatch size.")
+    if args.target_optimizer_steps < 0 or args.keep_milestones < 1:
+        raise ValueError("Update target must be nonnegative and milestone retention positive.")
+    if args.epochs < 1 or args.batch_size < 1:
+        raise ValueError("Epoch count and batch size must be positive.")
+    if args.max_tuning_actions < -1:
+        raise ValueError("--max-tuning-actions must be -1 (unlimited) or nonnegative.")
     if args.resume_checkpoint is not None and (args.pretrain_random_games > 0 or args.heuristic_bootstrap_games > 0):
         raise ValueError("Resume runs should use per-iteration generation, not bootstrap phases.")
     torch.manual_seed(args.seed)
     args.run_dir.mkdir(parents=True, exist_ok=True)
+    training_lock = (args.run_dir / ".training.lock").open("w")
+    if os.name == "posix":
+        import fcntl
+        fcntl.flock(training_lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
     start_iteration = 0
     progress = TerminalProgress(args.progress, args.iterations)
-    logger = JsonlLogger(args.run_dir / "events.jsonl", progress)
+    logger = JsonlLogger(args.run_dir / "events.jsonl", progress, append=args.resume_checkpoint is not None)
 
-    engine = RustEngine()
+    if args.spatial_augmentation and (not args.color_augmentation or load_initial_state()["variant"] != "sparse"):
+        raise ValueError("Spatial augmentation requires sparse rules and --color-augmentation")
+    engine = RustEngine(retain_history=False)
+    replay = ReplayBuffer(args.replay_capacity) if args.replay_capacity else None
+    validation_replay = ReplayBuffer(args.validation_capacity) if args.validation_games_per_batch else None
+    optimizer_steps = 0
     encoder_config = encoder_config_from_checkpoint(args, device)
     model = PolicyValueNet(
         hidden_size=args.hidden_size,
@@ -844,11 +1062,28 @@ def main() -> None:
     optimizer = torch.optim.AdamW(trainable_parameters, lr=args.lr)
     if args.resume_checkpoint is not None:
         checkpoint = torch.load(args.resume_checkpoint, map_location=device, weights_only=False)
+        if checkpoint.get("rules_variant", "classic") != load_initial_state().get("variant", "classic"):
+            raise ValueError("Checkpoint rules differ from the current game's rules; start a fresh run.")
         model.load_state_dict(checkpoint["model"], strict=False)
         if "optimizer" in checkpoint:
             optimizer.load_state_dict(checkpoint["optimizer"])
         start_iteration = int(checkpoint.get("iteration", 0))
+        optimizer_steps = int(checkpoint.get("optimizer_steps", 0))
+        if replay is not None and checkpoint.get("replay") is not None:
+            replay.load_state_dict(checkpoint["replay"])
+        if validation_replay is not None and checkpoint.get('validation_replay') is not None:
+            validation_replay.load_state_dict(checkpoint['validation_replay'])
+        if checkpoint.get("torch_rng_state") is not None:
+            torch.set_rng_state(checkpoint["torch_rng_state"])
+        if checkpoint.get("numpy_rng_state") is not None:
+            np.random.set_state(checkpoint["numpy_rng_state"])
         progress.iterations = start_iteration + args.iterations
+
+    checkpoint_opponent = copy.deepcopy(model).eval() if args.checkpoint_eval_games else None
+    opponent_iteration = start_iteration
+    if args.resume_checkpoint is not None and checkpoint_opponent is not None and checkpoint.get("checkpoint_opponent") is not None:
+        checkpoint_opponent.load_state_dict(checkpoint["checkpoint_opponent"])
+        opponent_iteration = int(checkpoint.get("opponent_iteration", start_iteration))
 
     logger.write(
         {
@@ -857,6 +1092,8 @@ def main() -> None:
                 **serializable_config(args),
                 "run_dir": str(args.run_dir),
                 "device": str(device),
+                "rules_variant": load_initial_state().get("variant", "classic"),
+                "initial_state_path": str(INITIAL_STATE_PATH),
                 "source_weights": source_weights,
                 "phase_weights": phase_weights,
                 "bootstrap_mix": bootstrap_mix,
@@ -866,6 +1103,7 @@ def main() -> None:
                 "board_channels": board_channels_for_view(args.input_view),
                 "side_size": SIDE_SIZE,
                 "start_iteration": start_iteration,
+                "optimizer_steps_start": optimizer_steps,
                 "final_iteration": start_iteration + args.iterations,
                 "history_plies": args.history_plies,
                 "encoder_arch": getattr(model, "encoder_arch", None),
@@ -911,7 +1149,7 @@ def main() -> None:
                     "summary": sample_metadata_summary(weighted_samples),
                 }
             )
-        train_samples(
+        optimizer_steps += train_samples(
             model,
             optimizer,
             weighted_samples,
@@ -960,7 +1198,7 @@ def main() -> None:
                     "summary": sample_metadata_summary(weighted_samples),
                 }
             )
-        train_samples(
+        optimizer_steps += train_samples(
             model,
             optimizer,
             weighted_samples,
@@ -976,6 +1214,8 @@ def main() -> None:
 
     final_iteration = start_iteration + args.iterations
     for iteration in range(start_iteration + 1, final_iteration + 1):
+        if args.target_optimizer_steps and optimizer_steps >= args.target_optimizer_steps:
+            break
         iteration_samples: List[Sample] = []
         if args.heuristic_bootstrap_per_iteration > 0:
             started_at = time.perf_counter()
@@ -1081,45 +1321,100 @@ def main() -> None:
         if args.mcts_games_per_iteration > 0:
             started_at = time.perf_counter()
             progress.phase(iteration, "mcts_model_session", f"{args.mcts_games_per_iteration} games")
-            records = mcts_selfplay_records(
-                engine,
-                model,
-                games=args.mcts_games_per_iteration,
-                max_plies=args.max_plies,
-                seed=args.seed + 60_000 + iteration,
-                config=MctsConfig(
-                    simulations=args.mcts_simulations,
-                    c_puct=args.mcts_c_puct,
-                    top_k=args.mcts_top_k,
-                    min_tune_candidates=args.mcts_min_tune_candidates,
-                    min_move_candidates=args.mcts_min_move_candidates,
-                    max_depth=args.mcts_depth,
-                    max_tuning_actions=args.max_tuning_actions,
-                    policy_temperature=args.temperature,
-                    force_first_tune_prob=args.mcts_force_first_tune_prob,
-                    force_tune_prob=args.mcts_force_tune_prob,
-                ),
-                device=device,
-                input_view=args.input_view,
-                history_plies=args.history_plies,
-                cap_value=args.cap_value,
+            def record_mcts_game(index: int, record: Any) -> None:
+                logger.write({
+                    "event": "selfplay_game", "iteration": iteration,
+                    "game": index + 1, "games": args.mcts_games_per_iteration,
+                    "plies": record.stats.plies, "winner": record.stats.winner,
+                    "capped": record.final_state["status"] == "playing" and not record.stats.termination_reason,
+                    "termination_reason": record.stats.termination_reason,
+                    "plies_avoided_by_repetition": record.stats.plies_avoided_by_repetition,
+                    "samples": len(record.samples),
+                    "elapsed_seconds": round(time.perf_counter() - started_at, 3),
+                })
+
+            mcts_config = MctsConfig(
+                simulations=args.mcts_simulations,
+                repetition_limit=args.mcts_repetition_limit,
+                value_discount=args.mcts_value_discount,
+                c_puct=args.mcts_c_puct,
+                top_k=args.mcts_top_k,
+                min_tune_candidates=args.mcts_min_tune_candidates,
+                min_move_candidates=args.mcts_min_move_candidates,
+                max_depth=args.mcts_depth,
+                max_tuning_actions=args.max_tuning_actions,
+                policy_temperature=args.temperature,
+                dirichlet_alpha=args.mcts_dirichlet_alpha,
+                exploration_fraction=args.mcts_exploration_fraction,
+                sample_first_plies=args.mcts_sample_first_plies,
+                force_first_tune_prob=args.mcts_force_first_tune_prob,
+                force_tune_prob=args.mcts_force_tune_prob,
             )
+            inference_stats: Dict[str, Any] = {}
+            if args.mcts_workers > 1 or args.mcts_inference_device != "local":
+                records = parallel_mcts_selfplay_records(
+                    model,
+                    games=args.mcts_games_per_iteration,
+                    workers=args.mcts_workers,
+                    inference_device=None if args.mcts_inference_device == "local" else args.mcts_inference_device,
+                    inference_max_batch=args.mcts_inference_max_batch,
+                    inference_wait_ms=args.mcts_inference_wait_ms,
+                    inference_stats=inference_stats,
+                    max_plies=args.max_plies,
+                    seed=args.seed + 60_000 + iteration,
+                    config=mcts_config,
+                    input_view=args.input_view,
+                    history_plies=args.history_plies,
+                    cap_value=args.cap_value,
+                    on_game_complete=record_mcts_game,
+                )
+            else:
+                records = mcts_selfplay_records(
+                    engine,
+                    model,
+                    games=args.mcts_games_per_iteration,
+                    max_plies=args.max_plies,
+                    seed=args.seed + 60_000 + iteration,
+                    config=mcts_config,
+                    device=device,
+                    input_view=args.input_view,
+                    history_plies=args.history_plies,
+                    cap_value=args.cap_value,
+                    on_game_complete=record_mcts_game,
+                )
             mcts_samples = [sample for record in records for sample in record.samples]
-            iteration_samples.extend(mcts_samples)
+            if validation_replay is not None:
+                train_game_samples, heldout_game_samples = partition_validation_games(records, args.validation_games_per_batch, iteration)
+                validation_replay.extend(heldout_game_samples)
+                iteration_samples.extend(train_game_samples)
+                logger.write({'event': 'validation_split', 'iteration': iteration,
+                              'heldout_games': args.validation_games_per_batch,
+                              'new_validation_samples': len(heldout_game_samples),
+                              'validation_samples': len(validation_replay),
+                              'validation_total_seen': validation_replay.total_seen,
+                              'training_game_samples': len(train_game_samples)})
+            else:
+                iteration_samples.extend(mcts_samples)
             logger.write(
                 {
                     "event": "generate",
                     "phase": "mcts_model_session",
+                    "search_simulations": len(mcts_samples) * args.mcts_simulations,
+                    "inference": inference_stats,
                     "iteration": iteration,
                     "seconds": round(time.perf_counter() - started_at, 3),
                     "summary": generation_summary(records, mcts_samples),
                     "mcts": {
                         "simulations": args.mcts_simulations,
+                        "workers": args.mcts_workers,
                         "top_k": args.mcts_top_k,
                         "min_tune_candidates": args.mcts_min_tune_candidates,
                         "min_move_candidates": args.mcts_min_move_candidates,
                         "depth": args.mcts_depth,
                         "c_puct": args.mcts_c_puct,
+                        "dirichlet_alpha": args.mcts_dirichlet_alpha,
+                        "exploration_fraction": args.mcts_exploration_fraction,
+                        "sample_first_plies": args.mcts_sample_first_plies,
                         "force_first_tune_prob": args.mcts_force_first_tune_prob,
                         "force_tune_prob": args.mcts_force_tune_prob,
                     },
@@ -1220,7 +1515,12 @@ def main() -> None:
                 }
             )
 
-        training_samples = replay_weight_samples(iteration_samples, source_weights, phase_weights)
+        if replay is not None:
+            replay.extend(iteration_samples)
+            update_samples = replay.draw(args.replay_sample_size, seed=args.seed + 300_000 + iteration)
+        else:
+            update_samples = iteration_samples
+        training_samples = replay_weight_samples(update_samples, source_weights, phase_weights)
         logger.write(
             {
                 "event": "train_batch",
@@ -1228,10 +1528,12 @@ def main() -> None:
                 "iteration": iteration,
                 "raw_samples": len(iteration_samples),
                 "training_samples": len(training_samples),
+                "replay_size": len(replay) if replay is not None else 0,
+                "replay_total_seen": replay.total_seen if replay is not None else len(iteration_samples),
                 "summary": sample_metadata_summary(training_samples),
             }
         )
-        train_samples(
+        optimizer_steps += train_samples(
             model,
             optimizer,
             training_samples,
@@ -1243,9 +1545,20 @@ def main() -> None:
             logger,
             progress,
             validation_fraction=args.validation_fraction,
+            effective_batch_size=args.effective_batch_size,
+            max_optimizer_steps=None if not args.target_optimizer_steps else args.target_optimizer_steps - optimizer_steps,
+            heldout_samples=list(validation_replay.samples) if validation_replay is not None else None,
+            color_augmentation=args.color_augmentation,
+            spatial_augmentation=args.spatial_augmentation,
         )
+        logger.write({"event": "learning_update", "iteration": iteration, "optimizer_steps_total": optimizer_steps})
         if args.eval_every > 0 and iteration % args.eval_every == 0:
-            run_session_eval(engine, model, args, device, iteration, logger, progress)
+            if not args.skip_self_eval:
+                run_session_eval(engine, model, args, device, iteration, logger, progress)
+            if checkpoint_opponent is not None:
+                run_checkpoint_eval(engine, model, checkpoint_opponent, args, device, iteration, opponent_iteration, logger)
+                checkpoint_opponent.load_state_dict(model.state_dict())
+                opponent_iteration = iteration
             run_baseline_eval(engine, model, args, device, iteration, logger, progress, baseline_opponents)
             run_tactical_eval_phase(engine, model, args, device, iteration, logger, progress, scenarios)
             if args.scenario_eval_games > 0:
@@ -1267,11 +1580,14 @@ def main() -> None:
                     phase="scenario_eval",
                     initial_states=scenario_eval_states,
                 )
-        if args.save_every > 0 and iteration % args.save_every == 0:
-            save_checkpoint(model, optimizer, args, logger, iteration, final_iteration)
+        if args.recovery_checkpoints or (args.save_every > 0 and iteration % args.save_every == 0):
+            save_checkpoint(model, optimizer, args, logger, iteration, final_iteration, replay, optimizer_steps, checkpoint_opponent, opponent_iteration, validation_replay)
+        if args.target_optimizer_steps and optimizer_steps >= args.target_optimizer_steps:
+            logger.write({"event": "target_complete", "iteration": iteration, "optimizer_steps_total": optimizer_steps})
+            break
 
-    if args.iterations == 0 or args.save_every <= 0 or final_iteration % args.save_every != 0:
-        save_checkpoint(model, optimizer, args, logger, final_iteration, final_iteration)
+    if not args.recovery_checkpoints and (args.iterations == 0 or args.save_every <= 0 or final_iteration % args.save_every != 0):
+        save_checkpoint(model, optimizer, args, logger, final_iteration, final_iteration, replay, optimizer_steps, checkpoint_opponent, opponent_iteration, validation_replay)
     engine.close()
 
 

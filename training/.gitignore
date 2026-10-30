@@ -3,3 +3,10 @@ __pycache__/
 .pytest_cache/
 runs/
 checkpoints/
+.venv-tracking/
+tracking/
+
+# Service data/runtime links are local to this Mac.
+runs
+tracking
+.venv-tracking

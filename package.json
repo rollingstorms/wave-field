@@ -9,6 +9,7 @@
     "engine:bench": "node scripts/bench-rust-engine.mjs",
     "engine:audit-hard": "node scripts/audit-hard-ai.mjs",
     "dev": "npm run engine:build && vite --host 127.0.0.1",
+    "watch:selfplay": "vite --host 0.0.0.0 --port 5174 --strictPort",
     "arena": "npm run engine:build && vite --host 127.0.0.1 --mode arena",
     "analyze:mechanics": "node scripts/analyze-mechanics.mjs",
     "analyze:wavefielder": "node scripts/wavefielder-signature-search.mjs",

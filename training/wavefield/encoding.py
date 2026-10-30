@@ -116,6 +116,11 @@ def legal_tuning_actions(state: Dict[str, Any]) -> List[TuningAction]:
     return actions
 
 
+def tuning_limit_allows(tune_count: int, max_tuning_actions: int) -> bool:
+    """A negative limit permits any number of tuning actions before a move."""
+    return max_tuning_actions < 0 or tune_count < max_tuning_actions
+
+
 def legal_tuning_mask(actions: Iterable[TuningAction]) -> np.ndarray:
     mask = np.zeros((TUNING_ACTION_SIZE,), dtype=np.float32)
     for action in actions:

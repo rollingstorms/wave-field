@@ -127,13 +127,7 @@ def _loss_components(
 ) -> Dict[str, torch.Tensor]:
     history_board = tensors["history_board"][batch] if "history_board" in tensors else None
     history_side = tensors["history_side"][batch] if "history_side" in tensors else None
-    kind_logits, move_logits, tuning_logits = model.full_policy(
-        tensors["board"][batch],
-        tensors["side"][batch],
-        history_board=history_board,
-        history_side=history_side,
-    )
-    _legacy_logits, predicted_values = model(
+    kind_logits, move_logits, tuning_logits, predicted_values = model.search_outputs(
         tensors["board"][batch],
         tensors["side"][batch],
         history_board=history_board,
@@ -178,29 +172,52 @@ def train_epoch(
     tensors: Dict[str, torch.Tensor],
     batch_size: int,
     progress: Callable[[int, int, Dict[str, float]], None] | None = None,
+    effective_batch_size: int | None = None,
+    max_optimizer_steps: int | None = None,
 ) -> Dict[str, float]:
+    effective = effective_batch_size or batch_size
+    if batch_size < 1 or effective < batch_size:
+        raise ValueError("Effective batch size must be at least the positive microbatch size")
     model.train()
     sample_count = tensors["actions"].shape[0]
     order = torch.randperm(sample_count, device=tensors["actions"].device)
     totals = {"loss": 0.0, "kind": 0.0, "policy": 0.0, "tuning": 0.0, "value": 0.0}
-    batch_count = (sample_count + batch_size - 1) // batch_size
-
-    for batch_number, start in enumerate(range(0, sample_count, batch_size), start=1):
-        batch = order[start:start + batch_size]
-        losses = _loss_components(model, tensors, batch)
-        loss = losses["loss"]
-
+    processed = updates = micro_number = 0
+    planned = sample_count if max_optimizer_steps is None else min(sample_count, max_optimizer_steps * effective)
+    batch_count = (planned + batch_size - 1) // batch_size
+    for start in range(0, sample_count, effective):
+        if max_optimizer_steps is not None and updates >= max_optimizer_steps:
+            break
+        group = order[start:start + effective]
+        move_total = int((tensors["move_policy"][group].sum(dim=1) > 0).sum().item())
+        tune_total = int((tensors["tuning_policy"][group].sum(dim=1) > 0).sum().item())
+        group_losses = {key: 0.0 for key in totals}
         optimizer.zero_grad()
-        loss.backward()
+        for offset in range(0, len(group), batch_size):
+            batch = group[offset:offset + batch_size]
+            losses = _loss_components(model, tensors, batch)
+            move_count = int((tensors["move_policy"][batch].sum(dim=1) > 0).sum().item())
+            tune_count = int((tensors["tuning_policy"][batch].sum(dim=1) > 0).sum().item())
+            # Policy heads average over different eligible subsets. Weight each
+            # head by its own row count to match a real full-batch gradient.
+            weights = {"kind": len(batch) / len(group), "value": len(batch) / len(group),
+                       "policy": move_count / max(move_total, 1),
+                       "tuning": tune_count / max(tune_total, 1)}
+            scaled = sum(losses[key] * weight for key, weight in weights.items())
+            scaled.backward()
+            for key, weight in weights.items():
+                group_losses[key] += losses[key].item() * weight
+            micro_number += 1
+            if progress is not None:
+                progress(micro_number, batch_count, {key: value / max(processed, 1) for key, value in totals.items()})
         optimizer.step()
-
-        weight = batch.shape[0] / sample_count
+        group_losses["loss"] = sum(group_losses[key] for key in ("kind", "policy", "tuning", "value"))
         for key in totals:
-            totals[key] += losses[key].item() * weight
-        if progress is not None:
-            progress(batch_number, batch_count, totals)
-
-    return totals
+            totals[key] += group_losses[key] * len(group)
+        processed += len(group)
+        updates += 1
+    return {**{key: value / max(processed, 1) for key, value in totals.items()},
+            "optimizer_steps": updates, "samples_processed": processed}
 
 
 def evaluate_loss(
@@ -208,9 +225,12 @@ def evaluate_loss(
     tensors: Dict[str, torch.Tensor],
     batch_size: int,
 ) -> Dict[str, float]:
+    was_training = model.training
     model.eval()
     sample_count = tensors["actions"].shape[0]
     totals = {"loss": 0.0, "kind": 0.0, "policy": 0.0, "tuning": 0.0, "value": 0.0}
+    move_total = int((tensors['move_policy'].sum(dim=1) > 0).sum().item())
+    tune_total = int((tensors['tuning_policy'].sum(dim=1) > 0).sum().item())
     with torch.no_grad():
         for start in range(0, sample_count, batch_size):
             batch = torch.arange(
@@ -219,9 +239,13 @@ def evaluate_loss(
                 device=tensors["actions"].device,
             )
             losses = _loss_components(model, tensors, batch)
-            weight = batch.shape[0] / sample_count
-            for key in totals:
+            weights = {'kind': len(batch) / sample_count, 'value': len(batch) / sample_count,
+                       'policy': int((tensors['move_policy'][batch].sum(dim=1) > 0).sum().item()) / max(move_total, 1),
+                       'tuning': int((tensors['tuning_policy'][batch].sum(dim=1) > 0).sum().item()) / max(tune_total, 1)}
+            for key, weight in weights.items():
                 totals[key] += losses[key].item() * weight
+    totals['loss'] = sum(totals[key] for key in ('kind', 'policy', 'tuning', 'value'))
+    model.train(was_training)
     return totals
 
 

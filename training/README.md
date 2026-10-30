@@ -192,6 +192,397 @@ intentionally require `--full-policy` so the generated samples carry
 `history_board` and `history_side` windows. The local model server uses browser
 history snapshots when serving sequence checkpoints.
 
+## MCTS self-play
+
+### Persistent macOS training service
+
+
+The spectator dashboard includes a scoreboard backed by the read-only
+`/__selfplay/stats` endpoint. Results summarize completed MCTS generation batches
+under the current repetition setting, with a separate last-20-batches window.
+Red/Blue wins, repetition/capped draws, average plies, generation pace and tuning
+frequency come from the same `generate` event summaries used by analysis.
+Latest training/validation losses and frozen-checkpoint evaluation are shown
+separately from that results window. Recovered generation iterations replace
+earlier entries instead of being counted twice. Event reading is incremental and
+statistics are cached for five seconds; the viewer refreshes them every ten.
+
+The compact progress banner also shows elapsed time for the current service
+session (through its latest heartbeat, minus recorded inactivity gaps) and an
+estimated remaining awake compute time. ETA uses up to twenty completed batches
+under the current repetition rule and effective batch size, requiring at least
+five observations. It includes recorded generation, neural training/validation,
+and evaluation durations; checkpoint disk overhead is not included. The estimate
+adapts as game lengths change and is not a calendar completion date.
+
+The tactical section uses newly collected MCTS turn measurements; it displays
+its game coverage and starting iteration instead of assigning zeros to older
+games. A rescue opportunity is a turn beginning with at least one unstable own
+piece. It succeeds only when every such piece survives and is stable after that
+turn, matching the existing analysis definition. Aggregate rescue rates divide
+total rescues by total opportunities, with per-player counts shown alongside.
+Other metrics are losses per game by owner (including removals on either side's
+turn), turns with any tuning, net changed components divided by tuning actions,
+mean legal moves per decision position, and mean plies in decisive games.
+Measurement adds no engine searches and does not change rewards or rules.
+
+Validation reserves one complete MCTS game per eight-game batch before inserting
+the other seven games into training replay. The selected game slot rotates each
+iteration. A separate rolling buffer retains up to 2,048 validation positions and
+is saved/restored with recovery checkpoints. These game samples never enter the
+training replay. Identical opening positions can naturally recur across different
+games; this measures generalization to held-out game trajectories, not unseen
+board configurations. The validation window changes as self-play evolves.
+
+After each epoch MLflow logs `validation_loss/total`, `action_kind`, `move_policy`,
+`tuning_policy`, and `value`, plus `validation/positions` and held-out buffer
+counts. Evaluation uses no gradients and preserves the model's prior mode.
+Configure with `--validation-games-per-batch 1 --validation-capacity 2048`.
+The older `--validation-fraction` splits sampled rows and is unsuitable for
+holding out replay games across iterations; leave it at zero for this service.
+
+The active service uses `--mcts-repetition-limit 3`: the third identical
+turn-boundary position ends an MCTS self-play game with a neutral value target
+(0 on the -1 to +1 scale). Pieces, player to move, tuning, activation orders and
+other rule settings must match; UI state and turn counters are ignored. Tuning
+actions within a turn do not count as occurrences. This is a self-play cutoff;
+search simulations do not track repetition history. The 600-ply cap still applies.
+MLflow records `self_play/repetition_draw_rate` and
+`self_play/plies_avoided_by_repetition`; the latter measures remaining plies to
+the cap, rather than a measured counterfactual game length. The live viewer
+labels completed repetition draws explicitly. Disable with
+`--mcts-repetition-limit 0`.
+
+The installed user LaunchAgent is `com.wavefield.training`. It supervises training,
+MLflow, the log importer, and a built (non-development) self-play dashboard.
+It starts when this user logs in after a reboot, and restarts failed components.
+It does not run before login or bypass FileVault. It does not prevent Mac sleep:
+processes suspend during sleep and continue on wake; the dashboards are unreachable
+while the Mac is asleep. Locking the screen alone does not stop training.
+
+The service runtime, environments, data, and logs live in
+`~/Library/Application Support/WaveField/`, since launchd jobs cannot read this
+Mac's protected Documents folder. The repository's `training/runs`,
+`training/tracking`, and tracking environment remain accessible through local
+links. The Rust engine, initial state, Python sources, and built viewer are copied
+into the service runtime; repository edits require redeployment.
+
+```bash
+python3 training/service_control.py status
+python3 training/service_control.py restart
+python3 training/service_control.py stop
+python3 training/service_control.py start
+
+# Redeploy sources and rebuild the viewer, preserving data and the update target:
+python3 training/install_service.py
+```
+
+`stop` stops the managed services until restarted or the next login. During the
+one-time legacy handoff, it suspends the old trainer in memory rather than losing
+its unsaved updates; starting the service resumes it. Once the managed trainer is
+active, restarts recover from its latest complete checkpoint and may repeat the
+unfinished self-play batch or unsaved optimizer updates.
+
+Current configuration:
+
+- Eight independent CPU inference workers, eight self-play games per batch.
+- 128 MCTS simulations, all legal candidates, depth 32, 600 plies, 20 tunes/turn.
+- Outcome discount 0.997 per piece move, with no added repetition rule.
+- Effective optimizer batch **4,096**, accumulated through **128-position**
+  microbatches. Per-head gradient weights match a real full batch even when the
+  proportions of move/tuning examples differ across microbatches.
+- Three epochs over 4,096 sampled replay positions: **three optimizer updates**
+  per generation cycle. This does not increase the number of generated games.
+- Target: **100,000 new large-batch updates**, with the prior small-batch history
+  retained separately. The supervisor persists the phase's starting lifetime step.
+  At current generation rates this is a months-long target, not the earlier
+  small-batch estimate of days.
+- Atomic, flushed recovery checkpoint after every completed generation/training
+  cycle. Keep `checkpoint-latest.pt` and `checkpoint-previous.pt`; preserve model,
+  optimizer, replay, RNG state, and frozen evaluation opponent.
+- Milestone snapshots every 1,000 large-batch updates, retaining the latest three.
+  Existing historical checkpoints are preserved. Milestones use hard links to the
+  current snapshot initially. Logs rotate; low disk space pauses training below
+  1 GB free and resumes above 1.5 GB.
+
+The original six-worker run is adopted until checkpoint 40, then the service
+switches settings without losing completed training. If that old process dies
+beforehand, the service recovers its most recent saved checkpoint and starts the
+new phase. Until handoff, the old checkpoint schedule still applies.
+
+The live viewer shows active versus pending settings, large-batch and lifetime
+updates, durable checkpoint iteration, service starts/reboot counts, and inactivity
+resumes. Network requests time out and retry while the Mac is asleep. Heartbeat
+gaps are recorded as inactivity, without assuming every gap was sleep. MLflow logs
+`training/large_batch_optimizer_steps`, `settings/effective_batch_size`, and
+`service/*` metrics, plus start/resume tags. The dashboards remain available after
+the target is reached. Increase `target_large_batch_updates` in
+`service-config.json` and restart the service to extend the target.
+
+Use a stable Bonjour hostname when possible:
+
+- `http://michaels-macbook-pro-2.local:5174/?watch=1` — self-play and service status.
+- `http://michaels-macbook-pro-2.local:5050` — MLflow.
+
+The current LAN IP also works. The supervisor refreshes MLflow's allowed origins
+if its LAN address changes. No cloud resources are provisioned.
+
+Recovery verification includes a launchd-managed isolated trainer killed after
+saving a checkpoint, recovery to a replacement PID with the same saved update
+count, a supervisor restart preserving the legacy trainer, and a simulated
+inactivity gap. A real reboot or actual system sleep is not induced by setup.
+
+### Color and checkpoint audit
+
+`PYTHONPATH=training WAVEFIELD_SPECTATOR_DISABLE=1 python -m wavefield.color_audit
+--run-dir training/runs/selfplay-replay-discrete-20261028 --out /tmp/color-audit`
+freezes model-only copies of the latest checkpoint and the retained iteration-40
+and update-1002 anchors. It saves sampled positions, engine transformation checks,
+network symmetry measurements, and individual match results. The default matrix
+is 32 policy-only and 16 MCTS games per anchor, balancing model color and starting
+color independently with shared seed blocks. Policy-only temperature is 0.3;
+MCTS uses 128 simulations, all legal actions, depth 32, no root noise, visit
+sampling for the first 20 plies, up to 20 tunes per turn, threefold draws and a
+600-ply cap. Two lower-priority CPU workers run separately from training. The
+rotated color swap must preserve engine legality, field values, and sampled
+transitions before matches proceed. These small paired tests are exploratory;
+draw-heavy scores do not establish playing strength.
+
+### Shared GPU inference for MCTS
+
+`wavefield.experiment` supports one inference process shared by the CPU search
+workers. The Rust rules engine and MCTS trees stay on CPU; neural requests are
+batched onto `mps` (Apple GPU), `cuda` (NVIDIA), or a shared `cpu` control:
+
+```bash
+# Add to an experiment command:
+--mcts-workers 8 --mcts-inference-device mps \
+  --mcts-inference-max-batch 8 --mcts-inference-wait-ms 2
+```
+
+The default `--mcts-inference-device local` preserves independent CPU inference.
+The training model stays on CPU for this parallel path. At each batch, a snapshot
+of its weights is copied into the inference process, which returns raw head
+outputs to workers. Each worker has one outstanding request. The server flushes
+partial batches after the wait interval so stragglers and single active games
+continue making progress. All heads are downloaded in one GPU transfer.
+Failures are reported; the backend does not silently fall back to CPU. Generated
+`generate` events include inference batch sizes, position counts, and forward
+time. Inference batching is independent of optimizer minibatch size.
+
+Benchmark fixed positions from the spectator traces using the same checkpoint,
+128 MCTS simulations, all legal candidates, a 32-decision depth limit, and no
+root noise:
+
+```bash
+PYTHONPATH=training python training/benchmark_shared_inference.py \
+  --checkpoint training/runs/RUN/checkpoint-iter-30.pt \
+  --workers 8 --searches-per-worker 4 --repeats 3 \
+  --output training/tracking/shared-inference-benchmark.json
+```
+
+The benchmark checks CPU/GPU head outputs, alternates backend order, excludes
+worker startup from steady search timing, and reports startup-inclusive time
+separately. Pause competing training for a controlled run. The saved report
+contains the exact positions, configuration, actions, timings, and batch sizes.
+Apple MPS is not guaranteed to beat eight CPU workers for this small network;
+measure before enabling it for long training runs. Current training remains on
+local CPU inference unless explicitly changed.
+
+### Outcome discount for MCTS
+
+`--mcts-value-discount 0.997` discounts an outcome by `0.997 ** remaining_plies`.
+The default is `1.0` (undiscounted). Each piece move incurs one discount factor;
+tuning incurs none. Both decisive results and position-based cap values use
+the same discount. Losses remain negative, so delaying defeat is preferable
+to losing immediately. No repetition rule or repetition penalty is added.
+
+MCTS applies the factor on move edges during backup and child selection.
+Generated samples retain the undiscounted outcome, remaining piece moves, and
+discount in metadata. Existing replay samples retain their original targets
+and age out through the FIFO buffer.
+
+For an already-running parallel run, the optional local file
+`training/tracking/mcts-runtime.json` can override the discount at game start:
+
+```json
+{
+  "run_dir": "/absolute/path/to/the/training/run",
+  "seed_offset": 150210,
+  "start_iteration": 33,
+  "final_iteration": 100,
+  "value_discount": 0.997
+}
+```
+
+`seed_offset` is the training seed plus 60000. Set `start_iteration` beyond
+all games already launched so one complete batch uses the same discount.
+The override takes precedence over the CLI within that seed range. Workers
+write `selfplay-settings.json` in the run directory when they adopt it.
+MLflow reads this receipt into `settings/mcts_value_discount` and a current
+setting tag; the spectator feed reports it per game. Spawned workers pick up
+code/settings at the next batch without restarting the training parent.
+Retain the runtime configuration when resuming this active run, or explicitly
+supply the same CLI setting after removing the override.
+
+### Watch actual self-play games
+
+Run `npm run watch:selfplay` from the repository root and open
+`http://<LAN-IP>:5174/?watch=1`. The viewer shows committed training actions,
+including tuning, with a game selector, replay slider, playback speeds, and
+**Follow live**. Polling continues while replay is paused.
+
+Enable the optional worker feed by creating `training/tracking/spectator-config.json`:
+
+```json
+{"directory": "/absolute/path/to/wave-field/training/tracking/selfplay-live"}
+```
+
+Parallel MCTS workers read this configuration when each game starts. A running
+training process picks up the recorder when its next batch spawns workers;
+there is no training restart. The viewer waits until those workers publish.
+Each game slot keeps its latest game, replacing it at the next batch, so trace
+storage stays bounded. Recorded states omit undo history and are written only
+for chosen actions, never MCTS search branches. Completed capped games are
+labelled as capped. Playback steps include tunes; plies count piece moves.
+Game limits come from worker metadata (currently 600 plies / 20 tunes).
+Optionally set `seed_offset` to the training seed plus 60000 in the feed
+configuration to label games with their training iteration.
+
+Remove the configuration to stop recording at the next game, or set
+`WAVEFIELD_SPECTATOR_DISABLE=1` before launching training/tests. The feed and
+Vite server stay separate from MLflow and are available only while running
+locally. The feed endpoint is provided by the development server; it is not
+included in the published static site. Optional feed I/O errors disable the
+feed for that game without stopping training.
+
+### Live charts with MLflow
+
+The tracker imports `events.jsonl` from existing runs and watches for new events.
+It runs separately from training, so enabling charts needs no training restart.
+Install it in its own environment:
+
+```bash
+uv venv training/.venv-tracking --python python3.12
+uv pip install --python training/.venv-tracking/bin/python -r training/requirements-tracking.txt
+mkdir -p training/tracking
+```
+
+Start the local server from the repository root:
+
+```bash
+training/.venv-tracking/bin/mlflow server \
+  --host 127.0.0.1 --port 5050 --workers 1 \
+  --backend-store-uri sqlite:///training/tracking/mlflow.db \
+  --artifacts-destination training/tracking/artifacts
+```
+
+In another terminal, start the watcher (multiple run directories may be supplied):
+
+```bash
+training/.venv-tracking/bin/python training/track_runs.py \
+  training/runs/selfplay-replay-discrete-20261028 --watch
+```
+
+Open <http://127.0.0.1:5050>, choose **Wave Field Self-play**, open a run, and
+select **Model metrics**. The watcher checks for new log entries every five
+seconds; MLflow's **Auto-refresh** updates the charts. Useful metric groups:
+
+- `loss/`: total, value, move policy, tuning policy, and action-kind losses.
+- `self_play/`: generation time, positions per second, game length, capped rate,
+  and tuning frequency.
+- `replay/` and `training/`: retained positions, sampled positions, and optimizer updates.
+- `evaluation/`: results against earlier self-play checkpoints (or historical baselines).
+- `settings/`: changes to game, tuning, and search limits across resumes.
+
+Use the **Step** chart axis: steps count optimizer updates, not MCTS simulations
+or game plies. Historical timestamps are reconstructed from logged durations;
+new entries use observed arrival time. `initial.*` parameters describe the first
+configuration; current settings also appear in tags, settings charts, and
+versioned configuration artifacts. Large model/replay checkpoint files remain
+in the original run directory. The watcher persists its log cursors in
+`training/tracking/sync-state.json`, so it can be restarted without reimporting
+previous events.
+
+Loss measures how well the network fits its targets. Use checkpoint match results
+and capped-game rates alongside loss when judging playing strength.
+
+### Training configuration
+
+Training and evaluation start from `engine/tests/product-initial-state.json`,
+which explicitly selects the current discrete (`sparse`) rules. New experiments
+log the rules variant and starting-position path, and checkpoints record the
+variant. Classic-rule checkpoints were trained on a different game; start a
+fresh experiment when training the discrete rules.
+
+MCTS self-play is opt-in with `--mcts-games-per-iteration`. Its default search
+budget is 128 simulations per action, with root exploration noise during
+training. The first 20 plies sample actions from MCTS visit counts. Use
+`--mcts-simulations`, `--mcts-dirichlet-alpha`,
+`--mcts-exploration-fraction`, and `--mcts-sample-first-plies` to tune the
+search. `--mcts-workers N` generates up to N independent games concurrently
+on CPU and combines their samples before each model update. Each worker owns a
+model copy and Rust engine; one worker preserves serial generation. Head-to-head `model_search`
+matches also default to 128 simulations, without root noise.
+
+Search discards UI undo history before crossing the Python/Rust boundary; encoded
+history for sequence models is maintained separately. By default, every legal
+move and tuning action is a search candidate (`--mcts-top-k 0`). A positive
+candidate limit enables policy pruning. Cached leaf evaluations are reused when
+search reaches its depth limit.
+
+For a from-scratch run with no teacher games or pretrained encoder, use MCTS
+self-play as the only training source. `--cap-value position` gives an unfinished
+game a fractional result based on the final piece count and proximity to the
+opposing king. Wins and losses still use the actual result:
+
+```bash
+PYTHONPATH=training python3 -m wavefield.experiment \
+  --run-dir training/runs/pure-mcts-replay \
+  --device cpu --model-arch transformer --hidden-size 256 --input-view piece_identity \
+  --full-policy --model-games 0 --mcts-games-per-iteration 8 --mcts-workers 6 \
+  --mcts-simulations 128 --mcts-top-k 0 --mcts-depth 32 \
+  --max-plies 600 --max-tuning-actions 20 --cap-value position \
+  --iterations 100 --epochs 3 --batch-size 128 --lr 0.0003 \
+  --replay-capacity 20000 --replay-sample-size 4096 \
+  --eval-every 10 --skip-self-eval --checkpoint-eval-games 8 \
+  --baseline-eval-games 0 --baseline-opponents "" --save-every 10
+```
+
+This starts from random network weights. The search and final game outcomes
+provide the policy and value targets. At the ply limit, the signed value is
+`piece_count_difference / 6 + 0.25 * proximity_difference`, clipped to [-1, 1].
+Proximity is the mean normalized closeness of surviving non-king pieces to the
+opposing king. The corresponding game points are `0.5 + signed_value / 2` for
+one player and the complement for the other. This is a declared training score
+for unfinished positions, not an observed win probability or a rules-defined
+draw. Use `--cap-value zero` for neutral outcomes at the length limit.
+`--max-tuning-actions 20` permits up to 20 tuning actions before a move, in both
+MCTS and network evaluation. A ply counts a player turn ending with a move;
+tuning actions within that turn do not consume plies. The tuning counter resets
+each turn. `-1` removes this limit, allowing tuning cycles to keep a turn open
+indefinitely.
+
+With replay enabled, each eight-game batch enters a FIFO window of up to 20,000
+positions. Each iteration samples up to 4,096 retained positions without
+replacement, then performs three shuffled passes in minibatches of 128. That
+means up to 96 optimizer steps per iteration; the initial iterations use fewer
+steps while the buffer fills. Logs distinguish individual `selfplay_game`
+completions, search simulations, replay size, and optimizer steps. Training
+computes policy and value losses with one shared network forward pass.
+
+Checkpoint evaluation uses the current network against a frozen earlier version
+of itself, with both colors and a small sampling temperature for varied games.
+It evaluates the networks without MCTS and logs `checkpoint_eval`; the first
+opponent is the initial network, and subsequent opponents are the previous
+evaluation snapshot. These matches do not feed the training buffer. The command
+above uses no random or heuristic opponents, teacher data, or bootstrap phase.
+
+Saved checkpoints include replay contents, optimizer state, and the optimizer
+step count. Resume with `--resume-checkpoint` and matching replay options; rule
+variant mismatches are rejected. Checkpoints are written to a temporary file
+before replacing the saved file.
+
 ## Head-to-Head Matches
 
 ```bash
@@ -363,3 +754,34 @@ material balance, low-material phase, and opening/midgame/endgame phase. Read
 probe scores relative to their majority or variance baseline: strong probe
 scores mean the representation contains the signal, not that the policy is
 using it well.
+
+### Paired color augmentation
+
+`--color-augmentation` trains on original positions and 180° rotated, color-swapped
+copies. Piece identities, board channels, component ownership, move masks, hard
+actions, MCTS move distributions, and history frames are mapped together. Values
+remain player-to-move relative; tuning and action-kind targets are unchanged.
+
+The 4,096-row replay draw becomes 2,048 originals plus 2,048 mirrors, preserving
+the effective batch and optimizer update budget. This trades independent positions
+per update for exact color balance. Replay stores original experiences only.
+Held-out games are separated before augmentation and validation remains unaugmented.
+The feature works with existing checkpoints; it encourages symmetry without
+forcing identical predictions. Epoch logs and MLflow record whether it is active.
+
+#### Full board symmetries
+
+Add `--spatial-augmentation` alongside `--color-augmentation` for the sparse rules.
+Each of the 2,048 selected source positions is assigned one of eight D4 orientations
+(four rotations, with/without reflection), balanced across the batch. Its paired
+color swap gets the same spatial transform. Thus all 16 variants are represented
+across each full batch without reducing independent source positions to 256 or
+increasing the 4,096-row budget. Orientation assignments vary each iteration.
+Piece IDs stay with their pieces during spatial transforms; the color counterpart
+mapping remains as above. Move distributions, masks, actions, and history board
+frames follow the spatial transform. Side features, values, tuning targets, and
+kind targets do not change under spatial transforms. This mode rejects non-sparse
+rules because other wave presets may depend on orientation.
+
+MLflow `training/augmentation_variants` records 16 when enabled; training and
+validation losses retain their existing definitions.

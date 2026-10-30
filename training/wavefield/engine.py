@@ -8,7 +8,7 @@ from typing import Any, Dict, Iterable, List, Optional, TypedDict
 
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
-INITIAL_STATE_PATH = REPO_ROOT / "engine/tests/initial-state.json"
+INITIAL_STATE_PATH = REPO_ROOT / "engine/tests/product-initial-state.json"
 
 
 class Position(TypedDict):
@@ -32,10 +32,15 @@ def load_initial_state(path: Path = INITIAL_STATE_PATH) -> Dict[str, Any]:
     return json.loads(path.read_text())
 
 
+def without_undo_history(state: Dict[str, Any]) -> Dict[str, Any]:
+    return {**state, "history": []} if state.get("history") else state
+
+
 @dataclass
 class RustEngine:
     binary: Path = REPO_ROOT / "engine/target/release/wave-field-engine"
     persistent: bool = True
+    retain_history: bool = True
     _process: Optional[subprocess.Popen[str]] = field(default=None, init=False, repr=False)
 
     def build_release(self) -> None:
@@ -48,7 +53,7 @@ class RustEngine:
     def request(self, method: str, state: Optional[Dict[str, Any]] = None, **params: Any) -> Any:
         payload = {"method": method, **params}
         if state is not None:
-            payload["state"] = state
+            payload["state"] = state if self.retain_history else without_undo_history(state)
         if self.persistent:
             return self._persistent_request(payload)
         return self._one_shot_request(payload)
@@ -110,14 +115,20 @@ class RustEngine:
             return
         process = self._process
         self._process = None
-        if process.poll() is None:
-            if process.stdin:
-                process.stdin.close()
-            process.terminate()
-            try:
-                process.wait(timeout=1.0)
-            except subprocess.TimeoutExpired:
-                process.kill()
+        try:
+            if process.poll() is None:
+                if process.stdin:
+                    process.stdin.close()
+                process.terminate()
+                try:
+                    process.wait(timeout=1.0)
+                except subprocess.TimeoutExpired:
+                    process.kill()
+                    process.wait()
+        finally:
+            for pipe in (process.stdin, process.stdout, process.stderr):
+                if pipe is not None and not pipe.closed:
+                    pipe.close()
 
     def evaluate_field(self, state: Dict[str, Any]) -> List[List[float]]:
         return self.request("evaluateField", state)
@@ -170,10 +181,11 @@ class RustEngine:
         )
         if not result["ok"]:
             raise ValueError(result.get("reason") or "Rust engine rejected action")
-        return result["state"]
+        return result["state"] if self.retain_history else without_undo_history(result["state"])
 
     def begin_turn(self, state: Dict[str, Any], analyze_checkmate: bool = True) -> Dict[str, Any]:
-        return self.request("beginTurn", state, analyzeCheckmate=analyze_checkmate)
+        result = self.request("beginTurn", state, analyzeCheckmate=analyze_checkmate)
+        return result if self.retain_history else without_undo_history(result)
 
     def apply_tuning(
         self,
@@ -190,7 +202,7 @@ class RustEngine:
         )
         if not result["ok"]:
             raise ValueError(result.get("reason") or "Rust engine rejected tuning")
-        return result["state"]
+        return result["state"] if self.retain_history else without_undo_history(result["state"])
 
     def play_heuristic_turn(
         self,

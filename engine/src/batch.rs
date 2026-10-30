@@ -262,14 +262,21 @@ pub fn training_action_to_move(index: usize) -> Option<(String, Position)> {
 }
 
 fn push_components(values: &mut Vec<f32>, components: &PlayerComponents) {
-    values.extend(components.pawn.iter().map(|value| f32::from(*value)));
-    values.extend(components.rook.iter().map(|value| f32::from(*value)));
-    values.extend(components.spy.iter().map(|value| f32::from(*value)));
-    values.extend(components.king.iter().map(|value| f32::from(*value)));
+    // Keep the neural-network input layout stable across rule variants.
+    for (coefficients, slots) in [
+        (&components.pawn, 1),
+        (&components.rook, 2),
+        (&components.spy, 2),
+        (&components.king, 2),
+    ] {
+        for index in 0..slots {
+            values.push(f32::from(*coefficients.get(index).unwrap_or(&0)));
+        }
+    }
 }
 
 pub fn training_side(state: &GameState) -> Vec<f32> {
-    let mut values = Vec::with_capacity(19);
+    let mut values = Vec::with_capacity(15);
     push_components(&mut values, &state.components.red);
     push_components(&mut values, &state.components.blue);
     values.push(if state.current_player == Player::Red {

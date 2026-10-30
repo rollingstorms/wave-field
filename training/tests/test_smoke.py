@@ -5,6 +5,7 @@ import json
 from pathlib import Path
 import tempfile
 import unittest
+from unittest.mock import patch
 
 import numpy as np
 import torch
@@ -23,13 +24,15 @@ from wavefield.engine import RustEngine, load_initial_state
 from wavefield.eval import aggregate
 from wavefield.experiment import parse_weights, replay_weight_samples, sample_metadata_summary
 from wavefield.match import play_match_game
-from wavefield.mcts import MctsConfig, mcts_selfplay_records, select_mcts_action
+from wavefield.mcts import MctsConfig, MctsResult, mcts_selfplay_records, parallel_mcts_selfplay_records, select_mcts_action
 from wavefield.model import PolicyValueNet, masked_policy_logits
 from wavefield.policy_inspect import inspect_positions
+from wavefield.replay import ReplayBuffer
 from wavefield.scenarios import DEFAULT_SCENARIOS, build_scenario_states
 from wavefield.serve_model import ModelMoveServer
 from wavefield.selfplay import (
     Sample,
+    _position_value,
     batched_model_selfplay_records,
     heuristic_bootstrap_records,
     play_game,
@@ -46,6 +49,10 @@ class TrainingSmokeTest(unittest.TestCase):
     def setUpClass(cls) -> None:
         cls.engine = RustEngine()
         cls.engine.build_release()
+
+    @classmethod
+    def tearDownClass(cls) -> None:
+        cls.engine.close()
 
     def test_encode_initial_state_and_forward_pass(self) -> None:
         state = load_initial_state()
@@ -66,6 +73,28 @@ class TrainingSmokeTest(unittest.TestCase):
         self.assertEqual(logits.shape, (1, ACTION_SIZE))
         self.assertEqual(value.shape, (1,))
         self.assertTrue(torch.isfinite(masked.max()))
+
+    def test_default_selfplay_uses_product_discrete_rules(self) -> None:
+        state = load_initial_state()
+        self.assertEqual(state["variant"], "sparse")
+        self.assertEqual(state["homeEnergy"]["spy"], 1)
+        self.assertEqual(state["components"]["blue"]["spy"], [1])
+        self.assertFalse(any(
+            action["pieceType"] == "spy" and action["componentIndex"] == 1
+            for action in legal_tuning_actions(state)
+        ))
+        action = self.engine.legal_actions(state)[0]
+        result = self.engine.apply_action(state, action, analyze_checkmate=False)
+        self.assertEqual(result["variant"], "sparse")
+
+    def test_position_cutoff_value_is_zero_sum_and_uses_position(self) -> None:
+        state = load_initial_state()
+        self.assertAlmostEqual(_position_value(state, "red"), 0.0)
+        advanced = json.loads(json.dumps(state))
+        next(piece for piece in advanced["pieces"] if piece["id"] == "red-pawn-1")["position"] = {"x": 2, "y": 2}
+        red_value = _position_value(advanced, "red")
+        self.assertGreater(red_value, 0.0)
+        self.assertAlmostEqual(red_value, -_position_value(advanced, "blue"))
 
     def test_piece_identity_view_and_residual_forward_pass(self) -> None:
         state = load_initial_state()
@@ -260,6 +289,150 @@ class TrainingSmokeTest(unittest.TestCase):
         self.assertGreater(len(samples), 0)
         self.assertTrue(any(sample.kind_policy is not None for sample in samples))
         self.assertTrue(all(abs(float(sample.kind_policy.sum()) - 1.0) < 1.0e-5 for sample in samples if sample.kind_policy is not None))
+
+    def test_compact_engine_preserves_rules_and_discards_only_undo_history(self) -> None:
+        state = load_initial_state()
+        snapshot = {key: value for key, value in state.items() if key != "history"}
+        state["history"] = [snapshot] * 100
+        compact = RustEngine(retain_history=False)
+        try:
+            self.assertEqual(self.engine.legal_actions(state), compact.legal_actions(state))
+            action = compact.legal_actions(state)[0]
+            expected = self.engine.apply_action(state, action)
+            actual = compact.apply_action(state, action)
+            self.assertEqual({**expected, "history": []}, actual)
+            tune = legal_tuning_actions(state)[0]
+            expected_tune = self.engine.apply_tuning(state, tune)
+            actual_tune = compact.apply_tuning(state, tune)
+            self.assertEqual({**expected_tune, "history": []}, actual_tune)
+            self.assertEqual(len(state["history"]), 100)
+        finally:
+            compact.close()
+
+    def test_mcts_covers_all_legal_actions_and_ignores_undo_history(self) -> None:
+        model = PolicyValueNet(hidden_size=32)
+        state = load_initial_state()
+        config = MctsConfig(simulations=16, top_k=0, max_depth=3, max_tuning_actions=1)
+        expected = select_mcts_action(model, state, self.engine, config)
+        snapshot = {key: value for key, value in state.items() if key != "history"}
+        state["history"] = [snapshot] * 100
+        actual = select_mcts_action(model, state, self.engine, config)
+        self.assertEqual(expected.policy, actual.policy)
+        self.assertEqual(expected.action, actual.action)
+        legal = self.engine.legal_actions(state) + legal_tuning_actions(state)
+        self.assertEqual(len(actual.policy), len(legal))
+        self.assertTrue(all(any(row["action"] == action for row in actual.policy) for action in legal))
+
+    def test_mcts_reuses_evaluations_at_depth_limit(self) -> None:
+        model = PolicyValueNet(hidden_size=32)
+        with patch.object(model, "search_outputs", wraps=model.search_outputs) as outputs:
+            result = select_mcts_action(
+                model, load_initial_state(), self.engine,
+                MctsConfig(simulations=100, top_k=4, max_depth=1, max_tuning_actions=1),
+            )
+        self.assertLessEqual(outputs.call_count, 1 + len(result.policy))
+        self.assertEqual(sum(row["visits"] for row in result.policy), 100)
+
+    def test_unlimited_mcts_tuning_remains_available_and_exceeds_three_actions(self) -> None:
+        model = PolicyValueNet(hidden_size=32)
+        state = load_initial_state()
+        config = MctsConfig(simulations=2, top_k=0, max_depth=1, max_tuning_actions=-1)
+        result = select_mcts_action(model, state, self.engine, config, tune_count=1000)
+        self.assertTrue(any(row["action"].get("type") == "tune" for row in result.policy))
+        calls = 0
+
+        def choose(_model, state, engine, **_kwargs):
+            nonlocal calls
+            action = legal_tuning_actions(state)[0] if calls < 5 else engine.legal_actions(state)[0]
+            calls += 1
+            return MctsResult(action=action, visits=1, value=0.0, root_value=0.0,
+                              policy=[{"action": action, "prior": 1.0, "visits": 1, "value": 0.0}])
+
+        with patch("wavefield.mcts.select_mcts_action", side_effect=choose):
+            record = mcts_selfplay_records(
+                self.engine, model, games=1, max_plies=1, seed=83, config=config,
+            )[0]
+        self.assertEqual(record.stats.plies, 1)
+        self.assertEqual(record.stats.tune_actions_by_player["blue"], 5)
+        self.assertEqual(len(record.samples), 6)
+
+    def test_unlimited_network_tuning_exceeds_three_actions(self) -> None:
+        model = PolicyValueNet(hidden_size=32)
+        choices = 0
+
+        def choose(logits, _temperature):
+            nonlocal choices
+            if logits.numel() == 2:
+                index = 1 if choices < 5 else 0
+                choices += 1
+                self.assertGreater(float(logits[index]), -1.0e8)
+                return index
+            return int(logits.argmax().item())
+
+        with patch("wavefield.selfplay._select_index", side_effect=choose):
+            state, samples, tunes = select_model_full_turn(
+                model, load_initial_state(), self.engine, max_tuning_actions=-1,
+            )
+        self.assertEqual(tunes, 5)
+        self.assertEqual(len(samples), 6)
+        self.assertEqual(state["currentPlayer"], "red")
+
+    def test_replay_retains_old_positions_and_restores_checkpoint(self) -> None:
+        model = PolicyValueNet(hidden_size=32)
+        records = mcts_selfplay_records(
+            self.engine, model, games=1, max_plies=3, seed=71,
+            config=MctsConfig(simulations=1, max_tuning_actions=0),
+        )
+        samples = records[0].samples
+        self.assertGreaterEqual(len(samples), 3)
+        replay = ReplayBuffer(3)
+        replay.extend(samples[:2])
+        replay.extend(samples[2:3])
+        self.assertEqual({id(x) for x in replay.draw(3, seed=73)}, {id(x) for x in samples[:3]})
+        replay.extend(samples[:1])
+        self.assertIs(list(replay.samples)[0], samples[1])
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "replay.pt"
+            torch.save(replay.state_dict(), path)
+            restored = ReplayBuffer(3)
+            restored.load_state_dict(torch.load(path, weights_only=False))
+        self.assertEqual(restored.total_seen, 4)
+        self.assertEqual(len(restored), 3)
+        np.testing.assert_equal(restored.draw(2, 77)[0].board, replay.draw(2, 77)[0].board)
+
+    def test_match_routes_each_side_to_its_own_network(self) -> None:
+        blue = PolicyValueNet(hidden_size=32)
+        red = PolicyValueNet(hidden_size=32)
+        with patch("wavefield.match.select_model_full_turn", wraps=select_model_full_turn) as select:
+            play_match_game(
+                self.engine, policies={"blue": "model", "red": "model"},
+                model=blue, models_by_player={"blue": blue, "red": red},
+                device="cpu", max_plies=2, seed=79, temperature=0.0,
+                input_view="base", full_policy=True, max_tuning_actions=0,
+                collect_metrics=False,
+            )
+        self.assertEqual(select.call_count, 2)
+        self.assertIs(select.call_args_list[0].args[0], blue)
+        self.assertIs(select.call_args_list[1].args[0], red)
+
+    def test_parallel_mcts_matches_serial_games(self) -> None:
+        torch.manual_seed(52)
+        model = PolicyValueNet(hidden_size=32)
+        config = MctsConfig(value_discount=.997, simulations=2, top_k=4, max_depth=2, max_tuning_actions=1)
+        serial = mcts_selfplay_records(
+            self.engine, model, games=2, max_plies=2, seed=53, config=config,
+        )
+        parallel = parallel_mcts_selfplay_records(
+            model, games=2, workers=2, max_plies=2, seed=53, config=config,
+        )
+        self.assertEqual(len(serial), len(parallel))
+        for expected, actual in zip(serial, parallel):
+            self.assertEqual(expected.final_state, actual.final_state)
+            self.assertEqual(len(expected.samples), len(actual.samples))
+            for expected_sample, actual_sample in zip(expected.samples, actual.samples):
+                self.assertEqual(expected_sample.action_kind, actual_sample.action_kind)
+                self.assertEqual(expected_sample.action_index, actual_sample.action_index)
+                self.assertAlmostEqual(expected_sample.value, actual_sample.value)
 
     def test_mcts_selfplay_can_force_tuning_targets(self) -> None:
         model = PolicyValueNet(hidden_size=32)

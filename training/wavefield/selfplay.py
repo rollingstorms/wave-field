@@ -30,6 +30,7 @@ from .encoding import (
     legal_tuning_actions,
     legal_tuning_mask,
     tuning_action_index,
+    tuning_limit_allows,
 )
 from .engine import Action, TuningAction, RustEngine, load_initial_state
 from .model import PolicyValueNet, masked_policy_logits
@@ -37,7 +38,7 @@ from .model import PolicyValueNet, masked_policy_logits
 
 Player = Literal["red", "blue"]
 PolicyMode = Literal["random", "model", "heuristic", "easy"]
-CapValueMode = Literal["zero", "material"]
+CapValueMode = Literal["zero", "material", "position"]
 BootstrapPolicy = Literal["heuristic", "hard", "easy"]
 
 
@@ -63,6 +64,8 @@ class Sample:
 @dataclass
 class GameStats:
     plies: int = 0
+    termination_reason: Optional[str] = None
+    plies_avoided_by_repetition: int = 0
     status: str = "playing"
     winner: Optional[str] = None
     first_loss_player: Optional[str] = None
@@ -71,6 +74,8 @@ class GameStats:
     losses_by_piece_type: Dict[str, int] = field(default_factory=dict)
     rescue_opportunities: int = 0
     rescues: int = 0
+    rescue_opportunities_by_player: Dict[str, int] = field(default_factory=lambda: {"red": 0, "blue": 0})
+    rescues_by_player: Dict[str, int] = field(default_factory=lambda: {"red": 0, "blue": 0})
     pressure_sum: Dict[str, int] = field(default_factory=lambda: {"red": 0, "blue": 0})
     pressure_samples: int = 0
     ai_turns_by_player: Dict[str, int] = field(default_factory=lambda: {"red": 0, "blue": 0})
@@ -98,6 +103,8 @@ class GameStats:
         }
         return {
             "plies": self.plies,
+            "termination_reason": self.termination_reason,
+            "plies_avoided_by_repetition": self.plies_avoided_by_repetition,
             "status": self.status,
             "winner": self.winner,
             "decisive": self.decisive,
@@ -107,6 +114,8 @@ class GameStats:
             "losses_by_piece_type": self.losses_by_piece_type,
             "rescue_opportunities": self.rescue_opportunities,
             "rescues": self.rescues,
+            "rescue_opportunities_by_player": self.rescue_opportunities_by_player,
+            "rescues_by_player": self.rescues_by_player,
             "rescue_rate": self.rescue_rate,
             "avg_pressure": avg_pressure,
             "ai_turns_by_player": self.ai_turns_by_player,
@@ -207,6 +216,37 @@ def _material_value(state: Dict[str, Any], player: str) -> float:
     return max(-1.0, min(1.0, (counts[player] - counts[opponent]) / 6.0))
 
 
+def _position_value(state: Dict[str, Any], player: str) -> float:
+    """Fractional cutoff outcome from material and proximity to the opposing king."""
+    opponent = "blue" if player == "red" else "red"
+    pieces = state["pieces"]
+    counts = _piece_counts(state)
+    kings = {
+        piece["owner"]: piece["position"]
+        for piece in pieces
+        if piece["type"] == "king"
+    }
+
+    def proximity(owner: str) -> float:
+        target = kings.get("blue" if owner == "red" else "red")
+        if target is None:
+            return 0.0
+        attackers = [piece for piece in pieces if piece["owner"] == owner and piece["type"] != "king"]
+        if not attackers:
+            return 0.0
+        return sum(
+            1.0 - (
+                abs(piece["position"]["x"] - target["x"])
+                + abs(piece["position"]["y"] - target["y"])
+            ) / 12.0
+            for piece in attackers
+        ) / len(attackers)
+
+    material = (counts[player] - counts[opponent]) / 6.0
+    position = 0.25 * (proximity(player) - proximity(opponent))
+    return max(-1.0, min(1.0, material + position))
+
+
 def _component_change_count(before: Dict[str, Any], after: Dict[str, Any], player: str) -> int:
     before_components = before["components"][player]
     after_components = after["components"][player]
@@ -241,9 +281,15 @@ def _annotate_turn_samples(
 
 def _assign_values(samples: List[Sample], state: Dict[str, Any], cap_value: CapValueMode) -> None:
     for sample in samples:
+        if state.get('terminationReason') == 'threefold_repetition':
+            sample.value = 0.0
+            sample.metadata['termination_reason'] = 'threefold_repetition'
+            continue
         value = result_value(state["status"], sample.player)
         if state["status"] == "playing" and cap_value == "material":
             value = _material_value(state, sample.player)
+        elif state["status"] == "playing" and cap_value == "position":
+            value = _position_value(state, sample.player)
         sample.value = value
 
 
@@ -870,7 +916,7 @@ def select_model_full_turn(
     while True:
         move_actions = engine.legal_actions(tuned_state)
         tune_actions = legal_tuning_actions(tuned_state)
-        can_tune = bool(tune_actions) and tune_count < max_tuning_actions
+        can_tune = bool(tune_actions) and tuning_limit_allows(tune_count, max_tuning_actions)
         if not move_actions and not can_tune:
             return tuned_state, samples, tune_count
 
