@@ -57,6 +57,18 @@ class ScoreboardTest(unittest.TestCase):
         self.assertEqual(tactics['decisive_mean_plies'], 15)
         self.assertIsNone(TrainingScoreboard.summarize(rows[:1])['tactics']['rescue_rate'])
 
+    def test_eta_ignores_old_selfplay_batch_sizes(self):
+        scoreboard=TrainingScoreboard(Path('/tmp/unused-wavefield-status.json'))
+        scoreboard.timings={i:dict(complete=True,effective_batch_size=4096,games=8,generation=60,
+                                   epochs={1:dict(seconds=3,steps=1)}) for i in range(1,7)}
+        service=dict(selfplay_games=128,active_effective_batch_size=4096,large_batch_updates=10,
+                     target_large_batch_updates=100)
+        self.assertIsNone(scoreboard.time_estimate(service)['remaining_seconds'])
+        for i in range(7,12):
+            scoreboard.timings[i]=dict(complete=True,effective_batch_size=4096,games=128,generation=600,
+                                      epochs={1:dict(seconds=3,steps=1)})
+        self.assertEqual(scoreboard.time_estimate(service)['remaining_seconds'],90*603)
+
     def test_rules_window_recovery_duplicates_and_incomplete_tail(self):
         def generation(iteration, red, blue, capped, repetition):
             return dict(event='generate', phase='mcts_model_session', iteration=iteration, seconds=80,

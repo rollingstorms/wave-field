@@ -64,7 +64,7 @@ the production search policy.
 - A real CLI run completed GPU self-play, game holdout, symmetry augmentation,
   CPU NN optimization, and checkpoint saving in an isolated temporary run.
 - CUDA is supported by the portable tensor code but was not hardware-tested here.
-- Backend code is deployed; production remains eight Rust workers because the
+- At benchmark completion, production remained eight Rust workers because the
   controlled eight-game benchmark favors them. Trainer resumed after benchmarks.
 - The deployed viewer supports slow buffered replay across producer batch changes;
   playback does not throttle training. Existing Play / speed / Live controls apply.
@@ -73,3 +73,15 @@ Raw JSON and the frozen model live in the local ignored directory
 `training/tracking/tensor-benchmark-20261030/`. Reproduce using
 `training/benchmark_tensor_rules.py`; use `--mode selfplay --games 128` for the
 larger batch, and `--leaf-batch-size 8` for the optional parallel search.
+
+## Production rollout after the benchmark
+
+At the user's request, the local service was switched to 128 simultaneous games
+with tensor MCTS on MPS, using fused Metal rules and leaf batch size 1 (sequential
+search order). It resumed checkpoint 917 at 6,360 lifetime optimizer updates.
+The first batch, iteration 918, published all 128 feeds and advanced every game.
+The NN effective batch stays 4,096, microbatch 128, three epochs, with the existing
+100,000-update target. Sixteen games per generation batch are held out, preserving
+the prior 12.5% game holdout fraction; the validation buffer stays 2,048 positions.
+The service config persists this profile across restarts. The dashboard displays
+128 games / GPU MPS, and ETA excludes timings from the old eight-game batches.

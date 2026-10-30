@@ -37,7 +37,8 @@ class TrainingScoreboard:
     def time_estimate(self, service):
         effective = service.get('active_effective_batch_size', service.get('effective_batch_size'))
         rows = [row for iteration, row in sorted(self.timings.items())
-                if iteration >= self.rules_start and row.get('complete') and row.get('effective_batch_size') == effective][-20:]
+                if iteration >= self.rules_start and row.get('complete') and row.get('effective_batch_size') == effective
+                and (service.get('selfplay_games') is None or row.get('games') == service['selfplay_games'])][-20:]
         steps = sum(sum(epoch['steps'] for epoch in row.get('epochs', {}).values()) for row in rows)
         seconds = sum(row.get('generation', 0) + sum(epoch['seconds'] for epoch in row.get('epochs', {}).values())
                       + sum(row.get('evaluation', {}).values()) for row in rows)
@@ -78,7 +79,7 @@ class TrainingScoreboard:
             self.timings.setdefault(row['iteration'], {})['complete'] = True
         elif event == 'generate' and row.get('phase') == 'mcts_model_session':
             summary = row['summary']
-            self.timings.setdefault(row['iteration'], {})['generation'] = row['seconds']
+            self.timings.setdefault(row['iteration'], {}).update(generation=row['seconds'], games=summary['games'])
             # A recovered iteration replaces its prior entry instead of counting twice.
             self.generations[row['iteration']] = dict(iteration=row['iteration'], seconds=row['seconds'],
                 games=summary['games'], samples=summary['samples'], plies=summary['mean_plies'] * summary['games'],
