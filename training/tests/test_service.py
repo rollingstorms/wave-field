@@ -31,8 +31,9 @@ class ServiceTest(unittest.TestCase):
     def test_readonly_feed_serves_status_and_only_complete_frames(self):
         with tempfile.TemporaryDirectory() as tmp:
             root=Path(tmp);web=root/'web';web.mkdir();(web/'index.html').write_text('viewer')
-            feed=root/'feed';feed.mkdir();status=root/'status.json';status.write_text('{"state":"training"}')
+            feed=root/'feed';feed.mkdir();status=root/'status.json';status.write_text('{"state":"training","selfplay_games":1}')
             (feed/'game-0.meta.json').write_text('{"game":0}')
+            (feed/'game-127.meta.json').write_text('{"game":127}')
             (feed/'game-0.jsonl').write_text('{"seed":12,"sequence":0}\n{"seed":12,"sequence":1}\n{"seed":')
             server=ThreadingHTTPServer(('127.0.0.1',0),create_handler(web,feed,status))
             thread=threading.Thread(target=server.serve_forever,daemon=True);thread.start()
@@ -40,7 +41,9 @@ class ServiceTest(unittest.TestCase):
             def get(path):
                 with opener.open(f'http://127.0.0.1:{server.server_port}{path}', timeout=5) as response:return json.load(response)
             try:
-                self.assertEqual(get('/__selfplay/games')['service']['state'],'training')
+                listing=get('/__selfplay/games')
+                self.assertEqual(listing['service']['state'],'training')
+                self.assertEqual([game['game'] for game in listing['games']],[0])
                 result=get('/__selfplay/game/0?seed=12&after=0')
                 self.assertFalse(result['reset']);self.assertEqual(len(result['rows']),1)
                 self.assertEqual(result['rows'][0]['sequence'],1)

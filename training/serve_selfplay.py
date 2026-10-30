@@ -192,8 +192,12 @@ def create_handler(web_root: Path, feed: Path, status: Path):
             try:
                 if url.path == '/__selfplay/games':
                     games = [read_json(path) for path in feed.glob('game-*.meta.json')]
-                    games = sorted((game for game in games if game), key=lambda x: x['game'])
-                    return self.json_response(dict(games=games, service=read_json(status, {})))
+                    service = read_json(status, {})
+                    count = service.get('selfplay_games')
+                    games = sorted((game for game in games if game and
+                                    (not isinstance(count, int) or 0 <= game['game'] < count)),
+                                   key=lambda x: x['game'])
+                    return self.json_response(dict(games=games, service=service))
                 if url.path == '/__selfplay/service':
                     return self.json_response(read_json(status, {}))
                 if url.path == '/__selfplay/stats':
