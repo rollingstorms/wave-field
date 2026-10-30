@@ -105,7 +105,13 @@ class Supervisor:
         command = self.config['training_command']
         def option(name, default):
             return command[command.index(name) + 1] if name in command else default
-        self.desired_workers = int(option('--mcts-workers', 8))
+        self.search_backend = option('--mcts-backend', 'rust')
+        self.rules_device = option('--mcts-rules-device', 'cpu')
+        self.desired_workers = 1 if self.search_backend == 'tensor' else int(option('--mcts-workers', 8))
+        self.status.update(search_backend=self.search_backend, rules_device=self.rules_device,
+                           selfplay_games=int(option('--mcts-games-per-iteration', 8)))
+        if self.search_backend == 'tensor':
+            self.status['inference_device'] = f'batched tensor {self.rules_device.upper()}'
         self.desired_effective = int(option('--effective-batch-size', 4096))
         self.desired_micro = int(option('--batch-size', 128))
         self.updates_per_iteration = int(option('--epochs', 3)) * math.ceil(int(option('--replay-sample-size', 4096)) / self.desired_effective)

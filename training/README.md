@@ -785,3 +785,65 @@ rules because other wave presets may depend on orientation.
 
 MLflow `training/augmentation_variants` records 16 when enabled; training and
 validation losses retain their existing definitions.
+
+### Tensor rules and batched MCTS
+
+`--mcts-backend tensor --mcts-rules-device cpu|mps|cuda` runs batched self-play
+with the same model, 128 simulations, legal action set, value discount, tuning cap,
+ply cap, game holdouts, replay training, and repetition rule. The default remains
+`--mcts-backend rust`: benchmark full self-play before changing the service config.
+
+- `tensor_rules.py`: fixed-size board/state tensors, discrete influence lookup,
+  sliding ray movement, complete candidate king-safety checks, simultaneous rescue
+  deadline cascades, tuning, and NN encoding. CPU and CUDA use portable PyTorch.
+- `metal_rules.py`: fused Apple GPU kernels for fields, all action masks, state
+  transitions, and encoding. Uses the installed PyTorch `mps.compile_shader` API;
+  no PyTorch upgrade, compiler extension, or separate GPU runtime is needed.
+  `TensorRules('mps', fused=False)` retains the portable MPS implementation.
+- `tensor_mcts.py`: one leaf from each independent game per expansion batch. Rules
+  and NN share a device; tree selection and value backup remain Python on CPU.
+  The model is copied for inference, preserving the learner and optimizer device.
+- `tensor_selfplay.py`: records ordinary training samples, outcomes, tuning and
+  tactical metrics, and committed-action spectator frames. Viewing never slows
+  generation. Buffered playback stays on its loaded game across batch replacement;
+  click Live to rejoin the current producer.
+
+Supported states are the current sparse product rules with named product pieces,
+full-strength ±1 controls, the one-component triangle, and history_plies=1. Other
+rule variants / model histories are rejected explicitly. CUDA code is available
+but cannot be hardware-tested on this Mac. CPU and MPS are checked against Rust
+for fields, masks, encodings, rescue losses, activation ordering, and transitions.
+
+Example (separate run directory; existing service continues with its configured backend):
+
+```sh
+PYTHONPATH=training python -m wavefield.experiment \
+  --run-dir training/runs/tensor-trial --resume-checkpoint /path/to/checkpoint.pt \
+  --model-arch transformer --hidden-size 256 --input-view piece_identity \
+  --full-policy --model-games 0 --mcts-games-per-iteration 8 \
+  --mcts-backend tensor --mcts-rules-device mps --mcts-simulations 128 \
+  --mcts-depth 32 --mcts-top-k 0 --max-tuning-actions 20 --max-plies 600 \
+  --mcts-repetition-limit 3 --mcts-value-discount .997 --iterations 1
+```
+
+Reproduce local timing comparisons with `training/benchmark_tensor_rules.py`:
+
+```sh
+PYTHONPATH=training python training/benchmark_tensor_rules.py \
+  --checkpoint /path/to/frozen-model.pt --output /tmp/tensor-benchmark.json \
+  --games 8 --max-plies 4 --simulations 128 --repeats 2 --pause-training
+```
+
+`--pause-training` verifies and pauses the local trainer process group during
+measurement, then resumes it on normal exit, errors, or SIGTERM. The benchmark
+never writes the production replay/checkpoint or spectator feed. Rules timings
+compare serialized Rust requests with tensor positions already resident on device;
+full self-play timings also include model copying and Rust worker startup.
+
+`--mcts-leaf-batch-size 8` optionally reserves up to eight leaves per game using
+virtual loss before one batched evaluation. Every reservation is removed before
+backup, and the real simulation budget remains exactly 128 per decision. This is
+parallel MCTS: search order and therefore visit targets / selected actions can
+change. The default of 1 matches the existing sequential search in parity tests.
+The benchmark accepts the equivalent `--leaf-batch-size 8` option. Do not interpret
+short timing differences under parallel search as identical game trajectories.

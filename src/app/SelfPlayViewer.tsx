@@ -79,13 +79,17 @@ export function SelfPlayViewer() {
         if (feed.current.game !== game) {
           feed.current = {game, after: -1}; setFrames([]); setCursor(0);
         }
-        if (data.games.some(x => x.game === game)) {
-          const previous = feed.current;
+        const selectedGame = data.games.find(x => x.game === game);
+        const previous = feed.current;
+        // A replay stays pinned when the producer reuses its game slot. The
+        // trainer can finish many batches while this browser plays one slowly.
+        const replacedReplay = !live && previous.seed !== undefined && selectedGame?.seed !== previous.seed;
+        if (selectedGame && !replacedReplay) {
           const result = await fetch(`/__selfplay/game/${game}?seed=${previous.seed ?? ''}&after=${previous.after}`, {signal: controller.signal});
           if (!result.ok) throw new Error('Waiting for the game feed. Retrying…');
           const update = await result.json() as {seed: number; reset: boolean; rows: Frame[]};
           if (stopped) return;
-          if (update.rows.length) {
+          if (update.rows.length && (!update.reset || live || previous.seed === undefined)) {
             feed.current = {game, seed: update.seed, after: update.rows[update.rows.length - 1].sequence};
             setFrames(old => update.reset ? update.rows : [...old, ...update.rows]);
           }
@@ -98,7 +102,7 @@ export function SelfPlayViewer() {
     }
     void poll();
     return () => { stopped = true; clearTimeout(timer); activeController?.abort(); };
-  }, [game]);
+  }, [game, live]);
   useEffect(() => {
     if (!live || !games.find(x => x.game === game)?.complete) return;
     const active = games.filter(x => !x.complete).sort((a, b) => (b.iteration ?? 0) - (a.iteration ?? 0) || b.updated - a.updated)[0];
@@ -133,8 +137,8 @@ export function SelfPlayViewer() {
     <section className="spectator-layout">
       <div className="spectator-board">{state && typeFields ? <Board state={state} field={field} typeFields={typeFields} continuousField showTypeSums={false} energyView={false} energyChannels={ALL_ENERGY_CHANNELS} locked onSelect={noAction} onMove={noAction} onResign={noAction} onHint={noAction} onToggleEnergyChannel={noAction} /> : <div className="spectator-empty"><h2>Waiting for self-play</h2><p>The next batch of training workers will start broadcasting here automatically.</p></div>}</div>
       <aside className="spectator-panel">
-        <div className="spectator-status"><span className={latest && !latest.complete && age < 30 ? 'spectator-dot active' : 'spectator-dot'} />{!latest ? 'Waiting for next batch' : latest.complete ? 'Game complete' : age > 30 ? 'Waiting for next action' : 'Generating self-play'}</div>
-        <label>Training game<select value={game} onChange={e => {setGame(Number(e.target.value)); setLive(true); setPlaying(false);}}>{(games.length ? games : [{game: 0}]).map(x => <option key={x.game} value={x.game}>Game {x.game + 1}{'iteration' in x && x.iteration ? ` · iteration ${x.iteration}` : ''}</option>)}</select></label>
+        <div className="spectator-status"><span className={latest && !latest.complete && age < 30 ? 'spectator-dot active' : 'spectator-dot'} />{!live && frame ? 'Watching buffered game' : !latest ? 'Waiting for next batch' : latest.complete ? 'Game complete' : age > 30 ? 'Waiting for next action' : 'Generating self-play'}</div>
+        <label>Training game<select value={game} onChange={e => {setGame(Number(e.target.value)); setLive(true); setPlaying(false);}}>{(games.length ? games : [{game: 0}]).map(x => <option key={x.game} value={x.game}>Game {x.game + 1}{'iteration' in x && x.iteration ? ` · iteration ${x.game === game && !live && frame?.iteration ? frame.iteration : x.iteration}` : ''}</option>)}</select></label>
         <div className="spectator-stats"><div><span>Ply</span><strong>{frame?.ply ?? '—'}<small> / {frame?.max_plies ?? 600}</small></strong></div><div><span>Search</span><strong>{latest?.simulations ?? 128}<small> sims</small></strong></div></div>
         {state && <><div className="spectator-turn">{frame?.termination_reason === 'threefold_repetition' ? 'Draw by repetition' : state.status === 'playing' ? `${state.currentPlayer === 'red' ? 'Red' : 'Blue'} to act` : state.status.replace('-won', ' wins')}<span>Red {state.pieces.filter(x => x.owner === 'red').length} · Blue {state.pieces.filter(x => x.owner === 'blue').length} pieces</span></div><p className="spectator-action">{description}</p></>}
         <div className="spectator-playback">
@@ -143,7 +147,8 @@ export function SelfPlayViewer() {
         <div className="spectator-controls"><button onClick={() => seek(0)} disabled={!frames.length} aria-label="Rewind">↤</button><button onClick={() => seek(cursor - 1)} disabled={!frames.length} aria-label="Previous action">←</button><button onClick={() => {if (cursor >= frames.length - 1) setCursor(0);setLive(false);setPlaying(!playing);}} disabled={!frames.length}>{playing ? 'Pause' : 'Play'}</button><button onClick={() => seek(cursor + 1)} disabled={!frames.length} aria-label="Next action">→</button></div>
         <select aria-label="Playback speed" value={speed} onChange={e => setSpeed(Number(e.target.value))}><option value={1000}>1×</option><option value={500}>2×</option><option value={200}>5×</option></select>
         </div>
-        <p className="spectator-note">{frames.length ? `Action ${cursor}/${frames.length - 1} · ${age}s ago` : 'No moves yet'}</p>
+        <p className="spectator-note">{frames.length ? `Action ${cursor}/${frames.length - 1}${live ? ` · ${age}s ago` : ' · buffered replay'}` : 'No moves yet'}</p>
+        {!live && <p className="spectator-note">Playback speed is independent of training. Live rejoins the latest game.</p>}
         <details className="spectator-rules"><summary>Game settings</summary><p className="spectator-note">Discount {latest?.value_discount ?? .997} per piece move. Tunes are separate actions, up to {latest?.max_tuning_actions ?? 20} per turn. {latest?.max_plies ?? 600}-ply cap; threefold repetition is a draw.</p></details>
         {error && <p role="status">{error}</p>}
       </aside>

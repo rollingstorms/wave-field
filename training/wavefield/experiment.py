@@ -60,6 +60,9 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--model-games", type=int, default=100)
     parser.add_argument("--mcts-games-per-iteration", type=int, default=0)
     parser.add_argument("--mcts-workers", type=int, default=1, help="Parallel CPU self-play games per iteration.")
+    parser.add_argument("--mcts-leaf-batch-size", type=int, default=1, help="Reserved leaves per game for tensor parallel MCTS; 1 preserves sequential search order.")
+    parser.add_argument("--mcts-backend", choices=("rust", "tensor"), default="rust", help="Rust worker search or batched tensor rules/search.")
+    parser.add_argument("--mcts-rules-device", choices=("cpu", "mps", "cuda"), default="cpu", help="Device for both tensor rules and batched NN search.")
     parser.add_argument("--mcts-inference-device", choices=("local", "cpu", "mps", "cuda"), default="local", help="Shared inference backend; local keeps one CPU model per worker.")
     parser.add_argument("--mcts-inference-max-batch", type=int, default=32)
     parser.add_argument("--mcts-inference-wait-ms", type=float, default=2.0)
@@ -1351,7 +1354,17 @@ def main() -> None:
                 force_tune_prob=args.mcts_force_tune_prob,
             )
             inference_stats: Dict[str, Any] = {}
-            if args.mcts_workers > 1 or args.mcts_inference_device != "local":
+            if args.mcts_backend == "tensor":
+                from .tensor_selfplay import tensor_selfplay_records
+                records = tensor_selfplay_records(
+                    model, games=args.mcts_games_per_iteration, max_plies=args.max_plies,
+                    seed=args.seed + 60_000 + iteration, config=mcts_config,
+                    device=args.mcts_rules_device, input_view=args.input_view,
+                    history_plies=args.history_plies, cap_value=args.cap_value,
+                    on_game_complete=record_mcts_game, inference_stats=inference_stats,
+                    leaf_batch_size=args.mcts_leaf_batch_size,
+                )
+            elif args.mcts_workers > 1 or args.mcts_inference_device != "local":
                 records = parallel_mcts_selfplay_records(
                     model,
                     games=args.mcts_games_per_iteration,
@@ -1407,6 +1420,8 @@ def main() -> None:
                     "mcts": {
                         "simulations": args.mcts_simulations,
                         "workers": args.mcts_workers,
+                        "backend": args.mcts_backend,
+                        "rules_device": args.mcts_rules_device if args.mcts_backend == "tensor" else "cpu",
                         "top_k": args.mcts_top_k,
                         "min_tune_candidates": args.mcts_min_tune_candidates,
                         "min_move_candidates": args.mcts_min_move_candidates,
