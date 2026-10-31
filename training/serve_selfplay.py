@@ -38,7 +38,9 @@ class TrainingScoreboard:
         effective = service.get('active_effective_batch_size', service.get('effective_batch_size'))
         rows = [row for iteration, row in sorted(self.timings.items())
                 if iteration >= self.rules_start and row.get('complete') and row.get('effective_batch_size') == effective
-                and (service.get('selfplay_games') is None or row.get('games') == service['selfplay_games'])][-20:]
+                and (service.get('selfplay_games') is None or row.get('games') == service['selfplay_games'])
+                and (service.get('selfplay_mode') is None or row.get('mode', 'synchronous') == service['selfplay_mode'])
+                and (service.get('max_plies') is None or row.get('max_plies', 600) == service['max_plies'])][-20:]
         steps = sum(sum(epoch['steps'] for epoch in row.get('epochs', {}).values()) for row in rows)
         seconds = sum(row.get('generation', 0) + sum(epoch['seconds'] for epoch in row.get('epochs', {}).values())
                       + sum(row.get('evaluation', {}).values()) for row in rows)
@@ -79,9 +81,11 @@ class TrainingScoreboard:
             self.timings.setdefault(row['iteration'], {})['complete'] = True
         elif event == 'generate' and row.get('phase') == 'mcts_model_session':
             summary = row['summary']
-            self.timings.setdefault(row['iteration'], {}).update(generation=row['seconds'], games=summary['games'])
+            self.timings.setdefault(row['iteration'], {}).update(generation=row['seconds'], games=summary['games'],
+                mode=row.get('mcts', {}).get('mode', 'synchronous'),
+                max_plies=row.get('mcts', {}).get('max_plies', 600))
             # A recovered iteration replaces its prior entry instead of counting twice.
-            self.generations[row['iteration']] = dict(iteration=row['iteration'], seconds=row['seconds'],
+            self.generations[row['iteration']] = dict(iteration=row['iteration'], seconds=row.get('wall_seconds', row['seconds']),
                 games=summary['games'], samples=summary['samples'], plies=summary['mean_plies'] * summary['games'],
                 wins=summary['wins'], repetitions=summary.get('repetition_draws', 0),
                 tactics=summary.get('tactics'), legal_choices=summary.get('metadata', {}).get('legal_count', {}).get('mean'),

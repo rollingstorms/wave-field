@@ -37,6 +37,16 @@ class ScoreboardTest(unittest.TestCase):
             service['large_batch_updates'] = 100
             self.assertEqual(stats.time_estimate(service)['remaining_seconds'], 0)
 
+    def test_eta_excludes_old_mode_and_ply_cap(self):
+        scoreboard = TrainingScoreboard(Path('/tmp/unused-wavefield-status.json'))
+        for i, (mode, cap) in enumerate([('synchronous', 600), ('asynchronous', 600), ('asynchronous', 300)], 1):
+            scoreboard.timings[i] = dict(complete=True, effective_batch_size=4096, games=8,
+                mode=mode, max_plies=cap, generation=60, epochs={1: dict(seconds=3, steps=1)})
+        result = scoreboard.time_estimate(dict(selfplay_mode='asynchronous', max_plies=300,
+                                               active_effective_batch_size=4096, selfplay_games=8))
+        self.assertEqual(result['batches'], 1)
+        self.assertIsNone(result['remaining_seconds'])
+
     def test_tactical_coverage_and_rates_weight_by_opportunities(self):
         common = dict(games=8, seconds=80, samples=100, plies=400, repetitions=0,
                       wins=dict(red=1, blue=1), actions=dict(move=80, tune=20))

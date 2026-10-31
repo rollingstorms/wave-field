@@ -59,6 +59,8 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--random-games-per-iteration", type=int, default=0)
     parser.add_argument("--model-games", type=int, default=100)
     parser.add_argument("--mcts-games-per-iteration", type=int, default=0)
+    parser.add_argument("--async-selfplay", action="store_true", help="Continuously generate games while the learner trains.")
+    parser.add_argument("--async-queue-capacity", type=int, default=0, help="Maximum uncheckpointed games including games in progress; default 3 times workers.")
     parser.add_argument("--mcts-workers", type=int, default=1, help="Parallel CPU self-play games per iteration.")
     parser.add_argument("--mcts-leaf-batch-size", type=int, default=1, help="Reserved leaves per game for tensor parallel MCTS; 1 preserves sequential search order.")
     parser.add_argument("--mcts-backend", choices=("rust", "tensor"), default="rust", help="Rust worker search or batched tensor rules/search.")
@@ -904,6 +906,7 @@ def save_checkpoint(
     checkpoint_opponent: PolicyValueNet | None = None,
     opponent_iteration: int = 0,
     validation_replay: ReplayBuffer | None = None,
+    async_state: dict | None = None,
 ) -> None:
     checkpoint_path = args.run_dir / ("checkpoint.pt" if iteration == final_iteration else f"checkpoint-iter-{iteration}.pt")
     if args.recovery_checkpoints:
@@ -926,6 +929,7 @@ def save_checkpoint(
             "rules_variant": load_initial_state().get("variant", "classic"),
             "replay": replay.state_dict() if replay is not None else None,
             "validation_replay": validation_replay.state_dict() if validation_replay is not None else None,
+            "async_selfplay": async_state,
             "optimizer_steps": optimizer_steps,
             "config": serializable_config(args),
             "torch_rng_state": torch.get_rng_state(),
@@ -962,6 +966,26 @@ def save_checkpoint(
             for old in existing[:-args.keep_milestones]:
                 old.unlink()
     logger.write({"event": "saved", "iteration": iteration, "checkpoint": str(checkpoint_path)})
+
+
+def mcts_config_from_args(args):
+    return MctsConfig(
+        simulations=args.mcts_simulations,
+        repetition_limit=args.mcts_repetition_limit,
+        value_discount=args.mcts_value_discount,
+        c_puct=args.mcts_c_puct,
+        top_k=args.mcts_top_k,
+        min_tune_candidates=args.mcts_min_tune_candidates,
+        min_move_candidates=args.mcts_min_move_candidates,
+        max_depth=args.mcts_depth,
+        max_tuning_actions=args.max_tuning_actions,
+        policy_temperature=args.temperature,
+        dirichlet_alpha=args.mcts_dirichlet_alpha,
+        exploration_fraction=args.mcts_exploration_fraction,
+        sample_first_plies=args.mcts_sample_first_plies,
+        force_first_tune_prob=args.mcts_force_first_tune_prob,
+        force_tune_prob=args.mcts_force_tune_prob,
+    )
 
 
 def main() -> None:
@@ -1033,6 +1057,13 @@ def main() -> None:
         raise ValueError("--max-tuning-actions must be -1 (unlimited) or nonnegative.")
     if args.resume_checkpoint is not None and (args.pretrain_random_games > 0 or args.heuristic_bootstrap_games > 0):
         raise ValueError("Resume runs should use per-iteration generation, not bootstrap phases.")
+    if args.async_selfplay:
+        if device.type != "cpu" or args.mcts_backend != "rust" or args.mcts_inference_device != "local":
+            raise ValueError("Async self-play requires CPU training and local Rust MCTS")
+        if args.mcts_games_per_iteration < 1 or not (args.recovery_checkpoints or args.save_every == 1):
+            raise ValueError("Async self-play requires MCTS games and a checkpoint after every learner cohort")
+        if args.async_queue_capacity < 0:
+            raise ValueError("Async queue capacity must be nonnegative")
     torch.manual_seed(args.seed)
     args.run_dir.mkdir(parents=True, exist_ok=True)
     training_lock = (args.run_dir / ".training.lock").open("w")
@@ -1215,6 +1246,13 @@ def main() -> None:
             validation_fraction=args.validation_fraction,
         )
 
+    async_pool = None
+    if args.async_selfplay:
+        from .async_selfplay import AsyncSelfplayPool
+        async_pool = AsyncSelfplayPool(model, args, mcts_config_from_args(args), optimizer_steps,
+                                       start_iteration + 1,
+                                       checkpoint.get('async_selfplay') if args.resume_checkpoint else None)
+    last_selfplay_delivery = time.perf_counter()
     final_iteration = start_iteration + args.iterations
     for iteration in range(start_iteration + 1, final_iteration + 1):
         if args.target_optimizer_steps and optimizer_steps >= args.target_optimizer_steps:
@@ -1336,25 +1374,17 @@ def main() -> None:
                     "elapsed_seconds": round(time.perf_counter() - started_at, 3),
                 })
 
-            mcts_config = MctsConfig(
-                simulations=args.mcts_simulations,
-                repetition_limit=args.mcts_repetition_limit,
-                value_discount=args.mcts_value_discount,
-                c_puct=args.mcts_c_puct,
-                top_k=args.mcts_top_k,
-                min_tune_candidates=args.mcts_min_tune_candidates,
-                min_move_candidates=args.mcts_min_move_candidates,
-                max_depth=args.mcts_depth,
-                max_tuning_actions=args.max_tuning_actions,
-                policy_temperature=args.temperature,
-                dirichlet_alpha=args.mcts_dirichlet_alpha,
-                exploration_fraction=args.mcts_exploration_fraction,
-                sample_first_plies=args.mcts_sample_first_plies,
-                force_first_tune_prob=args.mcts_force_first_tune_prob,
-                force_tune_prob=args.mcts_force_tune_prob,
-            )
+            mcts_config = mcts_config_from_args(args)
             inference_stats: Dict[str, Any] = {}
-            if args.mcts_backend == "tensor":
+            if async_pool is not None:
+                completed = async_pool.get_batch(args.mcts_games_per_iteration)
+                records = [item['record'] for item in completed]
+                inference_stats.update(mode='asynchronous', game_ids=[item['game_id'] for item in completed],
+                                       source_model_versions=[item['model_version'] for item in completed],
+                                       actor_seconds=sum(item['seconds'] for item in completed))
+                for index, record in enumerate(records):
+                    record_mcts_game(index, record)
+            elif args.mcts_backend == "tensor":
                 from .tensor_selfplay import tensor_selfplay_records
                 records = tensor_selfplay_records(
                     model, games=args.mcts_games_per_iteration, max_plies=args.max_plies,
@@ -1395,6 +1425,8 @@ def main() -> None:
                     cap_value=args.cap_value,
                     on_game_complete=record_mcts_game,
                 )
+            cohort_wall_seconds = time.perf_counter() - last_selfplay_delivery
+            last_selfplay_delivery = time.perf_counter()
             mcts_samples = [sample for record in records for sample in record.samples]
             if validation_replay is not None:
                 train_game_samples, heldout_game_samples = partition_validation_games(records, args.validation_games_per_batch, iteration)
@@ -1412,6 +1444,7 @@ def main() -> None:
                 {
                     "event": "generate",
                     "phase": "mcts_model_session",
+                    "wall_seconds": round(cohort_wall_seconds, 3),
                     "search_simulations": len(mcts_samples) * args.mcts_simulations,
                     "inference": inference_stats,
                     "iteration": iteration,
@@ -1420,6 +1453,8 @@ def main() -> None:
                     "mcts": {
                         "simulations": args.mcts_simulations,
                         "workers": args.mcts_workers,
+                        "mode": "asynchronous" if args.async_selfplay else "synchronous",
+                        "max_plies": args.max_plies,
                         "backend": args.mcts_backend,
                         "rules_device": args.mcts_rules_device if args.mcts_backend == "tensor" else "cpu",
                         "top_k": args.mcts_top_k,
@@ -1596,13 +1631,18 @@ def main() -> None:
                     initial_states=scenario_eval_states,
                 )
         if args.recovery_checkpoints or (args.save_every > 0 and iteration % args.save_every == 0):
-            save_checkpoint(model, optimizer, args, logger, iteration, final_iteration, replay, optimizer_steps, checkpoint_opponent, opponent_iteration, validation_replay)
+            save_checkpoint(model, optimizer, args, logger, iteration, final_iteration, replay, optimizer_steps, checkpoint_opponent, opponent_iteration, validation_replay, async_pool.checkpoint_state() if async_pool else None)
+            if async_pool is not None:
+                async_pool.publish(model, optimizer_steps, iteration + 1)
+                async_pool.acknowledge()
         if args.target_optimizer_steps and optimizer_steps >= args.target_optimizer_steps:
             logger.write({"event": "target_complete", "iteration": iteration, "optimizer_steps_total": optimizer_steps})
             break
 
     if not args.recovery_checkpoints and (args.iterations == 0 or args.save_every <= 0 or final_iteration % args.save_every != 0):
         save_checkpoint(model, optimizer, args, logger, final_iteration, final_iteration, replay, optimizer_steps, checkpoint_opponent, opponent_iteration, validation_replay)
+    if async_pool is not None:
+        async_pool.close()
     engine.close()
 
 

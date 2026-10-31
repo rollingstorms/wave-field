@@ -109,7 +109,9 @@ class Supervisor:
         self.rules_device = option('--mcts-rules-device', 'cpu')
         self.desired_workers = 1 if self.search_backend == 'tensor' else int(option('--mcts-workers', 8))
         self.status.update(search_backend=self.search_backend, rules_device=self.rules_device,
-                           selfplay_games=int(option('--mcts-games-per-iteration', 8)))
+                           selfplay_games=int(option('--mcts-games-per-iteration', 8)),
+                           selfplay_mode='asynchronous' if '--async-selfplay' in command else 'synchronous',
+                           max_plies=int(option('--max-plies', 600)))
         if self.search_backend == 'tensor':
             self.status['inference_device'] = f'batched tensor {self.rules_device.upper()}'
         self.desired_effective = int(option('--effective-batch-size', 4096))

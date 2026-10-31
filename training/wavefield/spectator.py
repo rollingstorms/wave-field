@@ -11,7 +11,7 @@ CONFIG = Path(__file__).resolve().parents[1] / 'tracking' / 'spectator-config.js
 
 
 class SpectatorFeed:
-    def __init__(self, game: int, seed: int, simulations: int, max_plies: int = 600, max_tuning_actions: int = 20, value_discount: float = 1.0):
+    def __init__(self, game: int, seed: int, simulations: int, max_plies: int = 600, max_tuning_actions: int = 20, value_discount: float = 1.0, *, iteration=None, game_id=None, model_version=None):
         self.handle = None
         self.sequence = 0
         self.game = game
@@ -20,12 +20,14 @@ class SpectatorFeed:
         self.value_discount = value_discount
         self.max_plies = max_plies
         self.max_tuning_actions = max_tuning_actions
-        self.iteration = None
+        self.iteration = iteration
+        self.game_id = game_id
+        self.model_version = model_version
         if os.environ.get("WAVEFIELD_SPECTATOR_DISABLE") == "1":
             return
         try:
             config = json.loads(CONFIG.read_text())
-            if isinstance(config.get('seed_offset'), int):
+            if iteration is None and isinstance(config.get('seed_offset'), int):
                 if seed < config['seed_offset']:
                     return
                 self.iteration = seed - config['seed_offset']
@@ -47,7 +49,7 @@ class SpectatorFeed:
             return
         try:
             metadata = dict(game=self.game, seed=self.seed, simulations=self.simulations,
-                            iteration=self.iteration, value_discount=self.value_discount, max_plies=self.max_plies,
+                            iteration=self.iteration, game_id=self.game_id, model_version=self.model_version, value_discount=self.value_discount, max_plies=self.max_plies,
                             max_tuning_actions=self.max_tuning_actions,
                             sequence=self.sequence, ply=ply, updated=time.time(),
                             complete=complete, status=state['status'])

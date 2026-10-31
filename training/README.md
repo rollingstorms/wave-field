@@ -847,3 +847,26 @@ parallel MCTS: search order and therefore visit targets / selected actions can
 change. The default of 1 matches the existing sequential search in parity tests.
 The benchmark accepts the equivalent `--leaf-batch-size 8` option. Do not interpret
 short timing differences under parallel search as identical game trajectories.
+
+### Continuous asynchronous CPU self-play
+
+Add `--async-selfplay` to local Rust CPU MCTS training. Persistent actors start
+new games independently; every `--mcts-games-per-iteration` completed games feeds
+the learner while actors continue playing. Each game freezes its model at the
+start and checks the published weights before its next game. Eight workers,
+eight games per learner cohort, and `--max-plies 300 --eval-max-plies 300` are the
+service settings. The NN effective batch remains 4096 with microbatches of 128.
+
+The queue is bounded to three times the worker count by default (24 games,
+including games in progress and the cohort being trained). Actors wait when
+this fills. Set `--async-queue-capacity` to override it; capacity must accommodate
+all workers plus one learner cohort. This bounds both memory/disk use and policy
+lag. Generation logs include game IDs, source model update counts, summed actor
+time, learner wait time (`seconds`), and cohort wall time (`wall_seconds`).
+
+Completed games are atomically saved under `async-selfplay/inbox/`. They are
+removed only after a learner checkpoint records their consumption, so restarting
+reuses completed games without counting them twice. Games still in progress
+restart. Asynchronous mode requires CPU/local Rust inference and checkpoints
+after every cohort (`--recovery-checkpoints` or `--save-every 1`). The existing
+launchd service, MLflow logging, validation holdouts, and live viewer still apply.

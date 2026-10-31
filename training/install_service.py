@@ -117,11 +117,13 @@ for key,value in state.items():c.set_tag(value['run_id'],'wavefield_run_dir',map
     for key,value in {
         '--run-dir':str(run),'--mcts-workers':'8','--batch-size':'128','--effective-batch-size':'4096',
         '--epochs':'3','--mcts-value-discount':'0.997','--mcts-inference-device':'local',
-        '--mcts-repetition-limit':'3',
+        '--mcts-repetition-limit':'3','--max-plies':'300','--eval-max-plies':'300',
+        '--mcts-games-per-iteration':'8','--mcts-backend':'rust',
         '--validation-games-per-batch':'1','--validation-capacity':'2048',
         '--milestone-every-updates':'1000','--keep-milestones':'3','--save-every':'1',
     }.items():replace_option(training,key,value)
     if '--recovery-checkpoints' not in training:training.append('--recovery-checkpoints')
+    if '--async-selfplay' not in training:training.append('--async-selfplay')
     hostname=subprocess.check_output(['scutil','--get','LocalHostName'],text=True).strip().lower()+'.local'
     config={**previous,'base':str(base),'run_dir':str(run),'training_python':str(base/'training-env/bin/python'),
             'tracking_python':str(base/'tracking-env/bin/python'),'training_command':training,
