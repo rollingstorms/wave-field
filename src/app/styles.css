@@ -1978,6 +1978,35 @@ select, .editor-bar button, .secondary, .import-button {
   border-top: 1px solid var(--line);
 }
 
+.support-example {
+  margin-top: 18px;
+}
+
+.support-example-line {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 58px));
+  gap: 5px;
+  margin: 14px 0;
+}
+
+.support-example-line > span {
+  display: grid;
+  place-items: center;
+  aspect-ratio: 1;
+  border: 1px solid var(--line);
+  background: #b8b5ad;
+}
+
+.support-example-line .support-example-piece.blue { background: var(--blue); }
+.support-example-line .support-example-piece.red { background: var(--red); }
+.support-example-line .support-example-target {
+  color: #101212;
+  font-size: 1.5rem;
+  font-weight: 800;
+}
+
+.support-example p:last-child { margin-bottom: 0; }
+
 .movement-demo .legal-dot {
   inset: 30%;
 }

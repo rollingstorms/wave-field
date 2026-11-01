@@ -1,9 +1,8 @@
 # Wave Field
 
-**Wave Field** is a deterministic two-player strategy game on a 7×7 board.
-Pieces generate the territory themselves by contributing exact, local support
-patterns. Count Red and Blue separately: the higher total owns a square, and
-a tie is Neutral.
+**Wave Field** is a two-player strategy game on a 7×7 board. Pieces give their
+team support on nearby squares. More Red support makes a square Red; more Blue
+support makes it Blue; equal support makes it Neutral.
 
 **[Play Wave Field](https://rollingstorms.github.io/wave-field/)**
 
@@ -13,40 +12,24 @@ this default game. The original wave game remains available at
 [original rules](docs/CLASSIC_RULES.md). Existing wave strategy and research
 notes in [docs/STRATEGY.md](docs/STRATEGY.md) describe that classic game.
 
-## Objective
+## Play in a minute
 
-Win by **trapping the opposing Big Hat**. A Big Hat is trapped when its square is
-hostile territory, making the Big Hat unstable. After a move traps a Big Hat, the
-trapped player gets a visible rescue turn. If the rules cannot find a rescue,
-the status line says so instead of ending the game immediately.
+1. **Trap the opposing Big Hat:** make the square under it hostile territory.
+   The opponent gets a turn to rescue it.
+2. **Tune before moving:** `+` spreads support; `−` concentrates it. Both pieces
+   of the same type share your chosen pattern. The control preview shows the
+   exact squares and values.
+3. **Move one piece:** click it to see destinations, then click or drag to move.
+   A move ends your turn and relocates that piece's support pattern.
 
-## How You Play
+For example, if a Blue Tower and Red Tower each give 1 support to a square,
+it is Neutral. Tuning Blue's Tower from `++` to `+−` gives that square 2 Blue
+support against 1 Red support, making it Blue. The Towers are each two
+squares away along the same row in this example.
 
-Each turn ends when you move one piece. Before moving, you may tune your pattern
-controls as much as you like. You can play by moving alone, but tuning is
-usually the way to escape danger, protect your Big Hat, or turn a distant part of
-the board.
-
-Click a piece to see its legal destinations, or drag it across the board. Moving
-one piece ends the turn, removes its old support footprint, and applies it at
-the destination.
-
-The `+` and `−` controls select a piece type's support pattern. Tuning is
-shared by type, so both of your Towers use the same Tower profile.
-
-## The Field
-
-A piece supports only its own team. Each covered square receives 1, 2, or 4
-support. Patterns extend at most two squares; all other contributions are 0.
-The field is `Red support − Blue support`, so its sign decides territory.
-
-Tuning concentrates support: broad patterns give 1 per square, focused patterns
-give 2 on fewer squares, and Tower/Big Hat `−−` gives 4 on the four adjacent
-cross squares. The control previews show the exact footprints. See the
-[complete pattern table](docs/SPARSE_VARIANT.md).
-
-Every piece contributes 0 on its own square except the Triangle Hat, which
-contributes 1. Other pieces may support that square. Field totals are integers.
+Patterns reach at most two squares. They give 1, 2, 3, 4, or 6 support to a
+covered square. All pieces except Triangle Hats give 0 on their own square;
+Triangle Hats give themselves 1. See the [full pattern table](docs/SPARSE_VARIANT.md).
 
 ## Pieces
 
@@ -57,7 +40,7 @@ Big Hat. Blue moves first.
 | --- | ---: | ---: | --- |
 | Round Hat | 1 | 0 | Any distance along a clear horizontal, vertical, or diagonal ray |
 | Tower | 2 | 0 | Same |
-| Triangle Hat | 1 | 1 | Same, ignoring hostile territory |
+| Triangle Hat | 1 | 1 | Same, crossing hostile territory |
 | Big Hat | 2 | 0 | Same; must end the turn on friendly or Neutral territory |
 
 ## Turn
@@ -168,29 +151,14 @@ The opening formation is rotationally symmetric:
 
 `R` = Round Hat, `T` = Tower, `A` = Triangle Hat, `B` = Big Hat.
 
-## The Live Rules Demo
+## In the Demo
 
-The demo includes an optional heuristic Red opponent, selected-piece influence
-borders colored by contribution, drag-to-preview field updates, live
-wave-pattern thumbnails, a per-square Red and Blue support overlay,
-an interactive CMYK energy view with isolatable Round Hat, Tower, Triangle Hat, and Big Hat
-channels and per-square composition ratios,
-legal-move indicators, blocked-Big Hat move markers, instability warnings, loss
-burst animations, undo and restart, continuous field-magnitude shading, a compact
-mobile tuning panel, and a developer mode for inspecting the raw field, piece
-contributions, mobility, and default pattern controls.
-The selected control profile is applied to both players on restart. Its
-scrollable History Roll reconstructs moves, tuning
-changes, dice and hint profiles, piece losses, and turn transitions from the
-active undo timeline. The Pressure panel summarizes legal moves, unstable
-pieces, Big Hat safety, and a recent pressure trend.
-
-The optional Red AI uses a bounded heuristic search. It evaluates many tuning
-and movement candidates quickly, then runs exact safety validation on a small
-shortlist so mobile browsers remain responsive.
-
-The implementation is deterministic: the same position and component settings
-always produce the same field and legal moves.
+The **How to play** screen shows the starting board, piece patterns, and a
+one-square tuning example. On the game board, white rings are playable moves,
+yellow `B` markers show moves that would leave your Big Hat unsafe, and yellow
+diamonds warn of a piece loss. The numbers overlay shows Red and Blue support
+on each square. Undo, restart, a History Roll, and an optional Red AI are also
+available.
 
 ## Run Locally
 

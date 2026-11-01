@@ -12,8 +12,9 @@ undo.
 ## How You Play
 
 Every piece contributes a small, exact pattern of support to its own team.
-Tuning trades wider 1-point coverage for focused 2-point coverage. Towers and
-Big Hats can concentrate 4 support on the four adjacent cross squares.
+Tuning changes its footprint: wide patterns give 1 per square, while focused
+patterns give 2, 3, 4, or 6 on fewer squares. The control preview shows the
+chosen footprint.
 
 On your turn you may tune your pattern controls, then move one piece. Click a
 piece to see legal destinations, or drag it to move. Tuning is shared by type:
@@ -30,11 +31,17 @@ piece's old footprint and adds it at the destination. Its own square receives
 0 from that piece, except the Triangle Hat, which gives itself 1 support.
 Other pieces can still support that square.
 
-The `+` and `−` controls select the same profiles for both teams. Round Hats
-switch between a wide cross and focused diagonals. Triangle Hats switch
-between a wide diamond and a focused small diamond. Towers and Big Hats have
-wide, mixed, and tight modes; `−−` is the tight cross at 4 per adjacent square.
+The `+` and `−` controls select the same profile choices for both teams, but
+each player tunes their own pieces. Round Hats switch between a wide cross at 1
+and adjacent diagonals at 2. Triangle Hats switch between a wide diamond at 1
+and adjacent orthogonal squares at 3. Towers and Big Hats have four profiles;
+their `−−` tight crosses give 4 and 6 support per adjacent square, respectively.
 See the [complete pattern table](docs/SPARSE_VARIANT.md).
+
+For a single-square example, place a Blue Tower and Red Tower two squares on
+opposite sides of a square. On `++`, each gives that square 1 support, so it is
+Neutral. Tune Blue's Tower to `+−`: Blue now gives 2 while Red still gives 1,
+so the square becomes Blue. Tuning alone does not end the turn.
 
 The original wave rules are available at `/classic` and documented in
 [Classic Rules](docs/CLASSIC_RULES.md). `/sparse` remains an alias for the default
